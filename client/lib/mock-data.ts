@@ -9,6 +9,10 @@ export type Employee = {
   siteId: string;
   skillScore: number;
   trainingStatus: "compliant" | "due-soon" | "overdue";
+  email: string;
+  phone: string;
+  joinedAt: string;
+  yearsExperience: number;
 };
 
 export type Site = {
@@ -117,6 +121,10 @@ export const employees: Employee[] = [
     siteId: "s1",
     skillScore: 91,
     trainingStatus: "compliant",
+    email: "asha.patil@nectarenviro.com",
+    phone: "+91 98201 11001",
+    joinedAt: "2022-03-14",
+    yearsExperience: 8,
   },
   {
     id: "e2",
@@ -125,6 +133,10 @@ export const employees: Employee[] = [
     siteId: "s1",
     skillScore: 74,
     trainingStatus: "due-soon",
+    email: "rohan.deshmukh@nectarenviro.com",
+    phone: "+91 98201 11002",
+    joinedAt: "2023-07-01",
+    yearsExperience: 4,
   },
   {
     id: "e3",
@@ -133,6 +145,10 @@ export const employees: Employee[] = [
     siteId: "s2",
     skillScore: 68,
     trainingStatus: "overdue",
+    email: "meera.kulkarni@nectarenviro.com",
+    phone: "+91 98201 11003",
+    joinedAt: "2021-11-22",
+    yearsExperience: 6,
   },
   {
     id: "e4",
@@ -141,6 +157,10 @@ export const employees: Employee[] = [
     siteId: "s3",
     skillScore: 82,
     trainingStatus: "compliant",
+    email: "imran.shaikh@nectarenviro.com",
+    phone: "+91 98201 11004",
+    joinedAt: "2022-09-05",
+    yearsExperience: 7,
   },
   {
     id: "e5",
@@ -149,6 +169,10 @@ export const employees: Employee[] = [
     siteId: "s4",
     skillScore: 95,
     trainingStatus: "compliant",
+    email: "sneha.joshi@nectarenviro.com",
+    phone: "+91 98201 11005",
+    joinedAt: "2020-05-18",
+    yearsExperience: 10,
   },
   {
     id: "e6",
@@ -157,6 +181,10 @@ export const employees: Employee[] = [
     siteId: "s5",
     skillScore: 58,
     trainingStatus: "overdue",
+    email: "vikram.nair@nectarenviro.com",
+    phone: "+91 98201 11006",
+    joinedAt: "2024-01-10",
+    yearsExperience: 3,
   },
   {
     id: "e7",
@@ -165,6 +193,10 @@ export const employees: Employee[] = [
     siteId: "s2",
     skillScore: 79,
     trainingStatus: "due-soon",
+    email: "priya.sawant@nectarenviro.com",
+    phone: "+91 98201 11007",
+    joinedAt: "2023-02-27",
+    yearsExperience: 5,
   },
   {
     id: "e8",
@@ -173,6 +205,10 @@ export const employees: Employee[] = [
     siteId: "s3",
     skillScore: 71,
     trainingStatus: "overdue",
+    email: "arjun.mehta@nectarenviro.com",
+    phone: "+91 98201 11008",
+    joinedAt: "2021-08-16",
+    yearsExperience: 9,
   },
   {
     id: "e9",
@@ -181,6 +217,10 @@ export const employees: Employee[] = [
     siteId: "s1",
     skillScore: 88,
     trainingStatus: "compliant",
+    email: "kavita.rao@nectarenviro.com",
+    phone: "+91 98201 11009",
+    joinedAt: "2022-12-01",
+    yearsExperience: 7,
   },
   {
     id: "e10",
@@ -189,6 +229,10 @@ export const employees: Employee[] = [
     siteId: "s6",
     skillScore: 77,
     trainingStatus: "due-soon",
+    email: "suresh.pawar@nectarenviro.com",
+    phone: "+91 98201 11010",
+    joinedAt: "2023-10-09",
+    yearsExperience: 4,
   },
   {
     id: "e11",
@@ -197,6 +241,10 @@ export const employees: Employee[] = [
     siteId: "s4",
     skillScore: 84,
     trainingStatus: "compliant",
+    email: "neha.gupta@nectarenviro.com",
+    phone: "+91 98201 11011",
+    joinedAt: "2021-04-20",
+    yearsExperience: 8,
   },
   {
     id: "e12",
@@ -205,6 +253,10 @@ export const employees: Employee[] = [
     siteId: "s6",
     skillScore: 90,
     trainingStatus: "compliant",
+    email: "farhan.qureshi@nectarenviro.com",
+    phone: "+91 98201 11012",
+    joinedAt: "2020-09-30",
+    yearsExperience: 11,
   },
 ];
 
@@ -341,6 +393,38 @@ export const trainingItems: TrainingItem[] = [
 
 export function getSiteName(siteId: string): string {
   return sites.find((s) => s.id === siteId)?.name ?? "Unassigned";
+}
+
+export function getEmployeeById(id: string): Employee | undefined {
+  return employees.find((e) => e.id === id);
+}
+
+export function getSiteById(id: string): Site | undefined {
+  return sites.find((s) => s.id === id);
+}
+
+export function getEmployeeTraining(employeeId: string): TrainingItem[] {
+  return trainingItems.filter((t) => t.employeeId === employeeId);
+}
+
+export function getEmployeeSkills(
+  employee: Employee,
+): Record<SkillKey, number> {
+  const row = skillMatrix.find((r) => r.role === employee.role);
+  const keys = Object.keys(skillLabels) as SkillKey[];
+  if (!row) {
+    return Object.fromEntries(keys.map((k) => [k, 0])) as Record<
+      SkillKey,
+      number
+    >;
+  }
+  const roleAvg = Math.round(
+    keys.reduce((sum, k) => sum + row[k], 0) / keys.length,
+  );
+  const delta = employee.skillScore - roleAvg;
+  return Object.fromEntries(
+    keys.map((k) => [k, Math.max(0, Math.min(100, row[k] + delta))]),
+  ) as Record<SkillKey, number>;
 }
 
 export function getDashboardKpis() {

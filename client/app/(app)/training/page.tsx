@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Switch, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -29,6 +30,14 @@ const columns: ColumnsType<TrainingItem> = [
     dataIndex: "employeeName",
     key: "employeeName",
     sorter: (a, b) => a.employeeName.localeCompare(b.employeeName),
+    render: (name: string, record) => (
+      <Link
+        href={`/employees/${record.employeeId}`}
+        style={{ color: nectarColors.leaf, fontWeight: 600 }}
+      >
+        {name}
+      </Link>
+    ),
   },
   {
     title: "Site",

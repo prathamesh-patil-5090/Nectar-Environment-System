@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Tag } from "antd";
 import { getUrgentTraining, type TrainingPriority } from "@/lib/mock-data";
 import { nectarColors } from "@/lib/theme";
@@ -49,15 +50,17 @@ export default function UrgentTrainingList() {
             }}
           >
             <div style={{ minWidth: 0 }}>
-              <div
+              <Link
+                href={`/employees/${item.employeeId}`}
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: nectarColors.ink,
+                  color: nectarColors.leaf,
+                  textDecoration: "none",
                 }}
               >
                 {item.employeeName}
-              </div>
+              </Link>
               <div style={{ fontSize: 12, color: nectarColors.muted }}>
                 {item.course} · {item.siteName}
               </div>

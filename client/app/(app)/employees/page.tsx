@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { employees, getSiteName, type Employee } from "@/lib/mock-data";
@@ -23,6 +25,14 @@ const columns: ColumnsType<Employee> = [
     dataIndex: "name",
     key: "name",
     sorter: (a, b) => a.name.localeCompare(b.name),
+    render: (name: string, record) => (
+      <Link
+        href={`/employees/${record.id}`}
+        style={{ color: nectarColors.leaf, fontWeight: 600 }}
+      >
+        {name}
+      </Link>
+    ),
   },
   {
     title: "Role",
@@ -72,6 +82,8 @@ const columns: ColumnsType<Employee> = [
 ];
 
 export default function EmployeesPage() {
+  const router = useRouter();
+
   return (
     <div>
       <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 14 }}>
@@ -83,6 +95,14 @@ export default function EmployeesPage() {
         dataSource={employees}
         pagination={{ pageSize: 10 }}
         style={{ background: nectarColors.white }}
+        onRow={(record) => ({
+          onClick: (event) => {
+            const target = event.target as HTMLElement;
+            if (target.closest("a")) return;
+            router.push(`/employees/${record.id}`);
+          },
+          style: { cursor: "pointer" },
+        })}
       />
     </div>
   );

@@ -45,8 +45,20 @@ body {
   gap: 16px;
 }
 
+.nectar-employee-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
 @media (max-width: 960px) {
   .nectar-dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .nectar-employee-detail-grid {
     grid-template-columns: 1fr;
   }
 }

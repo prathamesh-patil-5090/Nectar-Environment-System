@@ -24,6 +24,7 @@ import {
   MenuUnfoldOutlined,
 } from "@ant-design/icons";
 import { getSession, logout, type SessionUser } from "@/lib/auth";
+import { getEmployeeById } from "@/lib/mock-data";
 import { nectarColors } from "@/lib/theme";
 
 const { Header, Sider, Content } = Layout;
@@ -66,6 +67,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
     return match ?? "/dashboard";
   }, [pathname]);
+
+  const headerTitle = useMemo(() => {
+    if (pathname.startsWith("/employees/")) {
+      const id = pathname.split("/")[2];
+      const employee = id ? getEmployeeById(id) : undefined;
+      return employee?.name ?? "Employee";
+    }
+    return pageTitles[selectedKey] ?? "Dashboard";
+  }, [pathname, selectedKey]);
 
   const userMenu: MenuProps["items"] = [
     {
@@ -217,7 +227,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 color: nectarColors.ink,
               }}
             >
-              {pageTitles[selectedKey] ?? "Dashboard"}
+              {headerTitle}
             </Typography.Title>
           </div>
 
