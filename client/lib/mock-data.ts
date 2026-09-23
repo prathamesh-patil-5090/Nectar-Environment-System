@@ -13,6 +13,18 @@ export type Employee = {
   phone: string;
   joinedAt: string;
   yearsExperience: number;
+  department: string;
+  designation: string;
+  shiftId: string;
+  employmentStatus: "active" | "inactive";
+  employeeType: "permanent" | "contract" | "deputed";
+  otEligible: boolean;
+  payCategory:
+    | "operator"
+    | "technician"
+    | "supervisor"
+    | "analyst"
+    | "lead";
 };
 
 export type Site = {
@@ -125,6 +137,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11001",
     joinedAt: "2022-03-14",
     yearsExperience: 8,
+    department: "Operations",
+    designation: "Plant Operator",
+    shiftId: "sh-morning",
+    employmentStatus: "active",
+    employeeType: "deputed",
+    otEligible: true,
+    payCategory: "operator",
   },
   {
     id: "e2",
@@ -137,6 +156,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11002",
     joinedAt: "2023-07-01",
     yearsExperience: 4,
+    department: "Operations",
+    designation: "Plant Operator",
+    shiftId: "sh-afternoon",
+    employmentStatus: "active",
+    employeeType: "deputed",
+    otEligible: true,
+    payCategory: "operator",
   },
   {
     id: "e3",
@@ -149,6 +175,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11003",
     joinedAt: "2021-11-22",
     yearsExperience: 6,
+    department: "Maintenance",
+    designation: "Technician",
+    shiftId: "sh-morning",
+    employmentStatus: "active",
+    employeeType: "contract",
+    otEligible: true,
+    payCategory: "technician",
   },
   {
     id: "e4",
@@ -161,6 +194,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11004",
     joinedAt: "2022-09-05",
     yearsExperience: 7,
+    department: "Maintenance",
+    designation: "Technician",
+    shiftId: "sh-night",
+    employmentStatus: "active",
+    employeeType: "deputed",
+    otEligible: true,
+    payCategory: "technician",
   },
   {
     id: "e5",
@@ -173,6 +213,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11005",
     joinedAt: "2020-05-18",
     yearsExperience: 10,
+    department: "Laboratory",
+    designation: "Lab Analyst",
+    shiftId: "sh-morning",
+    employmentStatus: "active",
+    employeeType: "permanent",
+    otEligible: true,
+    payCategory: "analyst",
   },
   {
     id: "e6",
@@ -185,6 +232,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11006",
     joinedAt: "2024-01-10",
     yearsExperience: 3,
+    department: "Operations",
+    designation: "Site Supervisor",
+    shiftId: "sh-morning",
+    employmentStatus: "active",
+    employeeType: "permanent",
+    otEligible: true,
+    payCategory: "supervisor",
   },
   {
     id: "e7",
@@ -197,6 +251,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11007",
     joinedAt: "2023-02-27",
     yearsExperience: 5,
+    department: "Operations",
+    designation: "Plant Operator",
+    shiftId: "sh-night",
+    employmentStatus: "active",
+    employeeType: "deputed",
+    otEligible: true,
+    payCategory: "operator",
   },
   {
     id: "e8",
@@ -209,6 +270,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11008",
     joinedAt: "2021-08-16",
     yearsExperience: 9,
+    department: "Maintenance",
+    designation: "Maintenance Lead",
+    shiftId: "sh-afternoon",
+    employmentStatus: "active",
+    employeeType: "permanent",
+    otEligible: true,
+    payCategory: "lead",
   },
   {
     id: "e9",
@@ -221,6 +289,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11009",
     joinedAt: "2022-12-01",
     yearsExperience: 7,
+    department: "Laboratory",
+    designation: "Lab Analyst",
+    shiftId: "sh-afternoon",
+    employmentStatus: "active",
+    employeeType: "contract",
+    otEligible: true,
+    payCategory: "analyst",
   },
   {
     id: "e10",
@@ -233,6 +308,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11010",
     joinedAt: "2023-10-09",
     yearsExperience: 4,
+    department: "Operations",
+    designation: "Plant Operator",
+    shiftId: "sh-morning",
+    employmentStatus: "active",
+    employeeType: "deputed",
+    otEligible: true,
+    payCategory: "operator",
   },
   {
     id: "e11",
@@ -245,6 +327,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11011",
     joinedAt: "2021-04-20",
     yearsExperience: 8,
+    department: "Maintenance",
+    designation: "Technician",
+    shiftId: "sh-afternoon",
+    employmentStatus: "active",
+    employeeType: "deputed",
+    otEligible: true,
+    payCategory: "technician",
   },
   {
     id: "e12",
@@ -257,6 +346,13 @@ export const employees: Employee[] = [
     phone: "+91 98201 11012",
     joinedAt: "2020-09-30",
     yearsExperience: 11,
+    department: "Operations",
+    designation: "Site Supervisor",
+    shiftId: "sh-morning",
+    employmentStatus: "active",
+    employeeType: "permanent",
+    otEligible: true,
+    payCategory: "supervisor",
   },
 ];
 

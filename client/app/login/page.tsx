@@ -6,6 +6,7 @@ import { Alert, Button, Form, Input, Typography } from "antd";
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import {
   DEMO_CREDENTIALS,
+  DEMO_USERS,
   isAuthenticated,
   login,
 } from "@/lib/auth";
@@ -192,9 +193,12 @@ export default function LoginPage() {
               fontSize: 12,
               color: nectarColors.muted,
               textAlign: "center",
+              lineHeight: 1.5,
             }}
           >
-            Demo: {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
+            Demo accounts (password <code>{DEMO_CREDENTIALS.password}</code>):
+            <br />
+            {DEMO_USERS.map((u) => u.email).join(" · ")}
           </p>
         </div>
       </div>
