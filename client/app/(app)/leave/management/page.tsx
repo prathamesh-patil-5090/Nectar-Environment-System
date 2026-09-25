@@ -1,17 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { Table, Tag } from "antd";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Empty, Table, Tag } from "antd";
 import KpiStat from "@/components/KpiStat";
+import { getSession } from "@/lib/auth";
 import { getSiteName, sites } from "@/lib/mock-data";
 import {
   getLeaveKpis,
   getLeaveRequests,
   LEAVE_STATUS_LABELS,
 } from "@/lib/leave";
+import { canViewLeaveManagement } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function LeaveManagementPage() {
+  const router = useRouter();
+  const session = getSession();
+  const allowed = canViewLeaveManagement(session);
+
+  useEffect(() => {
+    if (!allowed) router.replace("/leave");
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return <Empty description="Not available for your role" />;
+  }
+
   const kpis = getLeaveKpis();
   const riskRows = getLeaveRequests().filter(
     (l) =>

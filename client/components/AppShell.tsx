@@ -29,6 +29,13 @@ import {
 } from "@ant-design/icons";
 import { getSession, logout, type SessionUser } from "@/lib/auth";
 import { getEmployeeById, getSiteById } from "@/lib/mock-data";
+import {
+  canViewLeaveManagement,
+  canViewLeavePending,
+  canViewOtModule,
+  normalizeRole,
+  roleLabel,
+} from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const { Header, Sider, Content } = Layout;
@@ -58,35 +65,7 @@ const shiftChildren = [
   { key: "/shifts/deviations", label: "Deviations" },
 ];
 
-const navItems: MenuProps["items"] = [
-  { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/employees", icon: <TeamOutlined />, label: "Employees" },
-  { key: "/sites", icon: <EnvironmentOutlined />, label: "Sites" },
-  { key: "/training", icon: <ReadOutlined />, label: "Training" },
-  {
-    key: "shifts",
-    icon: <ScheduleOutlined />,
-    label: "Shifts",
-    children: shiftChildren,
-  },
-  {
-    key: "/reliever-pool",
-    icon: <ClusterOutlined />,
-    label: "Reliever Pool",
-  },
-  {
-    key: "leave",
-    icon: <CalendarOutlined />,
-    label: "Leave",
-    children: leaveChildren,
-  },
-  {
-    key: "overtime",
-    icon: <ClockCircleOutlined />,
-    label: "OverTime",
-    children: overtimeChildren,
-  },
-];
+// Full nav is built dynamically in AppShell from role (navItemsFiltered)
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -212,10 +191,77 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return pageTitles[selectedKey] ?? "Dashboard";
   }, [pathname, selectedKey]);
 
+  const navItemsFiltered = useMemo(() => {
+    const role = normalizeRole(user?.role);
+    if (role === "employee") {
+      const empId = user?.employeeId ?? "e1";
+      return [
+        { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+        {
+          key: `/employees/${empId}`,
+          icon: <TeamOutlined />,
+          label: "My profile",
+        },
+        {
+          key: "leave",
+          icon: <CalendarOutlined />,
+          label: "Leave",
+          children: [
+            { key: "/leave", label: "Overview" },
+            { key: "/leave/requests", label: "My requests" },
+          ],
+        },
+        { key: "/training", icon: <ReadOutlined />, label: "Training" },
+      ] as MenuProps["items"];
+    }
+
+    const leaveKids = leaveChildren.filter((c) => {
+      if (c.key === "/leave/pending") return canViewLeavePending(user);
+      if (c.key === "/leave/management") return canViewLeaveManagement(user);
+      return true;
+    });
+
+    const items: MenuProps["items"] = [
+      { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+      { key: "/employees", icon: <TeamOutlined />, label: "Employees" },
+      { key: "/sites", icon: <EnvironmentOutlined />, label: "Sites" },
+      { key: "/training", icon: <ReadOutlined />, label: "Training" },
+      {
+        key: "shifts",
+        icon: <ScheduleOutlined />,
+        label: "Shifts",
+        children: shiftChildren,
+      },
+      {
+        key: "/reliever-pool",
+        icon: <ClusterOutlined />,
+        label: "Reliever Pool",
+      },
+      {
+        key: "leave",
+        icon: <CalendarOutlined />,
+        label: "Leave",
+        children: leaveKids,
+      },
+    ];
+
+    if (canViewOtModule(user)) {
+      items.push({
+        key: "overtime",
+        icon: <ClockCircleOutlined />,
+        label: "OverTime",
+        children: overtimeChildren,
+      });
+    }
+
+    // Safety / HR / elevated keep full ops nav; employee branch handled above
+    return items;
+  }, [user]);
+
   const userMenu: MenuProps["items"] = [
     {
       key: "role",
-      label: `Role: ${user?.role ?? "management"}`,
+      label: `Role: ${roleLabel(user?.role)}`,
       disabled: true,
     },
     {
@@ -324,7 +370,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           openKeys={collapsed ? [] : openKeys}
           onOpenChange={setOpenKeys}
           triggerSubMenuAction="hover"
-          items={navItems}
+          items={navItemsFiltered}
           onClick={({ key }) => {
             if (key === "overtime" || key === "leave" || key === "shifts") return;
             router.push(key);

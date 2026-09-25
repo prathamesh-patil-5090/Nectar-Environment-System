@@ -28,20 +28,30 @@ import {
   type LeaveRequest,
   type LeaveType,
 } from "@/lib/leave";
+import {
+  canEnterLeaveForOthers,
+  leaveActorRole,
+  scopedEmployeeId,
+  scopedSiteId,
+} from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function LeaveRequestsPage() {
   const { message } = App.useApp();
   const session = getSession();
-  const siteScope =
-    session?.role === "site_incharge" || session?.role === "supervisor"
-      ? session.siteId
-      : undefined;
+  const siteScope = scopedSiteId(session);
+  const empScope = scopedEmployeeId(session);
+  const canEnterOthers = canEnterLeaveForOthers(session);
+  const actorRole = leaveActorRole(session);
 
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
-  const rows = useMemo(() => getLeaveRequests(siteScope), [siteScope, tick]);
+  const rows = useMemo(() => {
+    let list = getLeaveRequests(siteScope);
+    if (empScope) list = list.filter((l) => l.employeeId === empScope);
+    return list;
+  }, [siteScope, empScope, tick]);
 
   const columns: ColumnsType<LeaveRequest> = [
     {
@@ -110,36 +120,29 @@ export default function LeaveRequestsPage() {
 
   const onCreate = async () => {
     const values = await form.validateFields();
-    const isSupervisor =
-      session?.role === "supervisor" ||
-      session?.role === "site_incharge" ||
-      values.entrySource === "supervisor_on_behalf";
+    const employeeId = empScope ?? values.employeeId;
+    const isOnBehalf =
+      canEnterOthers &&
+      (values.entrySource === "supervisor_on_behalf" ||
+        actorRole === "supervisor" ||
+        actorRole === "site_incharge");
 
     createLeaveRequest({
-      employeeId: values.employeeId,
+      employeeId,
       mode: values.mode,
       leaveType: values.leaveType,
       startDate: values.range[0].format("YYYY-MM-DD"),
       endDate: values.range[1].format("YYYY-MM-DD"),
       expectedReturnDate: values.expectedReturn.format("YYYY-MM-DD"),
       reason: values.reason,
-      entrySource: isSupervisor ? "supervisor_on_behalf" : "employee",
+      entrySource: isOnBehalf ? "supervisor_on_behalf" : "employee",
       enteredByName: session?.name ?? "System",
-      enteredByRole:
-        session?.role === "hr"
-          ? "hr"
-          : session?.role === "site_incharge"
-            ? "site_incharge"
-            : session?.role === "supervisor"
-              ? "supervisor"
-              : "employee",
+      enteredByRole: actorRole,
       supervisorName:
-        session?.role === "supervisor"
-          ? session.name
-          : "Amit Supervisor",
+        actorRole === "supervisor" ? (session?.name ?? "Supervisor") : "Amit Supervisor",
       siteInChargeName:
-        session?.role === "site_incharge"
-          ? session.name
+        actorRole === "site_incharge"
+          ? (session?.name ?? "Site In-Charge")
           : "Site In-Charge",
       lastCommunication: values.lastCommunication,
     });
@@ -160,11 +163,12 @@ export default function LeaveRequestsPage() {
         }}
       >
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          Planned leave and emergency absences — including supervisor-assisted
-          entry for verbal / low-literacy reporting.
+          {empScope
+            ? "Your leave and absence requests."
+            : "Planned leave and emergency absences — including supervisor-assisted entry for verbal / low-literacy reporting."}
         </p>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
-          Record leave / absence
+          {empScope ? "Request leave" : "Record leave / absence"}
         </Button>
       </div>
 
@@ -195,7 +199,8 @@ export default function LeaveRequestsPage() {
           initialValues={{
             mode: "planned",
             leaveType: "casual",
-            entrySource: "supervisor_on_behalf",
+            entrySource: canEnterOthers ? "supervisor_on_behalf" : "employee",
+            employeeId: empScope,
           }}
         >
           <Form.Item
@@ -206,8 +211,13 @@ export default function LeaveRequestsPage() {
             <Select
               showSearch
               optionFilterProp="label"
+              disabled={Boolean(empScope)}
               options={employees
-                .filter((e) => !siteScope || e.siteId === siteScope)
+                .filter((e) => {
+                  if (empScope) return e.id === empScope;
+                  if (siteScope) return e.siteId === siteScope;
+                  return true;
+                })
                 .map((e) => ({
                   value: e.id,
                   label: `${e.name} (${getSiteName(e.siteId)})`,
@@ -223,17 +233,19 @@ export default function LeaveRequestsPage() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="entrySource" label="How was this entered?">
-            <Radio.Group
-              options={[
-                { value: "employee", label: "Requested by employee" },
-                {
-                  value: "supervisor_on_behalf",
-                  label: "Entered by supervisor on behalf",
-                },
-              ]}
-            />
-          </Form.Item>
+          {canEnterOthers ? (
+            <Form.Item name="entrySource" label="How was this entered?">
+              <Radio.Group
+                options={[
+                  { value: "employee", label: "Requested by employee" },
+                  {
+                    value: "supervisor_on_behalf",
+                    label: "Entered by supervisor on behalf",
+                  },
+                ]}
+              />
+            </Form.Item>
+          ) : null}
           <Form.Item name="leaveType" label="Leave type" rules={[{ required: true }]}>
             <Select
               options={(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map(

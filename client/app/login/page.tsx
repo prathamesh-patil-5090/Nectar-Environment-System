@@ -9,6 +9,7 @@ import {
   DEMO_USERS,
   isAuthenticated,
   login,
+  ROLE_LABELS,
 } from "@/lib/auth";
 import { nectarColors } from "@/lib/theme";
 
@@ -187,19 +188,36 @@ export default function LoginPage() {
             </Form.Item>
           </Form>
 
-          <p
+          <div
             style={{
               margin: "12px 0 0",
               fontSize: 12,
               color: nectarColors.muted,
-              textAlign: "center",
-              lineHeight: 1.5,
+              textAlign: "left",
+              lineHeight: 1.55,
+              background: "rgba(15,42,36,0.04)",
+              borderRadius: 8,
+              padding: "10px 12px",
             }}
           >
-            Demo accounts (password <code>{DEMO_CREDENTIALS.password}</code>):
-            <br />
-            {DEMO_USERS.map((u) => u.email).join(" · ")}
-          </p>
+            <div style={{ marginBottom: 6, textAlign: "center" }}>
+              Demo accounts (password <code>{DEMO_CREDENTIALS.password}</code>)
+            </div>
+            {DEMO_USERS.map((u) => (
+              <div
+                key={u.email}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  padding: "2px 0",
+                }}
+              >
+                <code style={{ fontSize: 11 }}>{u.email}</code>
+                <span>{ROLE_LABELS[u.role]}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
