@@ -1,17 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Table, Tag } from "antd";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Button, Empty, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { getSession } from "@/lib/auth";
 import { getSiteName } from "@/lib/mock-data";
 import {
   getPendingJustifications,
   LEAVE_STATUS_LABELS,
   type LeaveRequest,
 } from "@/lib/leave";
+import { canViewLeavePending } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function LeavePendingPage() {
+  const router = useRouter();
+  const session = getSession();
+  const allowed = canViewLeavePending(session);
+
+  useEffect(() => {
+    if (!allowed) router.replace("/leave");
+  }, [allowed, router]);
+
+  if (!allowed) {
+    return <Empty description="Not available for your role" />;
+  }
+
   const rows = getPendingJustifications();
 
   const columns: ColumnsType<LeaveRequest> = [

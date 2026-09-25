@@ -13,6 +13,13 @@ import {
   LEAVE_STATUS_LABELS,
   type LeaveStatus,
 } from "@/lib/leave";
+import {
+  canViewLeaveManagement,
+  canViewLeavePending,
+  isElevated,
+  scopedEmployeeId,
+  scopedSiteId,
+} from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
@@ -32,20 +39,20 @@ const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
 
 export default function LeaveOverviewPage() {
   const session = getSession();
-  const siteScope =
-    session?.role === "site_incharge" || session?.role === "supervisor"
-      ? session.siteId
-      : undefined;
+  const siteScope = scopedSiteId(session);
+  const empScope = scopedEmployeeId(session);
   const [tick] = useState(0);
   const kpis = useMemo(() => getLeaveKpis(siteScope), [siteScope, tick]);
-  const recent = useMemo(
-    () => getLeaveRequests(siteScope).slice(0, 6),
-    [siteScope, tick],
-  );
+  const recent = useMemo(() => {
+    let list = getLeaveRequests(siteScope).slice(0, 6);
+    if (empScope) list = list.filter((l) => l.employeeId === empScope);
+    return list;
+  }, [siteScope, empScope, tick]);
   const pending = useMemo(() => getPendingJustifications(), [tick]);
 
-  const isMgmt = session?.role === "management";
-  const isHr = session?.role === "hr" || isMgmt;
+  const showMgmt = isElevated(session);
+  const showPending = canViewLeavePending(session);
+  const showManagement = canViewLeaveManagement(session);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -81,12 +88,12 @@ export default function LeaveOverviewPage() {
           <Link href="/leave/requests">
             <Button>All requests</Button>
           </Link>
-          {isHr ? (
+          {showPending ? (
             <Link href="/leave/pending">
               <Button>Pending justifications</Button>
             </Link>
           ) : null}
-          {isMgmt ? (
+          {showManagement ? (
             <Link href="/leave/management">
               <Button>Management view</Button>
             </Link>
@@ -104,7 +111,7 @@ export default function LeaveOverviewPage() {
           overflow: "hidden",
         }}
       >
-        {isMgmt ? (
+        {showMgmt ? (
           <>
             <KpiStat label="Total employees" value={kpis.totalEmployees} />
             <KpiStat
@@ -133,7 +140,7 @@ export default function LeaveOverviewPage() {
               tone="info"
             />
           </>
-        ) : isHr ? (
+        ) : showPending ? (
           <>
             <KpiStat
               label="Pending leave requests"

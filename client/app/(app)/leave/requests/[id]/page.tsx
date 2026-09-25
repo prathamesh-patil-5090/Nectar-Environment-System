@@ -31,6 +31,12 @@ import {
   siteApprove,
   supervisorVerify,
 } from "@/lib/leave";
+import {
+  canConfirmLeaveReturn,
+  canHrValidateLeave,
+  canSiteApproveLeave,
+  canSupervisorVerifyLeave,
+} from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function LeaveDetailPage({
@@ -64,8 +70,11 @@ export default function LeaveDetailPage({
     );
   }
 
-  const role = session?.role ?? "management";
   const actor = session?.name ?? "User";
+  const canVerify = canSupervisorVerifyLeave(session);
+  const canSite = canSiteApproveLeave(session);
+  const canHr = canHrValidateLeave(session);
+  const canReturn = canConfirmLeaveReturn(session);
   const refresh = () => setTick((t) => t + 1);
 
   const run = (fn: () => void, ok: string) => {
@@ -191,7 +200,7 @@ export default function LeaveDetailPage({
           Actions
         </div>
         <Space wrap>
-          {(role === "supervisor" || role === "management") &&
+          {canVerify &&
           ["REQUESTED", "ABSENT"].includes(leave.status) ? (
             <Button
               onClick={() =>
@@ -202,7 +211,7 @@ export default function LeaveDetailPage({
             </Button>
           ) : null}
 
-          {(role === "site_incharge" || role === "management") &&
+          {canSite &&
           ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED", "REQUESTED"].includes(
             leave.status,
           ) ? (
@@ -262,7 +271,7 @@ export default function LeaveDetailPage({
             </>
           ) : null}
 
-          {(role === "hr" || role === "management") &&
+          {canHr &&
           ["SITE_APPROVED", "SITE_VERIFIED", "HR_VALIDATED"].includes(
             leave.status,
           ) ? (
@@ -287,9 +296,7 @@ export default function LeaveDetailPage({
             </>
           ) : null}
 
-          {(role === "supervisor" ||
-            role === "site_incharge" ||
-            role === "management") &&
+          {canReturn &&
           ["APPROVED", "SITE_APPROVED", "HR_VALIDATED", "SITE_VERIFIED"].includes(
             leave.status,
           ) ? (

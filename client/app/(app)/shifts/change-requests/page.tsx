@@ -2,16 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { App, Button, Table, Tag } from "antd";
+import { getSession } from "@/lib/auth";
 import { getSiteName } from "@/lib/mock-data";
 import {
   decideChangeRequest,
   getChangeRequests,
   getShiftMasterById,
 } from "@/lib/shift";
+import { canApproveShiftChanges } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function ShiftChangeRequestsPage() {
   const { message } = App.useApp();
+  const session = getSession();
+  const canApprove = canApproveShiftChanges(session);
   const [tick, setTick] = useState(0);
   const rows = useMemo(() => getChangeRequests(), [tick]);
 
@@ -83,7 +87,7 @@ export default function ShiftChangeRequestsPage() {
             title: "Action",
             key: "act",
             render: (_, r) =>
-              r.status === "PENDING" ? (
+              r.status === "PENDING" && canApprove ? (
                 <>
                   <Button
                     size="small"
@@ -109,6 +113,10 @@ export default function ShiftChangeRequestsPage() {
                     Reject
                   </Button>
                 </>
+              ) : r.status === "PENDING" ? (
+                <span style={{ color: nectarColors.muted, fontSize: 12 }}>
+                  Awaiting site / shift in-charge
+                </span>
               ) : (
                 "—"
               ),

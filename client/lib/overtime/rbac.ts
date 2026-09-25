@@ -1,32 +1,23 @@
 import type { SessionUser } from "@/lib/auth";
+import {
+  canDownloadOtReports,
+  canViewAllSites,
+  scopedSiteId as rbacScopedSiteId,
+} from "@/lib/rbac";
 
-export type OtRole = "management" | "hr" | "site_incharge";
-
-export type OtSessionUser = SessionUser & {
-  role: OtRole;
-  siteId?: string;
-};
+/** @deprecated Prefer lib/rbac — kept for OT module imports */
+export type OtRole = SessionUser["role"];
 
 export function getOtRole(user: SessionUser | null): OtRole {
-  if (!user) return "site_incharge";
-  const extended = user as OtSessionUser;
-  if (extended.role) return extended.role;
-  // Demo default: ops admin sees everything
-  return "management";
+  return user?.role ?? "site_incharge";
 }
 
-export function canViewAllSites(user: SessionUser | null): boolean {
-  const role = getOtRole(user);
-  return role === "management" || role === "hr";
-}
+export { canViewAllSites };
 
 export function canDownloadReports(user: SessionUser | null): boolean {
-  const role = getOtRole(user);
-  return role === "management" || role === "hr";
+  return canDownloadOtReports(user);
 }
 
 export function scopedSiteId(user: SessionUser | null): string | undefined {
-  if (canViewAllSites(user)) return undefined;
-  const extended = user as OtSessionUser;
-  return extended.siteId ?? "s1";
+  return rbacScopedSiteId(user);
 }

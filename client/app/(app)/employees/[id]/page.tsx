@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -30,6 +30,17 @@ import {
   type TrainingItem,
   type TrainingPriority,
 } from "@/lib/mock-data";
+import { getSession } from "@/lib/auth";
+import {
+  defaultOtFilters,
+  formatHours,
+  formatInr,
+  getEmployeeOtDetail,
+  OT_REASON_LABELS,
+  OT_STATUS_LABELS,
+  type OtRecord,
+} from "@/lib/overtime";
+import { canViewOtModule, scopedEmployeeId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const statusColor = {
@@ -51,6 +62,13 @@ const priorityColor: Record<TrainingPriority, string> = {
   low: nectarColors.muted,
 };
 
+const trainingStatusLabel: Record<TrainingItem["status"], string> = {
+  overdue: "Overdue",
+  "due-soon": "Due soon",
+  scheduled: "Scheduled",
+  completed: "Completed",
+};
+
 const trainingColumns: ColumnsType<TrainingItem> = [
   {
     title: "Course",
@@ -58,9 +76,30 @@ const trainingColumns: ColumnsType<TrainingItem> = [
     key: "course",
   },
   {
-    title: "Due date",
-    dataIndex: "dueDate",
-    key: "dueDate",
+    title: "Provider",
+    dataIndex: "provider",
+    key: "provider",
+    render: (v?: string) => v ?? "—",
+  },
+  {
+    title: "Date",
+    key: "date",
+    render: (_, r) =>
+      r.status === "completed" && r.completedAt
+        ? r.completedAt
+        : r.dueDate,
+  },
+  {
+    title: "Score",
+    dataIndex: "score",
+    key: "score",
+    width: 80,
+    render: (score?: number) =>
+      score != null ? (
+        <span style={{ fontWeight: 600 }}>{score}%</span>
+      ) : (
+        "—"
+      ),
   },
   {
     title: "Priority",
@@ -83,18 +122,55 @@ const trainingColumns: ColumnsType<TrainingItem> = [
             ? "error"
             : status === "due-soon"
               ? "warning"
-              : "default"
+              : status === "completed"
+                ? "success"
+                : "default"
         }
       >
-        {status === "overdue"
-          ? "Overdue"
-          : status === "due-soon"
-            ? "Due soon"
-            : "Scheduled"}
+        {trainingStatusLabel[status]}
       </Tag>
     ),
   },
 ];
+
+function OtStat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div
+      style={{
+        flex: "1 1 140px",
+        minWidth: 120,
+        padding: "12px 16px",
+        background: nectarColors.sand,
+        borderRadius: 8,
+      }}
+    >
+      <div style={{ fontSize: 12, color: nectarColors.muted }}>{label}</div>
+      <div
+        style={{
+          fontFamily: "var(--font-fraunces), Georgia, serif",
+          fontSize: 22,
+          color: nectarColors.ink,
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </div>
+      {hint ? (
+        <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
+          {hint}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function EmployeeDetailPage({
   params,
@@ -103,7 +179,27 @@ export default function EmployeeDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const employee = getEmployeeById(id);
+  const session = getSession();
+  const selfId = scopedEmployeeId(session);
+  const showOt = canViewOtModule(session) || Boolean(selfId);
+
+  useEffect(() => {
+    if (selfId && selfId !== id) {
+      router.replace(`/employees/${selfId}`);
+    }
+  }, [selfId, id, router]);
+
+  const employee = getEmployeeById(selfId && selfId !== id ? selfId : id);
+
+  const otDetail = useMemo(() => {
+    if (!employee || !showOt) return null;
+    return getEmployeeOtDetail(employee.id, defaultOtFilters());
+  }, [employee, showOt]);
+
+  const recentOt = useMemo(
+    () => (otDetail?.records ?? []).slice(0, 8),
+    [otDetail],
+  );
 
   if (!employee) {
     return (
@@ -122,16 +218,45 @@ export default function EmployeeDetailPage({
   const skillKeys = Object.keys(skillLabels) as SkillKey[];
   const training = getEmployeeTraining(employee.id);
 
+  const otColumns: ColumnsType<OtRecord> = [
+    { title: "Date", dataIndex: "date", width: 110 },
+    {
+      title: "Hours",
+      dataIndex: "otHours",
+      width: 80,
+      render: (h: number) => formatHours(h),
+    },
+    {
+      title: "Cost",
+      dataIndex: "otCost",
+      width: 100,
+      render: (c: number) => formatInr(c),
+    },
+    {
+      title: "Reason",
+      dataIndex: "reason",
+      render: (r: OtRecord["reason"]) => OT_REASON_LABELS[r],
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      width: 110,
+      render: (s: OtRecord["status"]) => (
+        <Tag style={{ margin: 0 }}>{OT_STATUS_LABELS[s]}</Tag>
+      ),
+    },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
-          onClick={() => router.push("/employees")}
+          onClick={() => router.push(selfId ? "/dashboard" : "/employees")}
           style={{ paddingInline: 0, color: nectarColors.muted, marginBottom: 8 }}
         >
-          Employees
+          {selfId ? "Dashboard" : "Employees"}
         </Button>
 
         <div
@@ -171,6 +296,11 @@ export default function EmployeeDetailPage({
               <Tag style={{ borderColor: "rgba(15,42,36,0.12)" }}>
                 Skill score {employee.skillScore}%
               </Tag>
+              {employee.otEligible ? (
+                <Tag color={nectarColors.sky} style={{ border: "none" }}>
+                  OT eligible
+                </Tag>
+              ) : null}
             </div>
           </div>
         </div>
@@ -301,6 +431,88 @@ export default function EmployeeDetailPage({
         </div>
       </div>
 
+      {showOt && otDetail ? (
+        <div style={{ background: nectarColors.white, padding: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: 12,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--font-fraunces), Georgia, serif",
+                  fontSize: 18,
+                  color: nectarColors.ink,
+                }}
+              >
+                Overtime
+              </div>
+              <p style={{ margin: "4px 0 0", color: nectarColors.muted, fontSize: 13 }}>
+                Engine-generated OT history for this employee
+                {otDetail.shift ? ` · ${otDetail.shift.name}` : ""}.
+              </p>
+            </div>
+            <Link
+              href={`/overtime/employees/${employee.id}`}
+              style={{ fontSize: 13, color: nectarColors.leaf }}
+            >
+              Full OT profile
+            </Link>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 16,
+            }}
+          >
+            <OtStat
+              label="This month"
+              value={formatHours(otDetail.summary.currentMonthHours)}
+              hint={`${otDetail.summary.currentMonthDays} days · ${formatInr(otDetail.summary.currentMonthCost)}`}
+            />
+            <OtStat
+              label="Year to date"
+              value={formatHours(otDetail.summary.currentYearHours)}
+              hint={`${otDetail.summary.currentYearDays} days · ${formatInr(otDetail.summary.currentYearCost)}`}
+            />
+            <OtStat
+              label="Prev. month"
+              value={formatHours(otDetail.summary.previousMonthHours)}
+            />
+            <OtStat
+              label="Site OT share"
+              value={`${otDetail.siteSharePct}%`}
+              hint="Of filtered site OT"
+            />
+          </div>
+
+          {recentOt.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="No overtime records in the selected period."
+            />
+          ) : (
+            <Table
+              rowKey="id"
+              columns={otColumns}
+              dataSource={recentOt}
+              pagination={false}
+              size="middle"
+              scroll={{ x: 560 }}
+            />
+          )}
+        </div>
+      ) : null}
+
       <div style={{ background: nectarColors.white, padding: 24 }}>
         <div
           style={{
@@ -331,15 +543,16 @@ export default function EmployeeDetailPage({
         {training.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No scheduled or overdue training for this employee."
+            description="No training records for this employee."
           />
         ) : (
           <Table
             rowKey="id"
             columns={trainingColumns}
             dataSource={training}
-            pagination={false}
+            pagination={{ pageSize: 8 }}
             size="middle"
+            scroll={{ x: 640 }}
           />
         )}
       </div>

@@ -62,7 +62,11 @@ export type TrainingItem = {
   course: string;
   dueDate: string;
   priority: TrainingPriority;
-  status: "overdue" | "due-soon" | "scheduled";
+  status: "overdue" | "due-soon" | "scheduled" | "completed";
+  /** Set when status is completed */
+  completedAt?: string;
+  provider?: string;
+  score?: number;
 };
 
 export const skillLabels: Record<SkillKey, string> = {
@@ -405,6 +409,95 @@ export const skillMatrix: SkillMatrixRow[] = [
 ];
 
 export const trainingItems: TrainingItem[] = [
+  // —— Asha Patil (e1) — full history for profile demo
+  {
+    id: "t-e1-1",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "ETP Process Fundamentals",
+    dueDate: "2024-06-15",
+    completedAt: "2024-06-12",
+    priority: "high",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 92,
+  },
+  {
+    id: "t-e1-2",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "PPE & Site Induction",
+    dueDate: "2024-08-01",
+    completedAt: "2024-07-28",
+    priority: "critical",
+    status: "completed",
+    provider: "Site HSE",
+    score: 98,
+  },
+  {
+    id: "t-e1-3",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "Confined Space Entry",
+    dueDate: "2025-02-20",
+    completedAt: "2025-02-18",
+    priority: "critical",
+    status: "completed",
+    provider: "External — SafeWork MH",
+    score: 88,
+  },
+  {
+    id: "t-e1-4",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "Hazardous Waste Handling",
+    dueDate: "2025-09-10",
+    completedAt: "2025-09-08",
+    priority: "high",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 90,
+  },
+  {
+    id: "t-e1-5",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "Consent Compliance Reporting",
+    dueDate: "2026-03-15",
+    completedAt: "2026-03-12",
+    priority: "medium",
+    status: "completed",
+    provider: "HR / Compliance",
+    score: 85,
+  },
+  {
+    id: "t-e1-6",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "First Aid Refresh",
+    dueDate: "2026-11-30",
+    priority: "medium",
+    status: "scheduled",
+    provider: "Site HSE",
+  },
+  {
+    id: "t-e1-7",
+    employeeId: "e1",
+    employeeName: "Asha Patil",
+    siteName: "Thane ETP Hub",
+    course: "Advanced ETP Upset Response",
+    dueDate: "2026-12-15",
+    priority: "low",
+    status: "scheduled",
+    provider: "Nectar Academy",
+  },
+  // —— Other employees (existing + more history)
   {
     id: "t1",
     employeeId: "e3",
@@ -416,6 +509,19 @@ export const trainingItems: TrainingItem[] = [
     status: "overdue",
   },
   {
+    id: "t1b",
+    employeeId: "e3",
+    employeeName: "Meera Kulkarni",
+    siteName: "Belapur STP Unit",
+    course: "PPE & Site Induction",
+    dueDate: "2025-01-20",
+    completedAt: "2025-01-18",
+    priority: "critical",
+    status: "completed",
+    provider: "Site HSE",
+    score: 80,
+  },
+  {
     id: "t2",
     employeeId: "e6",
     employeeName: "Vikram Nair",
@@ -424,6 +530,19 @@ export const trainingItems: TrainingItem[] = [
     dueDate: "2026-09-10",
     priority: "critical",
     status: "overdue",
+  },
+  {
+    id: "t2b",
+    employeeId: "e6",
+    employeeName: "Vikram Nair",
+    siteName: "Vashi MEE Facility",
+    course: "Lockout / Tagout Basics",
+    dueDate: "2025-06-01",
+    completedAt: "2025-05-29",
+    priority: "high",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 76,
   },
   {
     id: "t3",
@@ -446,6 +565,32 @@ export const trainingItems: TrainingItem[] = [
     status: "due-soon",
   },
   {
+    id: "t4b",
+    employeeId: "e2",
+    employeeName: "Rohan Deshmukh",
+    siteName: "Thane ETP Hub",
+    course: "ETP Process Fundamentals",
+    dueDate: "2025-04-10",
+    completedAt: "2025-04-08",
+    priority: "high",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 78,
+  },
+  {
+    id: "t4c",
+    employeeId: "e2",
+    employeeName: "Rohan Deshmukh",
+    siteName: "Thane ETP Hub",
+    course: "PPE & Site Induction",
+    dueDate: "2024-11-01",
+    completedAt: "2024-10-30",
+    priority: "critical",
+    status: "completed",
+    provider: "Site HSE",
+    score: 94,
+  },
+  {
     id: "t5",
     employeeId: "e7",
     employeeName: "Priya Sawant",
@@ -454,6 +599,19 @@ export const trainingItems: TrainingItem[] = [
     dueDate: "2026-10-02",
     priority: "medium",
     status: "due-soon",
+  },
+  {
+    id: "t5b",
+    employeeId: "e7",
+    employeeName: "Priya Sawant",
+    siteName: "Belapur STP Unit",
+    course: "Lab Safety Orientation",
+    dueDate: "2025-08-15",
+    completedAt: "2025-08-14",
+    priority: "high",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 91,
   },
   {
     id: "t6",
@@ -476,6 +634,19 @@ export const trainingItems: TrainingItem[] = [
     status: "scheduled",
   },
   {
+    id: "t7b",
+    employeeId: "e4",
+    employeeName: "Imran Shaikh",
+    siteName: "Pune RO Plant",
+    course: "RO Membrane Safety",
+    dueDate: "2025-12-01",
+    completedAt: "2025-11-28",
+    priority: "high",
+    status: "completed",
+    provider: "External — MembraneTech",
+    score: 87,
+  },
+  {
     id: "t8",
     employeeId: "e11",
     employeeName: "Neha Gupta",
@@ -483,6 +654,42 @@ export const trainingItems: TrainingItem[] = [
     course: "Consent Compliance Reporting",
     dueDate: "2026-11-01",
     priority: "low",
+    status: "scheduled",
+  },
+  {
+    id: "t8b",
+    employeeId: "e11",
+    employeeName: "Neha Gupta",
+    siteName: "Nashik WTP",
+    course: "WTP Process Control",
+    dueDate: "2025-07-20",
+    completedAt: "2025-07-18",
+    priority: "medium",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 89,
+  },
+  {
+    id: "t9",
+    employeeId: "e5",
+    employeeName: "Sneha Joshi",
+    siteName: "Nashik WTP",
+    course: "Water Quality Sampling Advanced",
+    dueDate: "2025-10-05",
+    completedAt: "2025-10-03",
+    priority: "medium",
+    status: "completed",
+    provider: "Nectar Academy",
+    score: 96,
+  },
+  {
+    id: "t9b",
+    employeeId: "e5",
+    employeeName: "Sneha Joshi",
+    siteName: "Nashik WTP",
+    course: "Lab Safety Orientation Refresh",
+    dueDate: "2026-10-25",
+    priority: "high",
     status: "scheduled",
   },
 ];
@@ -500,7 +707,13 @@ export function getSiteById(id: string): Site | undefined {
 }
 
 export function getEmployeeTraining(employeeId: string): TrainingItem[] {
-  return trainingItems.filter((t) => t.employeeId === employeeId);
+  return trainingItems
+    .filter((t) => t.employeeId === employeeId)
+    .sort((a, b) => {
+      const aKey = a.completedAt ?? a.dueDate;
+      const bKey = b.completedAt ?? b.dueDate;
+      return bKey.localeCompare(aKey);
+    });
 }
 
 export function getEmployeeSkills(

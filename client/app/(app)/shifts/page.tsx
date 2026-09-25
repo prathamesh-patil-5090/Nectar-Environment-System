@@ -15,14 +15,13 @@ import {
   getShiftDashboardKpis,
   getShiftInsights,
 } from "@/lib/shift";
+import { canManageShifts, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function ShiftsDashboardPage() {
   const session = getSession();
-  const locked =
-    session?.role === "site_incharge" || session?.role === "supervisor"
-      ? session.siteId
-      : undefined;
+  const locked = scopedSiteId(session);
+  const canEdit = canManageShifts(session);
   const [siteId, setSiteId] = useState<string | undefined>(locked);
   const [tick, setTick] = useState(0);
 
@@ -128,7 +127,7 @@ export default function ShiftsDashboardPage() {
                 title: "",
                 key: "act",
                 render: (_, r) =>
-                  r.status === "pending_review" ? (
+                  r.status === "pending_review" && canEdit ? (
                     <Button
                       size="small"
                       type="primary"

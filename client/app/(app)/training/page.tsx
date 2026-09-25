@@ -22,6 +22,7 @@ const statusLabel = {
   overdue: "Overdue",
   "due-soon": "Due soon",
   scheduled: "Scheduled",
+  completed: "Completed",
 } as const;
 
 const columns: ColumnsType<TrainingItem> = [
@@ -50,10 +51,14 @@ const columns: ColumnsType<TrainingItem> = [
     key: "course",
   },
   {
-    title: "Due date",
-    dataIndex: "dueDate",
-    key: "dueDate",
-    sorter: (a, b) => a.dueDate.localeCompare(b.dueDate),
+    title: "Due / completed",
+    key: "date",
+    sorter: (a, b) =>
+      (a.completedAt ?? a.dueDate).localeCompare(b.completedAt ?? b.dueDate),
+    render: (_, r) =>
+      r.status === "completed" && r.completedAt
+        ? r.completedAt
+        : r.dueDate,
   },
   {
     title: "Priority",
@@ -69,6 +74,13 @@ const columns: ColumnsType<TrainingItem> = [
     title: "Status",
     dataIndex: "status",
     key: "status",
+    filters: [
+      { text: "Overdue", value: "overdue" },
+      { text: "Due soon", value: "due-soon" },
+      { text: "Scheduled", value: "scheduled" },
+      { text: "Completed", value: "completed" },
+    ],
+    onFilter: (value, record) => record.status === value,
     render: (status: TrainingItem["status"]) => (
       <Tag
         color={
@@ -76,7 +88,9 @@ const columns: ColumnsType<TrainingItem> = [
             ? "error"
             : status === "due-soon"
               ? "warning"
-              : "default"
+              : status === "completed"
+                ? "success"
+                : "default"
         }
       >
         {statusLabel[status]}
