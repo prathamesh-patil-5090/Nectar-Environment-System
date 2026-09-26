@@ -35,7 +35,6 @@ import { getEmployeeById, getSiteById } from "@/lib/mock-data";
 import {
   canAssignOt,
   canViewLeaveManagement,
-  canViewLeavePending,
   canViewOtModule,
   hasDualDashboard,
   normalizeRole,
@@ -61,14 +60,12 @@ const overtimeChildren = [
   { key: "/overtime/overview", label: "Overview" },
   { key: "/overtime/employees", label: "Employees" },
   { key: "/overtime/sites", label: "Sites" },
-  { key: "/overtime/analysis", label: "Analysis" },
-  { key: "/overtime/reports", label: "Reports" },
+  { key: "/overtime/analysis", label: "Analysis & reports" },
 ];
 
 const leaveChildren = [
   { key: "/leave", label: "Overview" },
   { key: "/leave/requests", label: "Requests" },
-  { key: "/leave/pending", label: "Pending justifications" },
   { key: "/leave/management", label: "Management" },
 ];
 
@@ -92,7 +89,6 @@ const pageTitles: Record<string, string> = {
   "/reliever-pool": "Reliever Pool",
   "/leave": "Leave Overview",
   "/leave/requests": "Leave Requests",
-  "/leave/pending": "Pending Justifications",
   "/leave/management": "Leave · Management",
   "/shifts": "Shift Rotation",
   "/shifts/master": "Shift Master",
@@ -104,8 +100,7 @@ const pageTitles: Record<string, string> = {
   "/overtime/overview": "OT Overview",
   "/overtime/employees": "Employee OT",
   "/overtime/sites": "Site OT",
-  "/overtime/analysis": "OT Analysis",
-  "/overtime/reports": "OT Reports",
+  "/overtime/analysis": "OT Analysis & Reports",
   "/overtime/assign": "Assign OT",
   "/notifications": "Notifications",
   "/certifications": "Certifications",
@@ -169,6 +164,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/leave/requests/")) {
       return "/leave/requests";
     }
+    if (pathname.startsWith("/leave/pending")) {
+      return "/leave/requests";
+    }
     if (pathname.startsWith("/leave/")) {
       const match = leaveChildren.find(
         (c) => pathname === c.key || pathname.startsWith(`${c.key}/`),
@@ -188,6 +186,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/overtime/sites/")) {
       return "/overtime/sites";
+    }
+    if (pathname.startsWith("/overtime/reports")) {
+      return "/overtime/analysis";
     }
     if (pathname.startsWith("/overtime/")) {
       const match = overtimeChildren.find(
@@ -268,7 +269,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     const leaveKids = leaveChildren.filter((c) => {
-      if (c.key === "/leave/pending") return canViewLeavePending(user);
       if (c.key === "/leave/management") return canViewLeaveManagement(user);
       return true;
     });

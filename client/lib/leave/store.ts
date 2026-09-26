@@ -522,9 +522,11 @@ export function getLeaveKpis(siteId?: string, employeeId?: string) {
   return {
     totalEmployees: employeeId
       ? 1
-      : siteId
-        ? employees.filter((e) => e.siteId === siteId).length
-        : employees.length,
+      : employees.filter(
+          (e) =>
+            e.employmentStatus === "active" &&
+            (siteId ? e.siteId === siteId : true),
+        ).length,
     pendingRequests: pending,
     unverifiedAbsences: unverified,
     currentlyOnLeave: onLeave,

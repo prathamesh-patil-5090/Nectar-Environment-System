@@ -27,6 +27,10 @@ import {
   scopedSiteId,
   selfEmployeeId,
 } from "@/lib/rbac";
+import {
+  countComplianceReadySites,
+  getSkillCoveragePct,
+} from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
 
 function dashboardSubtitle(
@@ -54,7 +58,12 @@ function dashboardSubtitle(
 export default function DashboardPage() {
   const session = getSession();
   const siteScope = scopedSiteId(session);
-  const kpis = getDashboardKpis(siteScope);
+  const baseKpis = getDashboardKpis(siteScope);
+  const kpis = {
+    ...baseKpis,
+    skillCoverage: getSkillCoveragePct(siteScope),
+    complianceReadySites: countComplianceReadySites(siteScope),
+  };
   const role = normalizeRole(session?.role);
   const empId = selfEmployeeId(session);
   const employee = empId ? getEmployeeById(empId) : undefined;
