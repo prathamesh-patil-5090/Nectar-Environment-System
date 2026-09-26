@@ -153,7 +153,7 @@ function Panel({
         background: nectarColors.white,
         padding: 20,
         borderRadius: 10,
-        border: "1px solid rgba(15,42,36,0.06)",
+        border: "1px solid rgba(28, 68, 99, 0.08)",
       }}
     >
       <div

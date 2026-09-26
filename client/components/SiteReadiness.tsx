@@ -106,7 +106,7 @@ export default function SiteReadiness() {
                         ? nectarColors.sky
                         : nectarColors.mint
                   }
-                  railColor="#E5EDE9"
+                  railColor="#E2E8F0"
                   size={["100%", 8]}
                 />
               </div>

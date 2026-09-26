@@ -80,7 +80,7 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
           gap: 16,
           flexWrap: "wrap",
           borderRadius: 12,
-          border: "1px solid rgba(15,42,36,0.08)",
+          border: "1px solid rgba(28, 68, 99, 0.08)",
         }}
       >
         <Typography.Text strong>Format</Typography.Text>

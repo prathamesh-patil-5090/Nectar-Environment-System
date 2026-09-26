@@ -77,7 +77,7 @@ export function OtStatusChip({
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          border: `1px solid ${active ? color : "rgba(15,42,36,0.12)"}`,
+          border: `1px solid ${active ? color : "rgba(28, 68, 99, 0.15)"}`,
           background: active ? `${color}14` : nectarColors.white,
           color: nectarColors.ink,
           borderRadius: 999,
@@ -95,7 +95,7 @@ export function OtStatusChip({
         }}
         onMouseLeave={(e) => {
           if (!active) {
-            e.currentTarget.style.borderColor = "rgba(15,42,36,0.12)";
+            e.currentTarget.style.borderColor = "rgba(28, 68, 99, 0.15)";
             e.currentTarget.style.boxShadow = "none";
           }
         }}

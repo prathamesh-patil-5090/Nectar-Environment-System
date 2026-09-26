@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Switch, Table, Tag } from "antd";
+import { useSearchParams } from "next/navigation";
+import { App, Button, Switch, Table, Tag, Tooltip } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { getSession } from "@/lib/auth";
 import {
@@ -22,17 +24,21 @@ const statusColor: Record<CertificateStatus, string> = {
 };
 
 export default function CertificationsPage() {
+  const { message } = App.useApp();
+  const searchParams = useSearchParams();
+  const mineParam = searchParams?.get("mine") === "1";
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const empOnly = scopedEmployeeId(session);
   const selfId = selfEmployeeId(session);
-  const [mineOnly, setMineOnly] = useState(Boolean(empOnly));
+  const isPersonal = Boolean(empOnly) || mineParam;
+  const [mineOnly, setMineOnly] = useState(isPersonal);
 
   const rows = useMemo(() => {
     if (empOnly) return getCertificatesForEmployee(empOnly);
-    if (mineOnly && selfId) return getCertificatesForEmployee(selfId);
+    if ((mineOnly || mineParam) && selfId) return getCertificatesForEmployee(selfId);
     return getAllCertificates(siteScope);
-  }, [empOnly, mineOnly, selfId, siteScope]);
+  }, [empOnly, mineOnly, mineParam, selfId, siteScope]);
 
   const columns: ColumnsType<Certificate> = [
     {
@@ -40,7 +46,7 @@ export default function CertificationsPage() {
       dataIndex: "name",
       sorter: (a, b) => a.name.localeCompare(b.name),
     },
-    ...(empOnly
+    ...(isPersonal
       ? []
       : [
           {
@@ -75,6 +81,49 @@ export default function CertificationsPage() {
         <Tag color={statusColor[s]}>{CERT_STATUS_LABELS[s]}</Tag>
       ),
     },
+    {
+      title: "Action",
+      key: "action",
+      width: 120,
+      render: (_, record: Certificate) => (
+        <Tooltip title="View stored certificate document — Coming soon">
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() =>
+              message.info(
+                `Digital document for "${record.name}" (${record.certificateNo}) is securely archived. Document viewer is coming soon!`
+              )
+            }
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              borderColor: "rgba(28, 68, 99, 0.2)",
+              color: nectarColors.leaf,
+            }}
+          >
+            View
+            <Tag
+              color="default"
+              style={{
+                fontSize: 10,
+                padding: "0 4px",
+                lineHeight: "16px",
+                margin: 0,
+                border: "none",
+                background: "rgba(28, 68, 99, 0.08)",
+                color: nectarColors.muted,
+                fontWeight: 600,
+              }}
+            >
+              Soon
+            </Tag>
+          </Button>
+        </Tooltip>
+      ),
+    },
   ];
 
   return (
@@ -89,11 +138,11 @@ export default function CertificationsPage() {
         }}
       >
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          {empOnly
+          {isPersonal
             ? "Your safety and process certificates — validity and expiry."
             : "Plant / organization certificate register for compliance tracking."}
         </p>
-        {!empOnly && selfId ? (
+        {!isPersonal && selfId ? (
           <label
             style={{
               display: "flex",

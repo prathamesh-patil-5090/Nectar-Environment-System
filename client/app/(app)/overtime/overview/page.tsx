@@ -53,7 +53,7 @@ export default function OtOverviewPage() {
           display: "flex",
           flexWrap: "wrap",
           gap: 1,
-          background: "rgba(15,42,36,0.06)",
+          background: "rgba(28, 68, 99, 0.06)",
           borderRadius: 8,
           overflow: "hidden",
         }}
@@ -158,7 +158,7 @@ export default function OtOverviewPage() {
         <ChartCard title="Monthly OT hours">
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
@@ -176,7 +176,7 @@ export default function OtOverviewPage() {
         <ChartCard title="Site-wise OT">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={sites} layout="vertical" margin={{ left: 24 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis
                 type="category"

@@ -51,37 +51,6 @@ export default function ShiftsDashboardPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div
-        style={{
-          background: nectarColors.white,
-          borderRadius: 12,
-          padding: 20,
-          border: "1px solid rgba(15,42,36,0.08)",
-          backgroundImage: `linear-gradient(135deg, #EEF6F2 0%, ${nectarColors.white} 55%)`,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-            color: nectarColors.ink,
-          }}
-        >
-          Shift rotation
-        </div>
-        <p style={{ margin: "6px 0 12px", color: nectarColors.muted, maxWidth: 760 }}>
-          Plan shifts forward — forecast gaps, allocate relievers, and avoid OT
-          before the day starts. Current date: <strong>{TODAY}</strong>
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/shifts/master"><Button>Shift Master</Button></Link>
-          <Link href="/shifts/schedule"><Button>Schedule</Button></Link>
-          <Link href="/shifts/rotation"><Button type="primary">Rotation</Button></Link>
-          <Link href="/shifts/change-requests"><Button>Change Requests</Button></Link>
-          <Link href="/shifts/reliever-allocation"><Button>Reliever Allocation</Button></Link>
-          <Link href="/shifts/deviations"><Button>Deviations</Button></Link>
-        </div>
-      </div>
 
       <Select
         allowClear={!locked}
@@ -98,7 +67,7 @@ export default function ShiftsDashboardPage() {
           display: "flex",
           flexWrap: "wrap",
           gap: 1,
-          background: "rgba(15,42,36,0.06)",
+          background: "rgba(28, 68, 99, 0.06)",
           borderRadius: 8,
           overflow: "hidden",
         }}
@@ -260,7 +229,7 @@ function Panel({
         background: nectarColors.white,
         padding: 20,
         borderRadius: 10,
-        border: "1px solid rgba(15,42,36,0.06)",
+        border: "1px solid rgba(28, 68, 99, 0.08)",
       }}
     >
       <div

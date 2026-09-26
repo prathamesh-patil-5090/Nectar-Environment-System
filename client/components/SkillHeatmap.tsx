@@ -6,8 +6,8 @@ import { nectarColors } from "@/lib/theme";
 const skillKeys = Object.keys(skillLabels) as SkillKey[];
 
 function cellColor(score: number): string {
-  if (score >= 85) return "rgba(63, 174, 124, 0.35)";
-  if (score >= 70) return "rgba(63, 174, 124, 0.18)";
+  if (score >= 85) return "rgba(28, 68, 99, 0.35)";
+  if (score >= 70) return "rgba(28, 68, 99, 0.18)";
   if (score >= 55) return "rgba(196, 92, 38, 0.16)";
   return "rgba(196, 92, 38, 0.32)";
 }
@@ -58,7 +58,7 @@ export default function SkillHeatmap() {
               display: "inline-block",
               width: 12,
               height: 12,
-              background: "rgba(63, 174, 124, 0.35)",
+              background: "rgba(28, 68, 99, 0.35)",
               marginRight: 4,
               borderRadius: 2,
               verticalAlign: "middle",
@@ -72,7 +72,7 @@ export default function SkillHeatmap() {
               display: "inline-block",
               width: 12,
               height: 12,
-              background: "rgba(63, 174, 124, 0.18)",
+              background: "rgba(28, 68, 99, 0.18)",
               marginRight: 4,
               borderRadius: 2,
               verticalAlign: "middle",

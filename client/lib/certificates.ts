@@ -37,7 +37,6 @@ function buildCertificates(): Certificate[] {
   const list: Certificate[] = [];
   let seq = 1;
   for (const emp of employees) {
-    if (emp.employeeCategory === "manager") continue;
     const siteName =
       emp.siteId === "s-etp"
         ? "ETP Plant"
@@ -103,6 +102,52 @@ function buildCertificates(): Certificate[] {
           ...e,
           id: `cert-${seq++}`,
           status: statusFor(e.expiresOn),
+        });
+      }
+    }
+  }
+
+  // Executive certification set for Manager (Rajesh Kulkarni)
+  const mgr = getEmployeeById("e-etp-mgr");
+  if (mgr) {
+    const mgrCerts: Omit<Certificate, "id" | "status">[] = [
+      {
+        employeeId: mgr.id,
+        employeeName: mgr.name,
+        siteName: "ETP Plant",
+        name: "Plant Operations & Safety Management",
+        issuer: "Central Pollution Control Board",
+        issuedOn: "2024-03-10",
+        expiresOn: "2027-03-10",
+        certificateNo: "CPCB-IND-MGR-994",
+      },
+      {
+        employeeId: mgr.id,
+        employeeName: mgr.name,
+        siteName: "ETP Plant",
+        name: "ISO 14001:2015 Environmental Lead Auditor",
+        issuer: "Bureau Veritas",
+        issuedOn: "2024-07-15",
+        expiresOn: "2027-07-15",
+        certificateNo: "BV-ISO-14001-442",
+      },
+      {
+        employeeId: mgr.id,
+        employeeName: mgr.name,
+        siteName: "ETP Plant",
+        name: "Hazardous Industrial Effluent Compliance",
+        issuer: "Maharashtra Pollution Control Board",
+        issuedOn: "2025-01-10",
+        expiresOn: "2026-12-31",
+        certificateNo: "MPCB-ETP-DIR-1120",
+      },
+    ];
+    for (const m of mgrCerts) {
+      if (!list.some((c) => c.employeeId === m.employeeId && c.name === m.name)) {
+        list.push({
+          ...m,
+          id: `cert-${seq++}`,
+          status: statusFor(m.expiresOn),
         });
       }
     }

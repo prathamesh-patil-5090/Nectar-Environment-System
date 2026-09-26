@@ -9,12 +9,7 @@ type KpiStatProps = {
   tone?: "default" | "positive" | "alert" | "info";
 };
 
-const toneColor = {
-  default: nectarColors.ink,
-  positive: nectarColors.mint,
-  alert: nectarColors.alert,
-  info: nectarColors.sky,
-} as const;
+
 
 export default function KpiStat({
   label,
@@ -27,14 +22,14 @@ export default function KpiStat({
       style={{
         flex: "1 1 140px",
         minWidth: 140,
-        padding: "16px 18px",
-        borderLeft: `3px solid ${toneColor[tone]}`,
+        padding: "16px 20px",
         background: nectarColors.white,
       }}
     >
       <div
         style={{
           fontSize: 12,
+          fontWeight: 500,
           color: nectarColors.muted,
           marginBottom: 6,
           lineHeight: 1.3,
@@ -44,9 +39,9 @@ export default function KpiStat({
       </div>
       <div
         style={{
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: 650,
-          lineHeight: 1.1,
+          lineHeight: 1.15,
           color: nectarColors.ink,
           fontVariantNumeric: "tabular-nums",
         }}
@@ -58,7 +53,7 @@ export default function KpiStat({
           style={{
             marginTop: 6,
             fontSize: 12,
-            color: toneColor[tone],
+            color: tone === "alert" ? nectarColors.alert : nectarColors.muted,
           }}
         >
           {hint}

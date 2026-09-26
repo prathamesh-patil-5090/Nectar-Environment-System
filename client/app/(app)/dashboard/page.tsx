@@ -123,7 +123,7 @@ export default function DashboardPage() {
             background: nectarColors.white,
             padding: 20,
             borderRadius: 10,
-            border: "1px solid rgba(15,42,36,0.08)",
+            border: "1px solid rgba(28, 68, 99, 0.08)",
           }}
         >
           <div
@@ -210,7 +210,7 @@ export default function DashboardPage() {
               display: "flex",
               flexWrap: "wrap",
               gap: 1,
-              background: "rgba(15,42,36,0.06)",
+              background: "rgba(28, 68, 99, 0.06)",
               borderRadius: 8,
               overflow: "hidden",
             }}

@@ -132,10 +132,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
     <div
       style={{
         background: nectarColors.white,
-        border: "1px solid rgba(15,42,36,0.08)",
+        border: "1px solid #E2E8F0",
         borderRadius: 12,
         padding: "16px 18px 18px",
-        backgroundImage: `linear-gradient(180deg, #F7FBF8 0%, ${nectarColors.white} 40%)`,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
       <div
@@ -379,7 +379,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
                     border: `1px solid ${
                       value.status === opt.value
                         ? opt.color
-                        : "rgba(15,42,36,0.12)"
+                        : "rgba(28, 68, 99, 0.15)"
                     }`,
                     background:
                       value.status === opt.value

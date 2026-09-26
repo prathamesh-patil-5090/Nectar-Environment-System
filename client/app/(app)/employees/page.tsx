@@ -10,9 +10,9 @@ import { canAccessEmployeeRecord, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const statusColor = {
-  compliant: "success",
-  "due-soon": "warning",
-  overdue: "error",
+  compliant: "green",
+  "due-soon": "orange",
+  overdue: "red",
 } as const;
 
 const statusLabel = {

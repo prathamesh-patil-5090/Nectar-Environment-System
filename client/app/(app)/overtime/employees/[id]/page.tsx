@@ -208,7 +208,7 @@ export default function OtEmployeeDetailPage({
         <ResponsiveContainer width="100%" height={280}>
           {granularity === "monthly" ? (
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
@@ -222,7 +222,7 @@ export default function OtEmployeeDetailPage({
             </LineChart>
           ) : (
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} hide={granularity === "daily" && chartData.length > 40} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
@@ -317,11 +317,10 @@ function SummaryTile({ label, value }: { label: string; value: string }) {
     <div
       style={{
         background: nectarColors.white,
-        padding: 14,
-        borderLeft: `3px solid ${nectarColors.leaf}`,
+        padding: "14px 16px",
       }}
     >
-      <div style={{ fontSize: 12, color: nectarColors.muted }}>{label}</div>
+      <div style={{ fontSize: 12, color: nectarColors.muted, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 650, color: nectarColors.ink }}>
         {value}
       </div>
