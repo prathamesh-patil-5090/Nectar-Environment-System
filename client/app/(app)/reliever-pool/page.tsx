@@ -18,6 +18,7 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import KpiStat from "@/components/KpiStat";
+import { getSession } from "@/lib/auth";
 import { sites } from "@/lib/mock-data";
 import { shifts } from "@/lib/overtime/mock-data";
 import {
@@ -34,6 +35,7 @@ import {
   type Reliever,
   type RelieverAvailability,
 } from "@/lib/reliever/pool";
+import { canManageRelieverPool, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const availabilityColor: Record<RelieverAvailability, string> = {
@@ -44,27 +46,49 @@ const availabilityColor: Record<RelieverAvailability, string> = {
 
 export default function RelieverPoolPage() {
   const { message } = App.useApp();
+  const session = getSession();
+  const siteScope = scopedSiteId(session);
+  const canManage = canManageRelieverPool(session);
   const [clusterId, setClusterId] = useState<string | undefined>();
   const [tick, setTick] = useState(0);
 
   const refresh = () => setTick((t) => t + 1);
 
-  const kpis = useMemo(() => getPoolKpis(), [tick]);
-  const absences = useMemo(() => getAbsences(), [tick]);
-  const relieverRows = useMemo(
-    () => getRelievers(clusterId),
-    [clusterId, tick],
-  );
-  const events = useMemo(() => getEvents().slice(0, 8), [tick]);
-  const siteReqs = useMemo(
-    () =>
-      sites
-        .filter((s) => !clusterId || getClusterById(clusterId)?.siteIds.includes(s.id))
-        .map((s) => getSiteManpowerRequirement(s.id)),
-    [clusterId, tick],
-  );
+  const kpis = useMemo(() => {
+    void tick;
+    return getPoolKpis();
+  }, [tick]);
+  const absences = useMemo(() => {
+    void tick;
+    return getAbsences().filter((a) =>
+      siteScope ? a.siteId === siteScope : true,
+    );
+  }, [tick, siteScope]);
+  const relieverRows = useMemo(() => {
+    void tick;
+    return getRelievers(clusterId);
+  }, [clusterId, tick]);
+  const events = useMemo(() => {
+    void tick;
+    return getEvents().slice(0, 8);
+  }, [tick]);
+  const siteReqs = useMemo(() => {
+    void tick;
+    return sites
+      .filter((s) => {
+        if (siteScope && s.id !== siteScope) return false;
+        return (
+          !clusterId || getClusterById(clusterId)?.siteIds.includes(s.id)
+        );
+      })
+      .map((s) => getSiteManpowerRequirement(s.id));
+  }, [clusterId, tick, siteScope]);
 
   const assign = (absenceId: string) => {
+    if (!canManage) {
+      message.error("You do not have permission to assign relievers.");
+      return;
+    }
     try {
       const result = runReplacementFlow(absenceId);
       refresh();
@@ -83,6 +107,10 @@ export default function RelieverPoolPage() {
   };
 
   const toggleAvailability = (reliever: Reliever) => {
+    if (!canManage) {
+      message.error("You do not have permission to change availability.");
+      return;
+    }
     const next: RelieverAvailability =
       reliever.availability === "available" ? "unavailable" : "available";
     if (reliever.availability === "assigned") {
@@ -146,9 +174,15 @@ export default function RelieverPoolPage() {
       key: "action",
       render: (_, row) =>
         row.status === "open" ? (
-          <Button type="primary" size="small" onClick={() => assign(row.id)}>
-            Find replacement
-          </Button>
+          canManage ? (
+            <Button type="primary" size="small" onClick={() => assign(row.id)}>
+              Find replacement
+            </Button>
+          ) : (
+            <span style={{ fontSize: 12, color: nectarColors.muted }}>
+              View only
+            </span>
+          )
         ) : (
           <span style={{ fontSize: 12, color: nectarColors.muted }}>
             {row.resolutionNote ?? "—"}
@@ -183,12 +217,16 @@ export default function RelieverPoolPage() {
     {
       title: "Availability",
       dataIndex: "availability",
-      render: (a: RelieverAvailability) => (
+      render: (a: RelieverAvailability, row) => (
         <Tag color={availabilityColor[a]} style={{ border: "none" }}>
           {a === "available"
             ? "Available"
             : a === "assigned"
-              ? "Assigned"
+              ? `Assigned${
+                  row.assignedSiteId
+                    ? ` · ${sites.find((s) => s.id === row.assignedSiteId)?.name ?? row.assignedSiteId}`
+                    : ""
+                }`
               : "Not available"}
         </Tag>
       ),
@@ -196,11 +234,22 @@ export default function RelieverPoolPage() {
     {
       title: "Toggle",
       key: "toggle",
-      render: (_, row) => (
-        <Button size="small" onClick={() => toggleAvailability(row)}>
-          {row.availability === "available" ? "Mark unavailable" : "Mark available"}
-        </Button>
-      ),
+      render: (_, row) =>
+        !canManage ? (
+          <span style={{ fontSize: 12, color: nectarColors.muted }}>
+            View only
+          </span>
+        ) : row.availability === "assigned" ? (
+          <span style={{ fontSize: 12, color: nectarColors.muted }}>
+            On assignment
+          </span>
+        ) : (
+          <Button size="small" onClick={() => toggleAvailability(row)}>
+            {row.availability === "available"
+              ? "Mark unavailable"
+              : "Mark available"}
+          </Button>
+        ),
     },
   ];
 

@@ -11,7 +11,7 @@ function parseTimeToMinutes(time: string): number {
 }
 
 function durationHours(start: string, end: string, breakMinutes: number): number {
-  let startMin = parseTimeToMinutes(start);
+  const startMin = parseTimeToMinutes(start);
   let endMin = parseTimeToMinutes(end);
   if (endMin <= startMin) endMin += 24 * 60;
   const raw = Math.max(0, endMin - startMin - breakMinutes);

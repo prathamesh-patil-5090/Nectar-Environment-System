@@ -52,25 +52,28 @@ Pages are grouped in the sidebar so each role can work in its layer without boun
 | Feature | Description |
 |--------|-------------|
 | Branded sign-in | Nectar Enviro identity, soft green atmosphere |
-| Demo accounts | Eight roles for walkthroughs |
+| Demo accounts | Five active roles across Admin + ETP / RO / MEE plants |
 | Session | Stored in browser `localStorage` |
 | Redirect | Authenticated users go to `/dashboard`; guests hitting app routes go to `/login` |
-| Nav gating | Sidebar items change by role (employees see self-service only) |
+| Nav gating | Sidebar items change by role; Mgr / SIC / Supervisor also get a **My Employee** section |
 
-**Demo credentials** (password for all: `nectar2026`):
+**Active demo credentials** (password for all: `nectar2026`):
 
-| Email | Role | Typical visibility |
+| Email pattern | Role | Visibility |
 |-------|------|--------------------|
-| `admin@nectarenviro.com` | Admin | Full system control — all sites, leave exceptions, OT packs |
-| `manager@nectarenviro.com` | Manager | Org-wide ops visibility & escalation (same elevated lens as admin for workflows) |
-| `hr@nectarenviro.com` | HR | Leave policy / justifications, OT report downloads |
-| `site@nectarenviro.com` | Site In-Charge | Assigned site (Thane) — manpower, leave approval, shift changes |
-| `shift@nectarenviro.com` | Shift In-Charge | Site-scoped shift rotation, change approval, coverage |
-| `safety@nectarenviro.com` | Safety In-Charge | Training & unexplained-absence visibility across sites |
-| `supervisor@nectarenviro.com` | Supervisor | Site-scoped leave entry & first-line verification |
-| `employee@nectarenviro.com` | Employee | Own profile + own leave requests (Asha Patil) |
+| `admin@nectarenviro.com` | Admin | Org-wide — all plants, leave, OT |
+| `etp.manager@` / `ro.manager@` / `mee.manager@` | Manager | Plant-scoped roster, leave final approve, OT assign |
+| `etp.shift@` / `ro.shift@` / `mee.shift@` | Shift In-Charge | Plant shift coordination + own employee profile |
+| `etp.supervisor@` / `ro.supervisor@` / `mee.supervisor@` | Supervisor | Team leave (on-behalf → employee consent) + own profile |
+| Staff emails (e.g. `asha.patil@…`) | Employee | Own profile, leave, OT notifications, training |
 
-**RBAC helpers** live in `client/lib/rbac.ts` (site/employee scoping, leave action gates, OT download, shift approve). Legacy `management` sessions migrate to `manager`.
+**Hidden from login UI** (still in code for later demos): HR, Site In-Charge, Safety In-Charge.
+
+**Demo plants:** ETP, RO, MEE — each with 1 Manager + 1 Shift In-Charge + 1 Supervisor + 4 Shift + 1 General employee.
+
+**Leave chain (demo):** Employee self-request → Manager approve/reject. Supervisor on-behalf → `PENDING_EMPLOYEE_CONSENT` → employee Approve/Reject → if approved, Manager decide. HR validation is inactive.
+
+**RBAC helpers** live in `client/lib/rbac.ts` (plant scoping — managers are site-scoped, not org-wide; dual-dashboard helpers; leave/OT gates). Legacy `management` sessions migrate to `manager`.
 
 ### Home — `/`
 
@@ -196,6 +199,8 @@ OverTime
 
 ### 5.2 Shift Master — `/shifts/master`
 
+**What it’s for:** the **configuration catalog** for how shifts work at Nectar — not day-to-day scheduling. Ops / compliance set the definitions here; Rotation and Schedule consume them.
+
 | Feature | Description |
 |--------|-------------|
 | Shift definitions | A (Morning), B (Afternoon), C (Night), General — times, hours, breaks |
@@ -223,8 +228,9 @@ OverTime
 |--------|-------------|
 | Employee rotation table | Current shift, next shift, effective date, group, site |
 | Active pattern display | Shows which rotation rule is driving next shifts |
-| Generate next schedule | Creates a draft rotation for a site for Site In-Charge review |
-| Pending reviews | List of generated schedules (draft / pending_review / active) |
+| Generate next schedule | Creates a draft rotation for a site for Shift In-Charge review |
+| Pending reviews | List of generated schedules (draft / pending_review / active / rejected) |
+| Approve / Reject | Shift In-Charge (or Manager) activates the rotation onto the roster, or rejects it |
 
 ---
 
@@ -235,22 +241,25 @@ OverTime
 | Request list | Employee, date, from→to shift, reason, requester |
 | Manpower flag | “No shortage” vs shortage |
 | Potential OT | Hours risk if change proceeds without cover |
-| Approve / Reject | Site-level decision updates planned schedule when approved |
+| Approve / Reject | Site-level decision updates planned schedule when approved (persists in demo browser storage) |
 
-**Workflow:** Supervisor requests → reason + impact → Site In-Charge decide.
+**Workflow:** Supervisor requests → reason + impact → Site / Shift In-Charge decide.
 
 ---
 
 ### 5.6 Reliever Allocation — `/shifts/reliever-allocation`
+
+**What it’s for:** a **forecasting / planning** view of tomorrow’s (and today’s) manpower gaps **before** someone is already on leave. It answers: “If this rotation runs, where are we short, and who in the pool could cover?” — without running the live assignment flow.
 
 | Feature | Description |
 |--------|-------------|
 | Gap detection | Per site/shift: required vs available vs absent |
 | Pool suggestions | Qualified available relievers from the cluster pool |
 | OT risk callout | When no pool match exists |
-| Link to Reliever Pool | Supervisors manage availability there |
+| Link to Reliever Pool | Live assign / availability management happens on `/reliever-pool` |
 
-**Flow:** Rotation → forecast → gap → suggest reliever → avoid OT.
+**Flow:** Rotation → forecast → gap → suggest reliever → avoid OT.  
+**Vs Reliever Pool:** Allocation = plan & suggest; Pool = execute assignment when an absence is open.
 
 ---
 
@@ -494,7 +503,7 @@ Urgent training on the main dashboard links into the employee master for follow-
 | `/leave` | Leave overview |
 | `/leave/requests` | Leave / absence list + create |
 | `/leave/requests/[id]` | Leave detail & actions |
-| `/leave/pending` | HR pending justifications |
+| `/leave/pending` | Pending justifications |
 | `/leave/management` | Management exceptions |
 | `/overtime/overview` | OT management overview |
 | `/overtime/employees` | Employee OT |
@@ -503,15 +512,17 @@ Urgent training on the main dashboard links into the employee master for follow-
 | `/overtime/sites/[id]` | Site OT detail |
 | `/overtime/analysis` | OT analysis & heatmap |
 | `/overtime/reports` | Downloadable OT reports |
+| `/overtime/assign` | Manager OT assign / notify |
+| `/notifications` | Employee inbox (leave consent, OT) |
 
 ---
 
 ## Notes for stakeholders
 
-- **Data today** is rich **mock / demo** data shaped for Nectar Enviro O&M (ETP/STP/WTP/RO sites), ready to swap for live attendance, payroll, and HR APIs.
+- **Data today** is rich **mock / demo** data shaped for Nectar Enviro O&M (**ETP / RO / MEE** demo plants), ready to swap for live attendance, payroll, and HR APIs.
 - **OT is last resort** in the product story: plan shifts → detect gaps → use relievers → only then OT.
-- **Literacy-friendly leave:** supervisors can enter absences on behalf of workers who report verbally.
-- **Configurable rules** (rest hours, OT minimums/rounding, leave policy gates) are designed so HR/compliance can own thresholds without hard-coding one legal interpretation into the UI.
+- **Literacy-friendly leave:** supervisors can enter absences on behalf of workers; employee must consent before the request reaches the plant Manager.
+- **Configurable rules** (rest hours, OT minimums/rounding, leave policy gates) are designed so compliance can own thresholds without hard-coding one legal interpretation into the UI.
 
 ---
 

@@ -1,5 +1,6 @@
 import type { SessionUser, UserRole } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/auth";
+import type { Employee } from "@/lib/mock-data";
 
 export { ROLE_LABELS };
 
@@ -13,28 +14,48 @@ export function roleLabel(role: UserRole | undefined): string {
   return ROLE_LABELS[normalizeRole(role)];
 }
 
-/** Org-wide visibility (not limited to one site) */
+/** Org-wide visibility — Admin (+ hidden HR / Safety for compat) */
 export function canViewAllSites(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return (
-    role === "admin" ||
-    role === "manager" ||
-    role === "hr" ||
-    role === "safety_incharge"
-  );
+  return role === "admin" || role === "hr" || role === "safety_incharge";
 }
 
 export function scopedSiteId(user: SessionUser | null): string | undefined {
   if (canViewAllSites(user)) return undefined;
-  return user?.siteId ?? "s1";
+  return user?.siteId ?? "s-etp";
 }
 
-/** Own employee record only (employee role) */
+/** True when the session maps to an employee master record */
+export function hasEmployeeSelfService(user: SessionUser | null): boolean {
+  return Boolean(user?.employeeId);
+}
+
+/**
+ * Self-service employee id when viewing "my" records.
+ * Pure employees always; managers / SIC / supervisors when they have employeeId.
+ */
 export function scopedEmployeeId(user: SessionUser | null): string | undefined {
-  if (normalizeRole(user?.role) === "employee") {
-    return user?.employeeId ?? "e1";
-  }
+  if (!user?.employeeId) return undefined;
+  const role = normalizeRole(user.role);
+  if (role === "employee") return user.employeeId;
   return undefined;
+}
+
+/** Employee id for dual-dashboard "My Employee" section */
+export function selfEmployeeId(user: SessionUser | null): string | undefined {
+  return user?.employeeId;
+}
+
+export function canAccessEmployeeRecord(
+  user: SessionUser | null,
+  employee: Employee | undefined,
+): boolean {
+  if (!user || !employee) return false;
+  if (canViewAllSites(user)) return true;
+  if (user.employeeId && user.employeeId === employee.id) return true;
+  const site = scopedSiteId(user);
+  if (site && employee.siteId === site) return true;
+  return false;
 }
 
 export function canDownloadOtReports(user: SessionUser | null): boolean {
@@ -45,6 +66,11 @@ export function canDownloadOtReports(user: SessionUser | null): boolean {
 export function canViewOtModule(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return role !== "employee";
+}
+
+export function canAssignOt(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return role === "admin" || role === "manager";
 }
 
 export function canViewLeaveManagement(user: SessionUser | null): boolean {
@@ -94,9 +120,16 @@ export function canSiteApproveLeave(user: SessionUser | null): boolean {
   );
 }
 
+/** Final leave approve/reject for demo — Manager / Admin (HR path inactive) */
+export function canManagerDecideLeave(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return role === "admin" || role === "manager";
+}
+
+/** Kept for hidden HR role; demo UI prefers canManagerDecideLeave */
 export function canHrValidateLeave(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager" || role === "hr";
+  return role === "hr" || role === "admin";
 }
 
 export function canConfirmLeaveReturn(user: SessionUser | null): boolean {
@@ -166,4 +199,15 @@ export function leaveActorRole(
 export function isElevated(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return role === "admin" || role === "manager";
+}
+
+/** Dual management + employee nav for Mgr / SIC / Supervisor */
+export function hasDualDashboard(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return (
+    hasEmployeeSelfService(user) &&
+    (role === "manager" ||
+      role === "shift_incharge" ||
+      role === "supervisor")
+  );
 }

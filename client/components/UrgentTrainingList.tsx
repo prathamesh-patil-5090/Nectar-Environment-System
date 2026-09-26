@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { Tag } from "antd";
-import { getUrgentTraining, type TrainingPriority } from "@/lib/mock-data";
+import { getSession } from "@/lib/auth";
+import type { TrainingPriority } from "@/lib/mock-data";
+import { getUrgentTrainingItems } from "@/lib/training";
+import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const priorityColor: Record<TrainingPriority, string> = {
@@ -13,7 +16,9 @@ const priorityColor: Record<TrainingPriority, string> = {
 };
 
 export default function UrgentTrainingList() {
-  const items = getUrgentTraining().slice(0, 6);
+  const session = getSession();
+  const siteScope = scopedSiteId(session);
+  const items = getUrgentTrainingItems(siteScope).slice(0, 6);
 
   return (
     <div

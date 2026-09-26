@@ -1,11 +1,17 @@
 "use client";
 
 import { Progress } from "antd";
+import { getSession } from "@/lib/auth";
 import { sites } from "@/lib/mock-data";
+import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function SiteReadiness() {
-  const sorted = [...sites].sort((a, b) => a.readiness - b.readiness);
+  const session = getSession();
+  const siteScope = scopedSiteId(session);
+  const sorted = [...sites]
+    .filter((s) => (siteScope ? s.id === siteScope : true))
+    .sort((a, b) => a.readiness - b.readiness);
 
   return (
     <div
@@ -24,8 +30,14 @@ export default function SiteReadiness() {
       >
         Site readiness
       </div>
-      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 13 }}>
-        Skill-mix compliance by treatment plant.
+      <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
+        How ready each plant is to run safely today — based on staffing,
+        training compliance, and skill mix (demo score 0–100%).
+      </p>
+      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
+        Example: ETP at 92% is compliance-ready (≥80%). MEE at 78% means
+        managers should clear overdue training or OT/reliever gaps before
+        withdrawing staff for leave.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

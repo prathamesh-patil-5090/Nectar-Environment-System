@@ -10,6 +10,7 @@ const plantColor: Record<Site["plantType"], string> = {
   STP: nectarColors.sky,
   WTP: nectarColors.mint,
   RO: "#0E7490",
+  MEE: "#7C3AED",
 };
 
 const columns: ColumnsType<Site> = [
@@ -23,7 +24,7 @@ const columns: ColumnsType<Site> = [
     title: "Plant type",
     dataIndex: "plantType",
     key: "plantType",
-    filters: ["ETP", "STP", "WTP", "RO"].map((t) => ({ text: t, value: t })),
+    filters: ["ETP", "RO", "MEE", "STP", "WTP"].map((t) => ({ text: t, value: t })),
     onFilter: (value, record) => record.plantType === value,
     render: (type: Site["plantType"]) => (
       <Tag color={plantColor[type]} style={{ border: "none" }}>

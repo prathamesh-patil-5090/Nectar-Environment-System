@@ -6,3 +6,4 @@ export * from "./aggregations";
 export * from "./format";
 export * from "./reports";
 export * from "./rbac";
+export * from "./assignments";

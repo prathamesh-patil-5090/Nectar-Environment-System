@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getSession } from "@/lib/auth";
 import {
   defaultOtFilters,
@@ -17,17 +17,18 @@ type OtFilterContextValue = {
 
 const OtFilterContext = createContext<OtFilterContextValue | null>(null);
 
-export function OtFilterProvider({ children }: { children: React.ReactNode }) {
-  const [lockedSiteId, setLockedSiteId] = useState<string | undefined>();
-  const [filters, setFilters] = useState<OtFilters>(defaultOtFilters);
+function initialLockedSiteId() {
+  if (typeof window === "undefined") return undefined;
+  return scopedSiteId(getSession());
+}
 
-  useEffect(() => {
-    const locked = scopedSiteId(getSession());
-    setLockedSiteId(locked);
-    if (locked) {
-      setFilters((prev) => ({ ...prev, siteId: locked }));
-    }
-  }, []);
+export function OtFilterProvider({ children }: { children: React.ReactNode }) {
+  const [lockedSiteId] = useState<string | undefined>(initialLockedSiteId);
+  const [filters, setFilters] = useState<OtFilters>(() => {
+    const locked = initialLockedSiteId();
+    const base = defaultOtFilters();
+    return locked ? { ...base, siteId: locked } : base;
+  });
 
   const value = useMemo(
     () => ({

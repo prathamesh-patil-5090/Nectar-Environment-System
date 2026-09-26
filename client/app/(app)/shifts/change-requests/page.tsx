@@ -9,15 +9,19 @@ import {
   getChangeRequests,
   getShiftMasterById,
 } from "@/lib/shift";
-import { canApproveShiftChanges } from "@/lib/rbac";
+import { canApproveShiftChanges, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function ShiftChangeRequestsPage() {
   const { message } = App.useApp();
   const session = getSession();
   const canApprove = canApproveShiftChanges(session);
+  const siteScope = scopedSiteId(session);
   const [tick, setTick] = useState(0);
-  const rows = useMemo(() => getChangeRequests(), [tick]);
+  const rows = useMemo(() => {
+    void tick;
+    return getChangeRequests(siteScope);
+  }, [tick, siteScope]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
