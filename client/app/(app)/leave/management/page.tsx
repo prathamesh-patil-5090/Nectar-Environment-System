@@ -12,13 +12,14 @@ import {
   getLeaveRequests,
   LEAVE_STATUS_LABELS,
 } from "@/lib/leave";
-import { canViewLeaveManagement } from "@/lib/rbac";
+import { canViewLeaveManagement, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function LeaveManagementPage() {
   const router = useRouter();
   const session = getSession();
   const allowed = canViewLeaveManagement(session);
+  const siteScope = scopedSiteId(session);
 
   useEffect(() => {
     if (!allowed) router.replace("/leave");
@@ -28,17 +29,23 @@ export default function LeaveManagementPage() {
     return <Empty description="Not available for your role" />;
   }
 
-  const kpis = getLeaveKpis();
-  const riskRows = getLeaveRequests().filter(
+  const kpis = getLeaveKpis(siteScope);
+  const riskRows = getLeaveRequests(siteScope).filter(
     (l) =>
       (l.potentialOtHours > 0 ||
-        ["UNEXPLAINED_ABSENCE", "PENDING_INFORMATION", "EXTENSION_REQUIRED"].includes(
-          l.status,
-        )) &&
+        [
+          "UNEXPLAINED_ABSENCE",
+          "PENDING_INFORMATION",
+          "EXTENSION_REQUIRED",
+        ].includes(l.status)) &&
       !["CLOSED", "REJECTED", "CANCELLED"].includes(l.status),
   );
 
-  const bySite = sites.map((s) => {
+  const siteList = siteScope
+    ? sites.filter((s) => s.id === siteScope)
+    : sites;
+
+  const bySite = siteList.map((s) => {
     const siteLeaves = getLeaveRequests(s.id).filter(
       (l) => !["CLOSED", "REJECTED", "CANCELLED"].includes(l.status),
     );
@@ -68,6 +75,7 @@ export default function LeaveManagementPage() {
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Exceptions and workforce impact — not routine approvals. Drill from
           site → leave → OT impact.
+          {siteScope ? ` Scoped to ${getSiteName(siteScope)}.` : ""}
         </p>
       </div>
 
@@ -109,7 +117,9 @@ export default function LeaveManagementPage() {
         />
       </div>
 
-      <div style={{ background: nectarColors.white, padding: 20, borderRadius: 10 }}>
+      <div
+        style={{ background: nectarColors.white, padding: 20, borderRadius: 10 }}
+      >
         <div
           style={{
             fontFamily: "var(--font-fraunces), Georgia, serif",
@@ -148,7 +158,9 @@ export default function LeaveManagementPage() {
         />
       </div>
 
-      <div style={{ background: nectarColors.white, padding: 20, borderRadius: 10 }}>
+      <div
+        style={{ background: nectarColors.white, padding: 20, borderRadius: 10 }}
+      >
         <div
           style={{
             fontFamily: "var(--font-fraunces), Georgia, serif",

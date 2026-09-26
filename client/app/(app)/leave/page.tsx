@@ -92,7 +92,7 @@ export default function LeaveOverviewPage() {
             <Button>{isSelf ? "My requests" : "All requests"}</Button>
           </Link>
           {showPending ? (
-            <Link href="/leave/pending">
+            <Link href="/leave/requests?view=pending">
               <Button>Pending justifications</Button>
             </Link>
           ) : null}

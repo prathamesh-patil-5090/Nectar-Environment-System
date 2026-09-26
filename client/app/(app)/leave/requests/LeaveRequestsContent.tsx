@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   App,
   Button,
@@ -13,6 +13,7 @@ import {
   Radio,
   Select,
   Table,
+  Tabs,
   Tag,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -22,6 +23,7 @@ import { employees, getEmployeeById, getSiteName } from "@/lib/mock-data";
 import {
   createLeaveRequest,
   getLeaveRequests,
+  getPendingJustifications,
   LEAVE_STATUS_LABELS,
   LEAVE_TYPE_LABELS,
   type LeaveMode,
@@ -31,6 +33,7 @@ import {
 import { pushNotification } from "@/lib/notifications";
 import {
   canEnterLeaveForOthers,
+  canViewLeavePending,
   leaveActorRole,
   scopedEmployeeId,
   scopedSiteId,
@@ -40,8 +43,10 @@ import { nectarColors } from "@/lib/theme";
 
 export default function LeaveRequestsContent() {
   const { message } = App.useApp();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const mineOnly = searchParams.get("mine") === "1";
+  const viewParam = searchParams.get("view");
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const empScope = scopedEmployeeId(session);
@@ -49,11 +54,16 @@ export default function LeaveRequestsContent() {
   const personalOnly = Boolean(empScope) || mineOnly;
   const filterEmployeeId = empScope ?? (mineOnly ? selfId : undefined);
   const canEnterOthers = canEnterLeaveForOthers(session) && !personalOnly;
+  /** Pending justifications tab: all ops roles; never for pure employee / My leave */
+  const showPendingTab = !personalOnly && canViewLeavePending(session);
   const actorRole = leaveActorRole(session);
 
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
+  const activeTab =
+    showPendingTab && viewParam === "pending" ? "pending" : "requests";
+
   const rows = useMemo(() => {
     void tick;
     let list = getLeaveRequests(personalOnly ? undefined : siteScope);
@@ -62,6 +72,21 @@ export default function LeaveRequestsContent() {
     }
     return list;
   }, [siteScope, filterEmployeeId, personalOnly, tick]);
+
+  const pendingRows = useMemo(() => {
+    void tick;
+    return getPendingJustifications().filter((l) =>
+      siteScope ? l.siteId === siteScope : true,
+    );
+  }, [siteScope, tick]);
+
+  const setView = (key: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (key === "pending") params.set("view", "pending");
+    else params.delete("view");
+    const q = params.toString();
+    router.replace(q ? `/leave/requests?${q}` : "/leave/requests");
+  };
 
   const columns: ColumnsType<LeaveRequest> = [
     {
@@ -131,6 +156,50 @@ export default function LeaveRequestsContent() {
     },
   ];
 
+  const pendingColumns: ColumnsType<LeaveRequest> = [
+    {
+      title: "Employee",
+      dataIndex: "employeeName",
+      render: (n, r) => (
+        <Link href={`/leave/requests/${r.id}`} style={{ fontWeight: 600 }}>
+          {n}
+        </Link>
+      ),
+    },
+    {
+      title: "Site",
+      dataIndex: "siteId",
+      render: (id) => getSiteName(id),
+    },
+    { title: "Absent since", dataIndex: "startDate" },
+    { title: "Days", dataIndex: "daysRequested" },
+    {
+      title: "Status",
+      dataIndex: "status",
+      render: (s: LeaveRequest["status"]) => (
+        <Tag color={nectarColors.alert}>{LEAVE_STATUS_LABELS[s]}</Tag>
+      ),
+    },
+    { title: "Supervisor", dataIndex: "supervisorName" },
+    { title: "Site In-Charge", dataIndex: "siteInChargeName" },
+    {
+      title: "Last communication",
+      dataIndex: "lastCommunication",
+      render: (v) => v ?? "—",
+    },
+    {
+      title: "",
+      key: "follow",
+      render: (_, r) => (
+        <Link href={`/leave/requests/${r.id}`}>
+          <Button size="small" type="primary">
+            Follow up
+          </Button>
+        </Link>
+      ),
+    },
+  ];
+
   const onCreate = async () => {
     const values = await form.validateFields();
     const employeeId = filterEmployeeId ?? values.employeeId;
@@ -193,6 +262,34 @@ export default function LeaveRequestsContent() {
     setTick((t) => t + 1);
   };
 
+  const requestsTable = (
+    <Table
+      rowKey="id"
+      columns={columns}
+      dataSource={rows}
+      pagination={{ pageSize: 10 }}
+      scroll={{ x: 1000 }}
+      style={{ background: nectarColors.white }}
+    />
+  );
+
+  const pendingTable = (
+    <>
+      <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 13 }}>
+        Absences that need employee follow-up — verbal, incomplete, unexplained,
+        or overdue to close.
+      </p>
+      <Table
+        rowKey="id"
+        columns={pendingColumns}
+        dataSource={pendingRows}
+        pagination={false}
+        scroll={{ x: 1100 }}
+        style={{ background: nectarColors.white }}
+      />
+    </>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div
@@ -217,14 +314,26 @@ export default function LeaveRequestsContent() {
         </Button>
       </div>
 
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={rows}
-        pagination={{ pageSize: 10 }}
-        scroll={{ x: 1000 }}
-        style={{ background: nectarColors.white }}
-      />
+      {showPendingTab ? (
+        <Tabs
+          activeKey={activeTab}
+          onChange={setView}
+          items={[
+            {
+              key: "requests",
+              label: `Requests (${rows.length})`,
+              children: requestsTable,
+            },
+            {
+              key: "pending",
+              label: `Pending justifications (${pendingRows.length})`,
+              children: pendingTable,
+            },
+          ]}
+        />
+      ) : (
+        requestsTable
+      )}
 
       <Drawer
         title="Record leave or emergency absence"
@@ -289,7 +398,10 @@ export default function LeaveRequestsContent() {
           >
             <Select
               options={(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map(
-                (k) => ({ value: k, label: LEAVE_TYPE_LABELS[k] }),
+                (value) => ({
+                  value,
+                  label: LEAVE_TYPE_LABELS[value],
+                }),
               )}
             />
           </Form.Item>
@@ -307,7 +419,7 @@ export default function LeaveRequestsContent() {
             <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item name="lastCommunication" label="Last communication">
-            <Input.TextArea rows={2} placeholder="Optional" />
+            <Input placeholder="Optional note" />
           </Form.Item>
         </Form>
       </Drawer>

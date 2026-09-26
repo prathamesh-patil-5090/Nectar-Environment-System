@@ -80,12 +80,7 @@ export function canViewLeaveManagement(user: SessionUser | null): boolean {
 
 export function canViewLeavePending(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return (
-    role === "admin" ||
-    role === "manager" ||
-    role === "hr" ||
-    role === "safety_incharge"
-  );
+  return role !== "employee";
 }
 
 export function canEnterLeaveForOthers(user: SessionUser | null): boolean {

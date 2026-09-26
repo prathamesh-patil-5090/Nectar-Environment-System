@@ -741,9 +741,9 @@ export function getEmployeeSkills(
 }
 
 export function getDashboardKpis(siteId?: string) {
-  const scopedEmployees = siteId
-    ? employees.filter((e) => e.siteId === siteId)
-    : employees;
+  const scopedEmployees = (
+    siteId ? employees.filter((e) => e.siteId === siteId) : employees
+  ).filter((e) => e.employmentStatus === "active");
   const scopedSites = siteId ? sites.filter((s) => s.id === siteId) : sites;
   const totalEmployees = scopedEmployees.length || 1;
   const activeSites = scopedSites.length;

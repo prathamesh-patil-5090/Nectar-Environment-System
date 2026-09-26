@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Table, Tag } from "antd";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Table, Tabs, Tag } from "antd";
 import {
   Bar,
   BarChart,
@@ -17,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import OtFiltersBar from "@/components/overtime/OtFiltersBar";
+import OtReportsPanel from "@/components/overtime/OtReportsPanel";
 import { useOtFilters } from "@/components/overtime/OtFilterContext";
 import {
   buildInsights,
@@ -45,6 +48,17 @@ const PIE_COLORS = [
 ];
 
 export default function OtAnalysisPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading analysis…</div>}>
+      <OtAnalysisInner />
+    </Suspense>
+  );
+}
+
+function OtAnalysisInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") === "reports" ? "reports" : "analysis";
   const { filters, setFilters, lockedSiteId } = useOtFilters();
   const monthly = getMonthlyTrend(filters);
   const yearly = getYearlyTrend(filters);
@@ -58,17 +72,16 @@ export default function OtAnalysisPage() {
   const insights = buildInsights(filters);
   const maxHeat = Math.max(...heatmap.cells.map((c) => c.hours), 1);
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-        Where OT happens, who generates it, when it occurs, and what it costs.
-      </p>
-      <OtFiltersBar
-        value={filters}
-        onChange={setFilters}
-        lockedSiteId={lockedSiteId}
-      />
+  const setTab = (key: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (key === "reports") params.set("tab", "reports");
+    else params.delete("tab");
+    const q = params.toString();
+    router.replace(q ? `/overtime/analysis?${q}` : "/overtime/analysis");
+  };
 
+  const analysisBody = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div
         style={{
           display: "grid",
@@ -364,6 +377,32 @@ export default function OtAnalysisPage() {
           ))}
         </ul>
       </Panel>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
+        Where OT happens, who generates it, when it occurs, what it costs — plus
+        downloadable reports.
+      </p>
+      <OtFiltersBar
+        value={filters}
+        onChange={setFilters}
+        lockedSiteId={lockedSiteId}
+      />
+      <Tabs
+        activeKey={tab}
+        onChange={setTab}
+        items={[
+          { key: "analysis", label: "Analysis", children: analysisBody },
+          {
+            key: "reports",
+            label: "Reports",
+            children: <OtReportsPanel filters={filters} />,
+          },
+        ]}
+      />
     </div>
   );
 }

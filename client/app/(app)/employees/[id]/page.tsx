@@ -41,6 +41,7 @@ import {
   type OtRecord,
 } from "@/lib/overtime";
 import { canAccessEmployeeRecord, canViewOtModule, scopedEmployeeId } from "@/lib/rbac";
+import { computeSiteReadiness } from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
 
 const statusColor = {
@@ -220,6 +221,7 @@ export default function EmployeeDetailPage({
   }
 
   const site = getSiteById(employee.siteId);
+  const siteReadiness = computeSiteReadiness(employee.siteId);
   const skills = getEmployeeSkills(employee);
   const skillKeys = Object.keys(skillLabels) as SkillKey[];
   const training = getEmployeeTraining(employee.id);
@@ -367,7 +369,7 @@ export default function EmployeeDetailPage({
                     {site.plantType}
                   </Tag>
                   <span style={{ color: nectarColors.muted }}>
-                    · {site.location} · readiness {site.readiness}%
+                    · {site.location} · readiness {siteReadiness.readiness}%
                   </span>
                 </span>
               ) : (
@@ -413,13 +415,13 @@ export default function EmployeeDetailPage({
             Skill map
           </div>
           <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
-            This person&apos;s competency scores (0–100) for each O&amp;M skill,
-            adjusted from their role baseline by their overall skill score.
+            Personal O&amp;M competency bars for <em>this person</em> (0–100).
+            Built from the skill matrix role baseline, then shifted by their
+            overall skill score.
           </p>
           <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
-            Example: if the role baseline for Safety is 90 and this employee&apos;s
-            skill score is above average, their Safety bar rises accordingly —
-            used when choosing who covers OT or leave.
+            Formula: score = clamp(roleBaseline + (skillScore − roleAverage),
+            0–100). Use this when choosing who covers leave or OT for a skill.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {skillKeys.map((key) => {

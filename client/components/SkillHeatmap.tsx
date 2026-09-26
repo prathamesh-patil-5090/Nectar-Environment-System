@@ -32,12 +32,15 @@ export default function SkillHeatmap() {
         Skill mapping
       </div>
       <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
-        Heatmap of how strong each <strong>job role</strong> is on critical O&amp;M
-        competencies (0–100). Darker green = stronger; amber/red = gap.
+        This is the <strong>skill matrix</strong> for O&amp;M (Operations &amp;
+        Maintenance): rows = job roles, columns = skills, cells = expected
+        strength 0–100. It answers “what is this <em>kind of job</em> good at?”
+        — not one named person.
       </p>
       <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
-        Example: a Shift Employee scoring 86 on ETP Ops but 58 on Maintenance
-        means they can run process well, but need backup for mechanical work.
+        Example: Shift Employee is strong on Safety (90) but weaker on
+        Maintenance (58). When planning leave cover, prefer someone whose role
+        (or personal skill map) is strong on the skill you need.
       </p>
       <div
         style={{
