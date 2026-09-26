@@ -45,9 +45,9 @@ import { computeSiteReadiness } from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
 
 const statusColor = {
-  compliant: "success",
-  "due-soon": "warning",
-  overdue: "error",
+  compliant: "green",
+  "due-soon": "orange",
+  overdue: "red",
 } as const;
 
 const statusLabel = {
@@ -120,11 +120,11 @@ const trainingColumns: ColumnsType<TrainingItem> = [
       <Tag
         color={
           status === "overdue"
-            ? "error"
+            ? "red"
             : status === "due-soon"
-              ? "warning"
+              ? "orange"
               : status === "completed"
-                ? "success"
+                ? "green"
                 : "default"
         }
       >
@@ -301,7 +301,7 @@ export default function EmployeeDetailPage({
               <Tag color={statusColor[employee.trainingStatus]}>
                 {statusLabel[employee.trainingStatus]}
               </Tag>
-              <Tag style={{ borderColor: "rgba(15,42,36,0.12)" }}>
+              <Tag style={{ borderColor: "rgba(28, 68, 99, 0.15)" }}>
                 Skill score {employee.skillScore}%
               </Tag>
               {employee.otEligible ? (
@@ -460,7 +460,7 @@ export default function EmployeeDetailPage({
                           ? nectarColors.sky
                           : nectarColors.mint
                     }
-                    railColor="#E5EDE9"
+                    railColor="#E2E8F0"
                   />
                 </div>
               );

@@ -13,7 +13,6 @@ import {
   type LeaveStatus,
 } from "@/lib/leave";
 import {
-  canViewLeaveManagement,
   canViewLeavePending,
   isElevated,
   scopedEmployeeId,
@@ -54,7 +53,6 @@ export default function LeaveOverviewPage() {
 
   const showMgmt = isElevated(session) && !empScope;
   const showPending = canViewLeavePending(session) && !empScope;
-  const showManagement = canViewLeaveManagement(session) && !empScope;
   const isSelf = Boolean(empScope);
 
   return (
@@ -64,8 +62,8 @@ export default function LeaveOverviewPage() {
           background: nectarColors.white,
           borderRadius: 12,
           padding: 20,
-          border: "1px solid rgba(15,42,36,0.08)",
-          backgroundImage: `linear-gradient(135deg, #F0F7F3 0%, ${nectarColors.white} 50%)`,
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         }}
       >
         <div
@@ -88,19 +86,6 @@ export default function LeaveOverviewPage() {
               {isSelf ? "Request leave" : "New leave / absence"}
             </Button>
           </Link>
-          <Link href="/leave/requests">
-            <Button>{isSelf ? "My requests" : "All requests"}</Button>
-          </Link>
-          {showPending ? (
-            <Link href="/leave/requests?view=pending">
-              <Button>Pending justifications</Button>
-            </Link>
-          ) : null}
-          {showManagement ? (
-            <Link href="/leave/management">
-              <Button>Management view</Button>
-            </Link>
-          ) : null}
         </div>
       </div>
 
@@ -109,7 +94,7 @@ export default function LeaveOverviewPage() {
           display: "flex",
           flexWrap: "wrap",
           gap: 1,
-          background: "rgba(15,42,36,0.06)",
+          background: "rgba(28, 68, 99, 0.06)",
           borderRadius: 8,
           overflow: "hidden",
         }}
@@ -337,7 +322,7 @@ function Panel({
         background: nectarColors.white,
         padding: 20,
         borderRadius: 10,
-        border: "1px solid rgba(15,42,36,0.06)",
+        border: "1px solid rgba(28, 68, 99, 0.08)",
       }}
     >
       <div

@@ -1,23 +1,23 @@
 import type { ThemeConfig } from "antd";
 
 export const nectarColors = {
-  ink: "#0F2A24",
-  leaf: "#1F6B4A",
-  mint: "#3FAE7C",
-  sand: "#F3F6F4",
+  ink: "#0B1A24",
+  leaf: "#1C4463",
+  mint: "#1C4463",
+  sand: "#F4F7FA",
   alert: "#C45C26",
-  sky: "#2B6CB0",
+  sky: "#1C4463",
   white: "#FFFFFF",
-  muted: "#5A6F68",
+  muted: "#4A6375",
 } as const;
 
 export const nectarTheme: ThemeConfig = {
   token: {
-    colorPrimary: nectarColors.leaf,
-    colorInfo: nectarColors.sky,
-    colorSuccess: nectarColors.mint,
-    colorWarning: nectarColors.alert,
-    colorError: nectarColors.alert,
+    colorPrimary: "#1C4463",
+    colorInfo: "#1C4463",
+    colorSuccess: "#16A34A",
+    colorWarning: "#D97706",
+    colorError: "#DC2626",
     colorBgLayout: nectarColors.sand,
     colorBgContainer: nectarColors.white,
     colorText: nectarColors.ink,
@@ -28,24 +28,25 @@ export const nectarTheme: ThemeConfig = {
   },
   components: {
     Layout: {
-      siderBg: nectarColors.ink,
-      triggerBg: "#0A1F1A",
+      siderBg: "#0B1A24",
+      triggerBg: "#060F17",
       headerBg: nectarColors.white,
       bodyBg: nectarColors.sand,
     },
     Menu: {
-      darkItemBg: nectarColors.ink,
-      darkSubMenuItemBg: nectarColors.ink,
-      darkItemSelectedBg: nectarColors.leaf,
-      darkItemHoverBg: "#163830",
-      darkItemColor: "rgba(255,255,255,0.78)",
+      darkItemBg: "#0B1A24",
+      darkSubMenuItemBg: "#0B1A24",
+      darkItemSelectedBg: "#1C4463",
+      darkItemHoverBg: "#132D42",
+      darkItemColor: "rgba(255,255,255,0.85)",
       darkItemSelectedColor: nectarColors.white,
     },
     Button: {
       primaryShadow: "none",
     },
     Table: {
-      headerBg: "#E8F0EC",
+      headerBg: "#EAF1F6",
     },
   },
 };
+

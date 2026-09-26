@@ -123,7 +123,7 @@ export default function OtSiteDetailPage({
         <Panel title="Shift breakdown">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={shifts}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="shiftName" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
@@ -136,7 +136,7 @@ export default function OtSiteDetailPage({
       <Panel title="Monthly trend">
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={monthlyTrend}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="h" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="c" orientation="right" tick={{ fontSize: 11 }} />
@@ -221,12 +221,11 @@ function Tile({ label, value }: { label: string; value: string }) {
     <div
       style={{
         background: nectarColors.white,
-        padding: 14,
-        borderLeft: `3px solid ${nectarColors.mint}`,
+        padding: "14px 16px",
       }}
     >
-      <div style={{ fontSize: 12, color: nectarColors.muted }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 650 }}>{value}</div>
+      <div style={{ fontSize: 12, color: nectarColors.muted, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 650, color: nectarColors.ink }}>{value}</div>
     </div>
   );
 }

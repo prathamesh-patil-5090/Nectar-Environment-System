@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { App, Button, Switch, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { getSession } from "@/lib/auth";
@@ -15,6 +16,7 @@ import {
   canEnterLeaveForOthers,
   scopedEmployeeId,
   scopedSiteId,
+  selfEmployeeId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
@@ -35,16 +37,23 @@ const statusLabel = {
 export default function TrainingPage() {
   const { message } = App.useApp();
   const session = getSession();
+  const searchParams = useSearchParams();
+  const mineParam = searchParams?.get("mine") === "1";
   const empScope = scopedEmployeeId(session);
+  const selfId = selfEmployeeId(session);
+  const isPersonal = Boolean(empScope) || mineParam;
+  const targetEmpId = empScope ?? (mineParam ? selfId : undefined);
   const siteScope = scopedSiteId(session);
-  const canMarkForOthers = canEnterLeaveForOthers(session);
+  const canMarkForOthers = canEnterLeaveForOthers(session) && !isPersonal;
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [tick, setTick] = useState(0);
 
   const data = useMemo(() => {
     void tick;
     let rows = getTrainingItems();
-    if (empScope) {
+    if (isPersonal && targetEmpId) {
+      rows = rows.filter((t) => t.employeeId === targetEmpId);
+    } else if (empScope) {
       rows = rows.filter((t) => t.employeeId === empScope);
     } else if (siteScope) {
       rows = rows.filter((t) => {
@@ -58,10 +67,10 @@ export default function TrainingPage() {
       );
     }
     return rows;
-  }, [empScope, siteScope, urgentOnly, tick]);
+  }, [isPersonal, targetEmpId, empScope, siteScope, urgentOnly, tick]);
 
   const columns: ColumnsType<TrainingItem> = [
-    ...(!empScope
+    ...(!isPersonal
       ? ([
           {
             title: "Employee",
@@ -172,7 +181,7 @@ export default function TrainingPage() {
         }}
       >
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          {empScope
+          {isPersonal
             ? "Your assigned, completed, and upcoming training courses."
             : "Certifications and refresher courses for site-critical skills."}
         </p>

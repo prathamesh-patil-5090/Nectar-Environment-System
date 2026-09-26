@@ -687,6 +687,50 @@ export const trainingItems: TrainingItem[] = (() => {
     ]),
   );
 
+  const etpMgr = employees.find((e) => e.id === "e-etp-mgr");
+  if (etpMgr) {
+    items.push(
+      ...trainingFor(etpMgr, "ETP Plant", [
+        {
+          id: "t-etp-mgr-1",
+          course: "Factory Safety Audit & Statutory Compliance",
+          dueDate: "2026-10-15",
+          completedAt: "2025-10-10",
+          priority: "critical",
+          status: "completed",
+          provider: "Central Pollution Control Board",
+          score: 95,
+        },
+        {
+          id: "t-etp-mgr-2",
+          course: "Environmental Risk Assessment & Crisis Management",
+          dueDate: "2026-11-20",
+          priority: "high",
+          status: "scheduled",
+          provider: "Nectar HSE Academy",
+        },
+        {
+          id: "t-etp-mgr-3",
+          course: "Zero Liquid Discharge (ZLD) Leadership",
+          dueDate: "2026-09-30",
+          priority: "high",
+          status: "due-soon",
+          provider: "National Water Mission",
+        },
+        {
+          id: "t-etp-mgr-4",
+          course: "Hazardous Effluent Handling Protocols",
+          dueDate: "2024-08-15",
+          completedAt: "2024-08-10",
+          priority: "critical",
+          status: "completed",
+          provider: "SafeWork MH",
+          score: 92,
+        },
+      ]),
+    );
+  }
+
   return items;
 })();
 

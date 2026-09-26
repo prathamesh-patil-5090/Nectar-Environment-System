@@ -93,7 +93,7 @@ function OtAnalysisInner() {
         <Panel title="Monthly OT hours">
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
@@ -109,7 +109,7 @@ function OtAnalysisInner() {
         <Panel title="Monthly OT cost">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => formatInr(Number(v))} />
@@ -130,7 +130,7 @@ function OtAnalysisInner() {
         <Panel title="Site-wise OT">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={sites}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5EDE9" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="siteName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
@@ -325,7 +325,7 @@ function OtAnalysisInner() {
                           <div
                             title={`${name} ${month}: ${hours} hrs`}
                             style={{
-                              background: `rgba(31, 107, 74, ${0.08 + intensity * 0.72})`,
+                              background: `rgba(28, 68, 99, ${0.08 + intensity * 0.72})`,
                               color: intensity > 0.55 ? "#fff" : nectarColors.ink,
                               textAlign: "center",
                               fontSize: 11,

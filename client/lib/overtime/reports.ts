@@ -237,7 +237,7 @@ function exportPdf(
       head: [headers],
       body: rows.map((r) => headers.map((h) => String(r[h] ?? ""))),
       styles: { fontSize: 7 },
-      headStyles: { fillColor: [31, 107, 74] },
+      headStyles: { fillColor: [28, 68, 99] },
     });
   }
   doc.save(name);

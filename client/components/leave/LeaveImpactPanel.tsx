@@ -23,8 +23,7 @@ export default function LeaveImpactPanel({
     <div
       style={{
         background: nectarColors.white,
-        border: `1px solid ${riskColor}33`,
-        borderLeft: `4px solid ${riskColor}`,
+        border: "1px solid rgba(28, 68, 99, 0.12)",
         borderRadius: 10,
         padding: 18,
       }}

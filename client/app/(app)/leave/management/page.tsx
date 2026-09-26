@@ -84,7 +84,7 @@ export default function LeaveManagementPage() {
           display: "flex",
           flexWrap: "wrap",
           gap: 1,
-          background: "rgba(15,42,36,0.06)",
+          background: "rgba(28, 68, 99, 0.06)",
           borderRadius: 8,
           overflow: "hidden",
         }}

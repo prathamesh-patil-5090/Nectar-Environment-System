@@ -260,8 +260,8 @@ export default function RelieverPoolPage() {
           background: nectarColors.white,
           borderRadius: 12,
           padding: 20,
-          border: "1px solid rgba(15,42,36,0.08)",
-          backgroundImage: `linear-gradient(135deg, #F0F7F3 0%, ${nectarColors.white} 55%)`,
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         }}
       >
         <div
@@ -303,7 +303,7 @@ export default function RelieverPoolPage() {
           display: "flex",
           flexWrap: "wrap",
           gap: 1,
-          background: "rgba(15,42,36,0.06)",
+          background: "rgba(28, 68, 99, 0.06)",
           borderRadius: 8,
           overflow: "hidden",
         }}
@@ -463,7 +463,7 @@ export default function RelieverPoolPage() {
               background: nectarColors.white,
               borderRadius: 10,
               padding: 16,
-              border: "1px solid rgba(15,42,36,0.08)",
+              border: "1px solid rgba(28, 68, 99, 0.08)",
             }}
           >
             <div
@@ -509,8 +509,8 @@ function FlowStep({
           width: 22,
           height: 22,
           borderRadius: "50%",
-          background: muted ? "rgba(196,92,38,0.15)" : `${nectarColors.leaf}18`,
-          color: muted ? nectarColors.alert : nectarColors.leaf,
+          background: muted ? "rgba(196,92,38,0.15)" : "#1C4463",
+          color: muted ? nectarColors.alert : "#FFFFFF",
           display: "grid",
           placeItems: "center",
           fontSize: 11,
@@ -539,7 +539,7 @@ function Panel({
         background: nectarColors.white,
         padding: 20,
         borderRadius: 10,
-        border: "1px solid rgba(15,42,36,0.06)",
+        border: "1px solid rgba(28, 68, 99, 0.06)",
       }}
     >
       <div

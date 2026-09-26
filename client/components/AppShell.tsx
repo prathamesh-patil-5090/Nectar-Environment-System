@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import gsap from "gsap";
 import {
   Avatar,
   Dropdown,
@@ -48,12 +49,45 @@ const FLYOUT_TITLES: Record<string, string> = {
   leave: "Leave",
   shifts: "Shifts",
   overtime: "OverTime",
-  "my-employee": "My Employee",
+  "my-employee": "My Profile",
 };
 
 function submenuTitleText(label: unknown): string {
   if (typeof label === "string") return label;
   return "Menu";
+}
+
+function GsapFlyoutCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (cardRef.current) {
+      gsap.fromTo(
+        cardRef.current,
+        { opacity: 0, x: -12, scale: 0.94 },
+        {
+          opacity: 1,
+          x: 0,
+          scale: 1,
+          duration: 0.28,
+          ease: "power3.out",
+        }
+      );
+    }
+  }, []);
+
+  return (
+    <div ref={cardRef} className="nectar-sider-flyout-card">
+      <div className="nectar-sider-flyout-title">{title}</div>
+      {children}
+    </div>
+  );
 }
 
 const overtimeChildren = [
@@ -105,24 +139,154 @@ const pageTitles: Record<string, string> = {
   "/notifications": "Notifications",
   "/certifications": "Certifications",
   "/salary": "Salary history",
+  "my-salary": "Salary history",
+  "my-notifications": "Notifications",
+  "my-leave": "My leave",
+  "my-training": "Training",
+  "my-certifications": "Certifications",
 };
 
 const MY_EMPLOYEE_ROUTES: Record<string, string> = {
   "my-leave": "/leave/requests?mine=1",
   "my-salary": "/salary",
-  "my-certifications": "/certifications",
-  "my-training": "/training",
+  "my-certifications": "/certifications?mine=1",
+  "my-training": "/training?mine=1",
   "my-notifications": "/notifications",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isMine = searchParams?.get("mine") === "1";
   const { token } = theme.useToken();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
+
+  const siderRef = useRef<HTMLDivElement>(null);
+  const logoFullRef = useRef<HTMLDivElement>(null);
+  const logoShortRef = useRef<HTMLDivElement>(null);
+  const toggleBtnRef = useRef<HTMLButtonElement>(null);
+
+  // GSAP: Animate logo swap on collapse/expand
+  useEffect(() => {
+    if (collapsed && logoShortRef.current) {
+      gsap.fromTo(
+        logoShortRef.current,
+        { opacity: 0, scale: 0.65 },
+        { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }
+      );
+    } else if (!collapsed && logoFullRef.current) {
+      gsap.fromTo(
+        logoFullRef.current,
+        { opacity: 0, x: -14 },
+        { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }
+      );
+    }
+  }, [collapsed]);
+
+  // GSAP: Stagger menu items on mount and collapse toggle
+  useEffect(() => {
+    if (ready && siderRef.current) {
+      const items = siderRef.current.querySelectorAll(
+        ".ant-menu-item, .ant-menu-submenu-title"
+      );
+      if (items.length > 0) {
+        gsap.fromTo(
+          items,
+          { opacity: 0, x: -12 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.32,
+            stagger: 0.02,
+            ease: "power2.out",
+            clearProps: "transform,opacity",
+          }
+        );
+      }
+    }
+  }, [ready, collapsed]);
+
+  // GSAP: Smooth accordion reveal for newly opened submenus
+  useEffect(() => {
+    if (!collapsed && siderRef.current && openKeys.length > 0) {
+      const openSubItems = siderRef.current.querySelectorAll(
+        ".ant-menu-submenu-open > .ant-menu-sub > .ant-menu-item"
+      );
+      if (openSubItems.length > 0) {
+        gsap.fromTo(
+          openSubItems,
+          { opacity: 0, y: -6 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.28,
+            stagger: 0.035,
+            ease: "power2.out",
+            clearProps: "transform,opacity",
+          }
+        );
+      }
+    }
+  }, [openKeys, collapsed]);
+
+
+  // GSAP: Smooth magnetic hover on sidebar menu items
+  useEffect(() => {
+    const siderEl = siderRef.current;
+    if (!siderEl) return;
+
+    const handleMouseEnter = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest<HTMLElement>(
+        ".ant-menu-item, .ant-menu-submenu-title"
+      );
+      if (target && !target.classList.contains("ant-menu-item-selected")) {
+        gsap.to(target, {
+          x: 4,
+          duration: 0.22,
+          ease: "power2.out",
+        });
+      }
+    };
+
+    const handleMouseLeave = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest<HTMLElement>(
+        ".ant-menu-item, .ant-menu-submenu-title"
+      );
+      if (target) {
+        gsap.to(target, {
+          x: 0,
+          duration: 0.25,
+          ease: "power2.out",
+        });
+      }
+    };
+
+    siderEl.addEventListener("mouseover", handleMouseEnter);
+    siderEl.addEventListener("mouseout", handleMouseLeave);
+    return () => {
+      siderEl.removeEventListener("mouseover", handleMouseEnter);
+      siderEl.removeEventListener("mouseout", handleMouseLeave);
+    };
+  }, []);
+
+  const handleToggleCollapse = () => {
+    if (toggleBtnRef.current) {
+      gsap.fromTo(
+        toggleBtnRef.current,
+        { scale: 0.82, rotate: collapsed ? -60 : 60 },
+        { scale: 1, rotate: 0, duration: 0.35, ease: "back.out(2)" }
+      );
+    }
+    setCollapsed((c) => {
+      const next = !c;
+      if (next) setOpenKeys([]);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const session = getSession();
@@ -140,9 +304,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (collapsed) return;
     const extras: string[] = [];
+    if (hasDualDashboard(user) && isMine && pathname.startsWith("/leave")) {
+      extras.push("my-employee");
+    } else if (pathname.startsWith("/leave")) {
+      extras.push("leave");
+    }
     if (pathname.startsWith("/overtime")) extras.push("overtime");
-    if (pathname.startsWith("/leave")) extras.push("leave");
-    if (pathname.startsWith("/shifts")) extras.push("shifts");
+    if (hasDualDashboard(user)) {
+      if (
+        (user?.employeeId && pathname.startsWith(`/employees/${user.employeeId}`)) ||
+        pathname.startsWith("/salary") ||
+        pathname.startsWith("/notifications") ||
+        (isMine && (pathname.startsWith("/training") || pathname.startsWith("/certifications")))
+      ) {
+        extras.push("my-employee");
+      }
+    }
     if (!extras.length) return;
     const id = requestAnimationFrame(() => {
       setOpenKeys((keys) => {
@@ -158,44 +335,71 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [pathname, collapsed]);
+  }, [pathname, collapsed, user, isMine]);
 
   const selectedKey = useMemo(() => {
-    if (pathname.startsWith("/leave/requests/")) {
+    // 0. Dual dashboard personal routes (e.g. My leave, My salary, etc.)
+    if (hasDualDashboard(user)) {
+      if (isMine && pathname.startsWith("/leave/requests")) {
+        return "my-leave";
+      }
+      if (isMine && pathname.startsWith("/training")) {
+        return "my-training";
+      }
+      if (isMine && pathname.startsWith("/certifications")) {
+        return "my-certifications";
+      }
+      if (pathname === "/salary" || pathname.startsWith("/salary/")) {
+        return "my-salary";
+      }
+      if (pathname === "/notifications" || pathname.startsWith("/notifications/")) {
+        return "my-notifications";
+      }
+    }
+
+    // 1. Leave routes
+    if (pathname.startsWith("/leave/requests") || pathname.startsWith("/leave/pending")) {
       return "/leave/requests";
     }
-    if (pathname.startsWith("/leave/pending")) {
-      return "/leave/requests";
+    if (pathname.startsWith("/leave/management")) {
+      return "/leave/management";
     }
-    if (pathname.startsWith("/leave/")) {
-      const match = leaveChildren.find(
-        (c) => pathname === c.key || pathname.startsWith(`${c.key}/`),
-      );
-      return match?.key ?? "/leave";
+    if (pathname === "/leave" || pathname.startsWith("/leave")) {
+      return "/leave";
     }
-    if (pathname === "/leave") return "/leave";
-    if (pathname.startsWith("/shifts/")) {
-      const match = shiftChildren.find(
-        (c) => pathname === c.key || pathname.startsWith(`${c.key}/`),
-      );
-      return match?.key ?? "/shifts";
+
+    // 2. Shifts
+    if (pathname === "/shifts" || pathname.startsWith("/shifts/")) {
+      return "/shifts";
     }
-    if (pathname === "/shifts") return "/shifts";
-    if (pathname.startsWith("/overtime/employees/")) {
+
+    // 3. Overtime routes
+    if (pathname.startsWith("/overtime/employees")) {
       return "/overtime/employees";
     }
-    if (pathname.startsWith("/overtime/sites/")) {
+    if (pathname.startsWith("/overtime/sites")) {
       return "/overtime/sites";
     }
-    if (pathname.startsWith("/overtime/reports")) {
+    if (pathname.startsWith("/overtime/analysis") || pathname.startsWith("/overtime/reports")) {
       return "/overtime/analysis";
     }
-    if (pathname.startsWith("/overtime/")) {
-      const match = overtimeChildren.find(
-        (c) => pathname === c.key || pathname.startsWith(`${c.key}/`),
-      );
-      return match?.key ?? "/overtime/overview";
+    if (pathname.startsWith("/overtime/assign")) {
+      return "/overtime/assign";
     }
+    if (pathname.startsWith("/overtime/overview") || pathname === "/overtime") {
+      return "/overtime/overview";
+    }
+
+    // 4. Employee Profile (own profile vs directory)
+    const empId = user?.employeeId;
+    if (empId && (pathname === `/employees/${empId}` || pathname.startsWith(`/employees/${empId}/`))) {
+      return `/employees/${empId}`;
+    }
+    if (pathname === "/employees" || pathname.startsWith("/employees/")) {
+      return "/employees";
+    }
+
+    // 5. Direct match from pageTitles
     const match = Object.keys(pageTitles).find(
       (key) =>
         !key.startsWith("/overtime") &&
@@ -204,7 +408,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         (pathname === key || pathname.startsWith(`${key}/`)),
     );
     return match ?? "/dashboard";
-  }, [pathname]);
+  }, [pathname, user, isMine]);
+
+  // GSAP: Smooth pop/glow transition when active menu item changes
+  useEffect(() => {
+    if (siderRef.current) {
+      const activeItem = siderRef.current.querySelector(
+        ".ant-menu-item-selected"
+      );
+      if (activeItem) {
+        gsap.fromTo(
+          activeItem,
+          { scale: 0.96, opacity: 0.85 },
+          {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: "back.out(1.8)",
+            clearProps: "transform,opacity",
+          }
+        );
+      }
+    }
+  }, [selectedKey]);
 
   const headerTitle = useMemo(() => {
     if (pathname.startsWith("/employees/")) {
@@ -284,10 +510,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         label: "Certifications",
       },
       {
-        key: "shifts",
+        key: "/shifts",
         icon: <ScheduleOutlined />,
         label: "Shifts",
-        children: shiftChildren,
       },
       {
         key: "/reliever-pool",
@@ -324,9 +549,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       items.push({
         key: "my-employee",
         icon: <UserOutlined />,
-        label: "My Employee",
+        label: "My Profile",
         children: [
-          { key: `/employees/${empId}`, label: "My profile" },
+          { key: `/employees/${empId}`, label: "Personal profile" },
           { key: "my-leave", label: "My leave" },
           { key: "my-salary", label: "My salary" },
           { key: "my-certifications", label: "My certifications" },
@@ -374,6 +599,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider
+        ref={siderRef as any}
         collapsible
         collapsed={collapsed}
         onCollapse={(next) => {
@@ -398,42 +624,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            padding: collapsed ? "20px 12px" : "20px 20px",
+            padding: collapsed ? "20px 8px" : "20px 20px",
             textDecoration: "none",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
             justifyContent: collapsed ? "center" : "flex-start",
+            overflow: "hidden",
+            height: 68,
           }}
         >
-          <span
-            aria-hidden
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: `linear-gradient(145deg, ${nectarColors.mint}, ${nectarColors.leaf})`,
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 3c4 3 7 7 7 11a7 7 0 1 1-14 0c0-4 3-8 7-11Z"
-                fill="white"
-                opacity="0.95"
-              />
-            </svg>
-          </span>
-          {!collapsed && (
-            <div style={{ minWidth: 0 }}>
+          {collapsed ? (
+            <div
+              ref={logoShortRef}
+              style={{
+                color: nectarColors.white,
+                fontSize: 14,
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                background: "rgba(28, 68, 99, 0.4)",
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                display: "grid",
+                placeItems: "center",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              NE
+            </div>
+          ) : (
+            <div ref={logoFullRef} style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontFamily: "var(--font-fraunces), Georgia, serif",
+                  fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
                   color: nectarColors.white,
                   fontSize: 16,
                   lineHeight: 1.2,
                   fontWeight: 600,
+                  whiteSpace: "nowrap",
                 }}
               >
                 Nectar Enviro
@@ -443,6 +670,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   color: "rgba(255,255,255,0.55)",
                   fontSize: 11,
                   letterSpacing: "0.02em",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Ops Console
@@ -483,17 +711,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 (info.item as { label?: unknown } | undefined)?.label,
               );
             return (
-              <div className="nectar-sider-flyout-card">
-                <div className="nectar-sider-flyout-title">{title}</div>
+              <GsapFlyoutCard title={title}>
                 {node as ReactElement}
-              </div>
+              </GsapFlyoutCard>
             );
           }}
           onClick={({ key }) => {
             if (
               key === "overtime" ||
               key === "leave" ||
-              key === "shifts" ||
               key === "my-employee"
             ) {
               return;
@@ -527,15 +753,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
+              ref={toggleBtnRef}
               type="button"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              onClick={() =>
-                setCollapsed((c) => {
-                  const next = !c;
-                  if (next) setOpenKeys([]);
-                  return next;
-                })
-              }
+              onClick={handleToggleCollapse}
               style={{
                 border: "none",
                 background: "transparent",
