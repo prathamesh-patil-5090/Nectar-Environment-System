@@ -1,4 +1,4 @@
-import { employees, getEmployeeById, getSiteById, sites } from "@/lib/mock-data";
+import { employees, getEmployeeById, sites } from "@/lib/mock-data";
 import { getRelievers, getClusterForSite } from "@/lib/reliever/pool";
 import { nectarColors } from "@/lib/theme";
 import type {
@@ -82,8 +82,15 @@ export let restRules: RestRuleConfig = {
   weeklyOffOtEnabled: true,
 };
 
+export function getRestRules(): RestRuleConfig {
+  ensureShiftHydrated();
+  return { ...restRules };
+}
+
 export function updateRestRules(patch: Partial<RestRuleConfig>) {
+  ensureShiftHydrated();
   restRules = { ...restRules, ...patch };
+  persistShiftStore();
   return restRules;
 }
 
@@ -202,7 +209,7 @@ let plannedDays = buildPlannedDays();
 let rotationPreviews: RotationPreview[] = [
   {
     id: "rp1",
-    siteId: "s1",
+    siteId: "s-etp",
     fromDate: "2026-09-25",
     toDate: "2026-10-01",
     employeesAffected: 2,
@@ -212,7 +219,7 @@ let rotationPreviews: RotationPreview[] = [
   },
   {
     id: "rp2",
-    siteId: "s2",
+    siteId: "s-ro",
     fromDate: "2026-09-25",
     toDate: "2026-10-01",
     employeesAffected: 2,
@@ -222,7 +229,7 @@ let rotationPreviews: RotationPreview[] = [
   },
   {
     id: "rp3",
-    siteId: "s3",
+    siteId: "s-mee",
     fromDate: "2026-09-26",
     toDate: "2026-10-02",
     employeesAffected: 1,
@@ -235,9 +242,9 @@ let rotationPreviews: RotationPreview[] = [
 let changeRequests: ShiftChangeRequest[] = [
   {
     id: "scr1",
-    employeeId: "e2",
+    employeeId: "e-etp-s2",
     employeeName: "Rohan Deshmukh",
-    siteId: "s1",
+    siteId: "s-etp",
     date: "2026-09-28",
     fromShiftId: "sh-afternoon",
     toShiftId: "sh-night",
@@ -250,20 +257,75 @@ let changeRequests: ShiftChangeRequest[] = [
   },
   {
     id: "scr2",
-    employeeId: "e4",
+    employeeId: "e-ro-s1",
     employeeName: "Imran Shaikh",
-    siteId: "s3",
+    siteId: "s-ro",
     date: "2026-09-24",
     fromShiftId: "sh-night",
     toShiftId: "sh-morning",
     reason: "Personal constraint",
-    requestedBy: "Pune Supervisor",
+    requestedBy: "Neha Kamat",
     status: "PENDING",
     potentialOtHours: 8,
     manpowerOk: false,
     createdAt: "2026-09-21T14:00:00Z",
   },
 ];
+
+const SHIFT_STORAGE_KEY = "nectar-enviro-shift-store-v1";
+let shiftHydrated = false;
+
+type ShiftPersisted = {
+  changeRequests: ShiftChangeRequest[];
+  rotationPreviews: RotationPreview[];
+  rotationRows: EmployeeRotationRow[];
+  plannedDays: PlannedShiftDay[];
+  restRules?: RestRuleConfig;
+};
+
+function persistShiftStore() {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: ShiftPersisted = {
+      changeRequests,
+      rotationPreviews,
+      rotationRows,
+      plannedDays,
+      restRules,
+    };
+    localStorage.setItem(SHIFT_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function ensureShiftHydrated() {
+  if (shiftHydrated || typeof window === "undefined") return;
+  shiftHydrated = true;
+  try {
+    const raw = localStorage.getItem(SHIFT_STORAGE_KEY);
+    if (!raw) {
+      persistShiftStore();
+      return;
+    }
+    const parsed = JSON.parse(raw) as Partial<ShiftPersisted>;
+    if (Array.isArray(parsed.changeRequests)) changeRequests = parsed.changeRequests;
+    if (Array.isArray(parsed.rotationPreviews)) {
+      rotationPreviews = parsed.rotationPreviews;
+    }
+    if (Array.isArray(parsed.rotationRows) && parsed.rotationRows.length) {
+      rotationRows = parsed.rotationRows;
+    }
+    if (Array.isArray(parsed.plannedDays) && parsed.plannedDays.length) {
+      plannedDays = parsed.plannedDays;
+    }
+    if (parsed.restRules && typeof parsed.restRules.minimumRestHours === "number") {
+      restRules = { ...restRules, ...parsed.restRules };
+    }
+  } catch {
+    // keep seed
+  }
+}
 
 function parseMinutes(time: string) {
   const [h, m] = time.split(":").map(Number);
@@ -282,6 +344,7 @@ function restHoursBetween(fromCode: ShiftCode, toCode: ShiftCode): number {
 }
 
 export function getRotationRows(siteId?: string) {
+  ensureShiftHydrated();
   return rotationRows.filter((r) => (siteId ? r.siteId === siteId : true));
 }
 
@@ -291,6 +354,7 @@ export function getPlannedDays(opts?: {
   from?: string;
   to?: string;
 }) {
+  ensureShiftHydrated();
   return plannedDays.filter((d) => {
     if (opts?.siteId && d.siteId !== opts.siteId) return false;
     if (opts?.employeeId && d.employeeId !== opts.employeeId) return false;
@@ -394,10 +458,12 @@ export function getDeviationAggregates(): ShiftDeviationAgg[] {
 }
 
 export function getRotationPreviews() {
+  ensureShiftHydrated();
   return [...rotationPreviews];
 }
 
 export function activateRotationPreview(id: string) {
+  ensureShiftHydrated();
   rotationPreviews = rotationPreviews.map((p) =>
     p.id === id ? { ...p, status: "active" } : p,
   );
@@ -418,10 +484,21 @@ export function activateRotationPreview(id: string) {
     });
     plannedDays = buildPlannedDays();
   }
+  persistShiftStore();
+  return rotationPreviews.find((p) => p.id === id);
+}
+
+export function rejectRotationPreview(id: string) {
+  ensureShiftHydrated();
+  rotationPreviews = rotationPreviews.map((p) =>
+    p.id === id ? { ...p, status: "rejected" } : p,
+  );
+  persistShiftStore();
   return rotationPreviews.find((p) => p.id === id);
 }
 
 export function generateNextRotation(siteId: string): RotationPreview {
+  ensureShiftHydrated();
   const preview: RotationPreview = {
     id: `rp-${Date.now().toString(36)}`,
     siteId,
@@ -433,10 +510,12 @@ export function generateNextRotation(siteId: string): RotationPreview {
     status: "pending_review",
   };
   rotationPreviews = [preview, ...rotationPreviews];
+  persistShiftStore();
   return preview;
 }
 
 export function getChangeRequests(siteId?: string) {
+  ensureShiftHydrated();
   return changeRequests.filter((c) => (siteId ? c.siteId === siteId : true));
 }
 
@@ -444,6 +523,7 @@ export function decideChangeRequest(
   id: string,
   status: "APPROVED" | "REJECTED",
 ) {
+  ensureShiftHydrated();
   changeRequests = changeRequests.map((c) =>
     c.id === id ? { ...c, status } : c,
   );
@@ -460,12 +540,14 @@ export function decideChangeRequest(
         : d,
     );
   }
+  persistShiftStore();
   return req;
 }
 
 export function createChangeRequest(
   input: Omit<ShiftChangeRequest, "id" | "status" | "createdAt">,
 ) {
+  ensureShiftHydrated();
   const row: ShiftChangeRequest = {
     ...input,
     id: `scr-${Date.now().toString(36)}`,
@@ -473,10 +555,12 @@ export function createChangeRequest(
     createdAt: new Date().toISOString(),
   };
   changeRequests = [row, ...changeRequests];
+  persistShiftStore();
   return row;
 }
 
 export function getRelieverSuggestions(siteId?: string): RelieverSuggestion[] {
+  ensureShiftHydrated();
   const targetSites = siteId ? sites.filter((s) => s.id === siteId) : sites;
   const suggestions: RelieverSuggestion[] = [];
 
@@ -512,6 +596,7 @@ export function getRelieverSuggestions(siteId?: string): RelieverSuggestion[] {
 }
 
 export function getShiftDashboardKpis(siteId?: string) {
+  ensureShiftHydrated();
   const today = getPlannedDays({ siteId, from: TODAY, to: TODAY }).filter(
     (d) => d.plannedCode !== "OFF",
   );

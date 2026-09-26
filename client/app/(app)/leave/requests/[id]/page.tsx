@@ -9,6 +9,8 @@ import {
   DatePicker,
   Descriptions,
   Empty,
+  Input,
+  Modal,
   Space,
   Tag,
   Timeline,
@@ -21,21 +23,24 @@ import { getSiteName } from "@/lib/mock-data";
 import {
   computeLeaveImpact,
   confirmReturn,
+  employeeConsentLeave,
   escalateLeave,
-  finalizeApprove,
   getLeaveById,
-  hrValidate,
   LEAVE_STATUS_LABELS,
   LEAVE_TYPE_LABELS,
-  rejectLeave,
+  managerDecideLeave,
   siteApprove,
   supervisorVerify,
 } from "@/lib/leave";
+import { pushNotification } from "@/lib/notifications";
 import {
   canConfirmLeaveReturn,
-  canHrValidateLeave,
+  canManagerDecideLeave,
   canSiteApproveLeave,
   canSupervisorVerifyLeave,
+  normalizeRole,
+  scopedEmployeeId,
+  scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
@@ -50,15 +55,19 @@ export default function LeaveDetailPage({
   const session = getSession();
   const [tick, setTick] = useState(0);
   const [returnDate, setReturnDate] = useState(dayjs());
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
 
-  const leave = useMemo(() => getLeaveById(id), [id, tick]);
-  const impact = useMemo(
-    () =>
-      leave
-        ? computeLeaveImpact(leave.employeeId, leave.startDate, leave.endDate)
-        : null,
-    [leave, tick],
-  );
+  const leave = useMemo(() => {
+    void tick;
+    return getLeaveById(id);
+  }, [id, tick]);
+  const impact = useMemo(() => {
+    void tick;
+    return leave
+      ? computeLeaveImpact(leave.employeeId, leave.startDate, leave.endDate)
+      : null;
+  }, [leave, tick]);
 
   if (!leave || !impact) {
     return (
@@ -70,11 +79,40 @@ export default function LeaveDetailPage({
     );
   }
 
+  const siteScope = scopedSiteId(session);
+  const empScope = scopedEmployeeId(session);
+  if (empScope && leave.employeeId !== empScope) {
+    return (
+      <Empty description="You can only view your own leave requests.">
+        <Button type="primary" onClick={() => router.push("/leave/requests")}>
+          My leave
+        </Button>
+      </Empty>
+    );
+  }
+  if (siteScope && leave.siteId !== siteScope && !empScope) {
+    return (
+      <Empty description="This leave request is outside your plant scope.">
+        <Button type="primary" onClick={() => router.push("/leave/requests")}>
+          Back
+        </Button>
+      </Empty>
+    );
+  }
+
   const actor = session?.name ?? "User";
+  const role = normalizeRole(session?.role);
   const canVerify = canSupervisorVerifyLeave(session);
   const canSite = canSiteApproveLeave(session);
-  const canHr = canHrValidateLeave(session);
+  const canManager = canManagerDecideLeave(session);
   const canReturn = canConfirmLeaveReturn(session);
+  /** Only the employee role who owns the leave may consent */
+  const canGiveConsent =
+    role === "employee" &&
+    Boolean(session?.employeeId) &&
+    session?.employeeId === leave.employeeId;
+  const waitingOnConsent =
+    leave.status === "PENDING_EMPLOYEE_CONSENT" && !canGiveConsent;
   const refresh = () => setTick((t) => t + 1);
 
   const run = (fn: () => void, ok: string) => {
@@ -85,6 +123,19 @@ export default function LeaveDetailPage({
     } catch {
       message.error("Action failed");
     }
+  };
+
+  const notifyDecision = (approved: boolean, reason?: string) => {
+    pushNotification({
+      employeeId: leave.employeeId,
+      kind: "leave_decision",
+      title: approved ? "Leave approved" : "Leave rejected",
+      body: approved
+        ? `Your leave ${leave.startDate}–${leave.endDate} was approved by ${actor}.`
+        : `Your leave was rejected by ${actor}${reason ? `: ${reason}` : "."}`,
+      href: `/leave/requests/${leave.id}`,
+      meta: { leaveId: leave.id },
+    });
   };
 
   return (
@@ -136,11 +187,7 @@ export default function LeaveDetailPage({
           </Space>
         </div>
 
-        <Descriptions
-          style={{ marginTop: 20 }}
-          column={{ xs: 1, sm: 2, md: 3 }}
-          size="small"
-        >
+        <Descriptions style={{ marginTop: 20 }} column={1} size="small">
           <Descriptions.Item label="Leave type">
             {LEAVE_TYPE_LABELS[leave.leaveType]}
           </Descriptions.Item>
@@ -159,22 +206,44 @@ export default function LeaveDetailPage({
           <Descriptions.Item label="Supervisor">
             {leave.supervisorName}
           </Descriptions.Item>
-          <Descriptions.Item label="Site In-Charge">
+          <Descriptions.Item label="Shift In-Charge">
             {leave.siteInChargeName}
+          </Descriptions.Item>
+          <Descriptions.Item label="Manager">
+            {leave.managerName ?? "—"}
           </Descriptions.Item>
           <Descriptions.Item label="Entered by">
             {leave.enteredByName} ({leave.enteredByRole})
           </Descriptions.Item>
-          <Descriptions.Item label="Reason" span={3}>
-            {leave.reason}
-          </Descriptions.Item>
+          {leave.employeeConsent ? (
+            <Descriptions.Item label="Employee consent">
+              {leave.employeeConsent}
+              {leave.employeeConsentAt
+                ? ` · ${leave.employeeConsentAt.slice(0, 16).replace("T", " ")}`
+                : ""}
+            </Descriptions.Item>
+          ) : null}
+          {leave.managerDecision ? (
+            <Descriptions.Item label="Manager decision">
+              {leave.managerDecision}
+              {leave.managerDecisionAt
+                ? ` · ${leave.managerDecisionAt.slice(0, 16).replace("T", " ")}`
+                : ""}
+            </Descriptions.Item>
+          ) : null}
+          {leave.rejectionReason ? (
+            <Descriptions.Item label="Rejection reason">
+              {leave.rejectionReason}
+            </Descriptions.Item>
+          ) : null}
+          <Descriptions.Item label="Reason">{leave.reason}</Descriptions.Item>
           {leave.lastCommunication ? (
-            <Descriptions.Item label="Last communication" span={3}>
+            <Descriptions.Item label="Last communication">
               {leave.lastCommunication}
             </Descriptions.Item>
           ) : null}
           {leave.replacementPlan ? (
-            <Descriptions.Item label="Replacement plan" span={3}>
+            <Descriptions.Item label="Replacement plan">
               {leave.replacementPlan}
             </Descriptions.Item>
           ) : null}
@@ -199,9 +268,110 @@ export default function LeaveDetailPage({
         >
           Actions
         </div>
+        {waitingOnConsent ? (
+          <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
+            Waiting for <strong>{leave.employeeName}</strong> to approve or reject
+            this on-behalf request. Manager approval unlocks only after they
+            consent. Ask them to sign in as the employee and open this leave
+            (or their Notifications inbox).
+          </p>
+        ) : null}
+        {canGiveConsent && leave.status === "PENDING_EMPLOYEE_CONSENT" ? (
+          <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
+            Your supervisor submitted this leave for you. Approve to send it to
+            your Manager, or reject to stop it here.
+          </p>
+        ) : null}
+        {(() => {
+          const showConsent =
+            canGiveConsent && leave.status === "PENDING_EMPLOYEE_CONSENT";
+          const showVerify =
+            canVerify && ["REQUESTED", "ABSENT"].includes(leave.status);
+          const showSite =
+            canSite &&
+            ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED"].includes(
+              leave.status,
+            );
+          const showManager =
+            canManager &&
+            !waitingOnConsent &&
+            [
+              "REQUESTED",
+              "SUPERVISOR_VERIFIED",
+              "SUPERVISOR_RECORDED",
+              "SITE_APPROVED",
+              "SITE_VERIFIED",
+            ].includes(leave.status);
+          const showReturn =
+            canReturn &&
+            ["APPROVED", "SITE_APPROVED", "HR_VALIDATED", "SITE_VERIFIED"].includes(
+              leave.status,
+            );
+          const hasButtons =
+            showConsent || showVerify || showSite || showManager || showReturn;
+
+          if (!hasButtons && !waitingOnConsent) {
+            let statusNote = "No actions available for your role on this leave.";
+            if (canGiveConsent && leave.status === "REQUESTED") {
+              statusNote =
+                "You approved consent. This leave is now with your Manager for a final decision.";
+            } else if (leave.status === "APPROVED") {
+              statusNote = "Leave is approved. Confirm return when you are back on duty (supervisor/manager).";
+            } else if (leave.status === "REJECTED") {
+              statusNote = leave.rejectionReason
+                ? `Leave rejected: ${leave.rejectionReason}`
+                : "Leave was rejected. No further action needed.";
+            } else if (leave.status === "CLOSED") {
+              statusNote = "Leave closed — return confirmed.";
+            } else if (
+              canGiveConsent &&
+              leave.status === "PENDING_EMPLOYEE_CONSENT"
+            ) {
+              statusNote = "";
+            }
+            return statusNote ? (
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
+                {statusNote}
+              </p>
+            ) : null;
+          }
+
+          return (
         <Space wrap>
-          {canVerify &&
-          ["REQUESTED", "ABSENT"].includes(leave.status) ? (
+          {showConsent ? (
+            <>
+              <Button
+                type="primary"
+                onClick={() =>
+                  run(() => {
+                    employeeConsentLeave(leave.id, actor, "approved");
+                    if (leave.submittedByEmployeeId) {
+                      pushNotification({
+                        employeeId: leave.submittedByEmployeeId,
+                        kind: "leave_decision",
+                        title: "Employee approved leave consent",
+                        body: `${leave.employeeName} approved the on-behalf leave — pending manager.`,
+                        href: `/leave/requests/${leave.id}`,
+                      });
+                    }
+                  }, "Consent approved — sent to manager")
+                }
+              >
+                Approve — send to Manager
+              </Button>
+              <Button
+                danger
+                onClick={() => {
+                  setRejectNote("");
+                  setRejectOpen(true);
+                }}
+              >
+                Reject — do not proceed
+              </Button>
+            </>
+          ) : null}
+
+          {showVerify ? (
             <Button
               onClick={() =>
                 run(() => supervisorVerify(leave.id, actor), "Supervisor verified")
@@ -211,10 +381,7 @@ export default function LeaveDetailPage({
             </Button>
           ) : null}
 
-          {canSite &&
-          ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED", "REQUESTED"].includes(
-            leave.status,
-          ) ? (
+          {showSite ? (
             <>
               <Button
                 type="primary"
@@ -224,23 +391,11 @@ export default function LeaveDetailPage({
                       siteApprove(leave.id, actor, {
                         arrangeReplacement: true,
                       }),
-                    "Replacement arranged & site approved",
+                    "Replacement arranged",
                   )
                 }
               >
-                Arrange replacement & approve
-              </Button>
-              <Button
-                danger={impact.potentialOtHours > 0}
-                onClick={() =>
-                  run(
-                    () =>
-                      siteApprove(leave.id, actor, { approveAnyway: true }),
-                    "Approved with noted OT risk",
-                  )
-                }
-              >
-                Approve anyway
+                Arrange replacement
               </Button>
               <Button
                 onClick={() =>
@@ -257,49 +412,35 @@ export default function LeaveDetailPage({
               >
                 Escalate
               </Button>
-              <Button
-                danger
-                onClick={() =>
-                  run(
-                    () => rejectLeave(leave.id, actor, "Site cannot accommodate"),
-                    "Rejected",
-                  )
-                }
-              >
-                Reject
-              </Button>
             </>
           ) : null}
 
-          {canHr &&
-          ["SITE_APPROVED", "SITE_VERIFIED", "HR_VALIDATED"].includes(
-            leave.status,
-          ) ? (
+          {showManager ? (
             <>
-              {leave.status !== "HR_VALIDATED" ? (
-                <Button
-                  onClick={() =>
-                    run(() => hrValidate(leave.id, actor), "HR validated")
-                  }
-                >
-                  HR validate
-                </Button>
-              ) : null}
               <Button
                 type="primary"
                 onClick={() =>
-                  run(() => finalizeApprove(leave.id, actor), "Leave approved")
+                  run(() => {
+                    managerDecideLeave(leave.id, actor, "approved");
+                    notifyDecision(true);
+                  }, "Leave approved by manager")
                 }
               >
-                Final approve
+                Manager approve
+              </Button>
+              <Button
+                danger
+                onClick={() => {
+                  setRejectNote("");
+                  setRejectOpen(true);
+                }}
+              >
+                Manager reject
               </Button>
             </>
           ) : null}
 
-          {canReturn &&
-          ["APPROVED", "SITE_APPROVED", "HR_VALIDATED", "SITE_VERIFIED"].includes(
-            leave.status,
-          ) ? (
+          {showReturn ? (
             <Space>
               <DatePicker value={returnDate} onChange={(d) => d && setReturnDate(d)} />
               <Button
@@ -320,6 +461,8 @@ export default function LeaveDetailPage({
             </Space>
           ) : null}
         </Space>
+          );
+        })()}
       </div>
 
       <div
@@ -362,6 +505,57 @@ export default function LeaveDetailPage({
           }))}
         />
       </div>
+
+      <Modal
+        title={
+          leave.status === "PENDING_EMPLOYEE_CONSENT"
+            ? "Reject leave consent"
+            : "Reject leave"
+        }
+        open={rejectOpen}
+        onCancel={() => setRejectOpen(false)}
+        onOk={() => {
+          if (leave.status === "PENDING_EMPLOYEE_CONSENT" && canGiveConsent) {
+            run(() => {
+              employeeConsentLeave(
+                leave.id,
+                actor,
+                "rejected",
+                rejectNote || "Employee rejected consent",
+              );
+              if (leave.submittedByEmployeeId) {
+                pushNotification({
+                  employeeId: leave.submittedByEmployeeId,
+                  kind: "leave_decision",
+                  title: "Employee rejected leave consent",
+                  body: `${leave.employeeName} rejected the on-behalf request. It will not go to the manager.`,
+                  href: `/leave/requests/${leave.id}`,
+                });
+              }
+            }, "Consent rejected — request stopped");
+          } else {
+            run(() => {
+              managerDecideLeave(
+                leave.id,
+                actor,
+                "rejected",
+                rejectNote || "Rejected by manager",
+              );
+              notifyDecision(false, rejectNote);
+            }, "Leave rejected");
+          }
+          setRejectOpen(false);
+        }}
+        okText="Reject"
+        okButtonProps={{ danger: true }}
+      >
+        <Input.TextArea
+          rows={3}
+          placeholder="Reason for rejection"
+          value={rejectNote}
+          onChange={(e) => setRejectNote(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }

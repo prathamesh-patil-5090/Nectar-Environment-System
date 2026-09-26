@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import { Button, Tag } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import KpiStat from "@/components/KpiStat";
@@ -24,6 +23,7 @@ import { nectarColors } from "@/lib/theme";
 
 const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
   REQUESTED: nectarColors.sky,
+  PENDING_EMPLOYEE_CONSENT: "#D97706",
   SUPERVISOR_VERIFIED: nectarColors.leaf,
   SUPERVISOR_RECORDED: nectarColors.leaf,
   SITE_APPROVED: nectarColors.mint,
@@ -41,18 +41,21 @@ export default function LeaveOverviewPage() {
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const empScope = scopedEmployeeId(session);
-  const [tick] = useState(0);
-  const kpis = useMemo(() => getLeaveKpis(siteScope), [siteScope, tick]);
-  const recent = useMemo(() => {
-    let list = getLeaveRequests(siteScope).slice(0, 6);
-    if (empScope) list = list.filter((l) => l.employeeId === empScope);
-    return list;
-  }, [siteScope, empScope, tick]);
-  const pending = useMemo(() => getPendingJustifications(), [tick]);
+  const kpis = getLeaveKpis(empScope ? undefined : siteScope, empScope);
+  const recent = getLeaveRequests(
+    empScope ? undefined : siteScope,
+    empScope,
+  ).slice(0, 6);
+  const pending = empScope
+    ? []
+    : getPendingJustifications().filter((l) =>
+        siteScope ? l.siteId === siteScope : true,
+      );
 
-  const showMgmt = isElevated(session);
-  const showPending = canViewLeavePending(session);
-  const showManagement = canViewLeaveManagement(session);
+  const showMgmt = isElevated(session) && !empScope;
+  const showPending = canViewLeavePending(session) && !empScope;
+  const showManagement = canViewLeaveManagement(session) && !empScope;
+  const isSelf = Boolean(empScope);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -75,18 +78,18 @@ export default function LeaveOverviewPage() {
           Leave & absence
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted, maxWidth: 720 }}>
-          Employee informs → Supervisor records/verifies → Site In-Charge manages
-          manpower → HR controls policy & exceptions → Management sees impact.
-          Leave is connected to reliever pool and OT risk.
+          {isSelf
+            ? "Your leave requests, status, and history. Apply for leave or track approvals here."
+            : "Employee self-request → Manager approve/reject. Supervisor on-behalf → employee consent → Manager. Connected to reliever pool and OT risk. (HR validation is disabled for this demo.)"}
         </p>
         <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/leave/requests">
             <Button type="primary" icon={<PlusOutlined />}>
-              New leave / absence
+              {isSelf ? "Request leave" : "New leave / absence"}
             </Button>
           </Link>
           <Link href="/leave/requests">
-            <Button>All requests</Button>
+            <Button>{isSelf ? "My requests" : "All requests"}</Button>
           </Link>
           {showPending ? (
             <Link href="/leave/pending">
@@ -111,7 +114,30 @@ export default function LeaveOverviewPage() {
           overflow: "hidden",
         }}
       >
-        {showMgmt ? (
+        {isSelf ? (
+          <>
+            <KpiStat
+              label="My requests"
+              value={kpis.totalRequests}
+              hint="All statuses"
+            />
+            <KpiStat
+              label="Pending"
+              value={kpis.pendingRequests}
+              tone="info"
+            />
+            <KpiStat
+              label="Approved"
+              value={kpis.approvedCount}
+              tone="positive"
+            />
+            <KpiStat
+              label="Rejected"
+              value={kpis.rejectedCount}
+              tone="alert"
+            />
+          </>
+        ) : showMgmt ? (
           <>
             <KpiStat label="Total employees" value={kpis.totalEmployees} />
             <KpiStat
@@ -200,13 +226,18 @@ export default function LeaveOverviewPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1.2fr 1fr",
+          gridTemplateColumns: isSelf ? "1fr" : "1.2fr 1fr",
           gap: 16,
         }}
         className="nectar-ot-two"
       >
-        <Panel title="Recent leave activity">
+        <Panel title={isSelf ? "My recent leave" : "Recent leave activity"}>
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {recent.length === 0 ? (
+              <li style={{ color: nectarColors.muted, fontSize: 13 }}>
+                No leave requests yet.
+              </li>
+            ) : null}
             {recent.map((l) => (
               <li
                 key={l.id}
@@ -227,7 +258,9 @@ export default function LeaveOverviewPage() {
                     href={`/leave/requests/${l.id}`}
                     style={{ fontWeight: 600, color: nectarColors.leaf }}
                   >
-                    {l.employeeName}
+                    {isSelf
+                      ? `${l.startDate} → ${l.endDate}`
+                      : l.employeeName}
                   </Link>
                   <Tag
                     color={STATUS_COLOR[l.status] ?? nectarColors.muted}
@@ -237,19 +270,23 @@ export default function LeaveOverviewPage() {
                   </Tag>
                 </div>
                 <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                  {l.startDate} → {l.endDate} · {l.mode} ·{" "}
+                  {isSelf ? null : (
+                    <>
+                      {l.startDate} → {l.endDate} ·{" "}
+                    </>
+                  )}
+                  {l.mode} ·{" "}
                   {l.entrySource === "supervisor_on_behalf"
                     ? `Entered by supervisor (${l.enteredByName})`
                     : "Requested by employee"}
-                  {l.potentialOtHours > 0
-                    ? ` · OT risk ${l.potentialOtHours} hrs`
-                    : ""}
+                  {l.rejectionReason ? ` · ${l.rejectionReason}` : ""}
                 </div>
               </li>
             ))}
           </ul>
         </Panel>
 
+        {isSelf ? null : (
         <Panel title="Hierarchy reminder">
           <ol
             style={{
@@ -262,9 +299,8 @@ export default function LeaveOverviewPage() {
           >
             <li>Employee informs (or supervisor records)</li>
             <li>Supervisor verifies / enters</li>
-            <li>Site In-Charge checks manpower & replacement</li>
-            <li>HR validates policy, balance, exceptions</li>
-            <li>Management sees shortages & OT risk</li>
+            <li>Manager checks manpower & approves</li>
+            <li>Employee sees status & rejection reasons</li>
           </ol>
           {pending.length ? (
             <div style={{ marginTop: 16 }}>
@@ -282,6 +318,7 @@ export default function LeaveOverviewPage() {
             </div>
           ) : null}
         </Panel>
+        )}
       </div>
     </div>
   );

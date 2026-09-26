@@ -56,19 +56,9 @@ export default function OtEmployeeDetailPage({
     [id, filters],
   );
 
-  if (!detail) {
-    return (
-      <Empty description="Employee not found">
-        <Button type="primary" onClick={() => router.push("/overtime/employees")}>
-          Back
-        </Button>
-      </Empty>
-    );
-  }
-
-  const { employee, site, shift, summary, records, monthlyTrend } = detail;
-
   const chartData = useMemo(() => {
+    if (!detail) return [];
+    const { records, monthlyTrend } = detail;
     if (granularity === "monthly") {
       return monthlyTrend.map((m) => ({ label: m.month, otHours: m.otHours }));
     }
@@ -101,7 +91,19 @@ export default function OtEmployeeDetailPage({
         label,
         otHours: Math.round(otHours * 100) / 100,
       }));
-  }, [granularity, monthlyTrend, records]);
+  }, [detail, granularity]);
+
+  if (!detail) {
+    return (
+      <Empty description="Employee not found">
+        <Button type="primary" onClick={() => router.push("/overtime/employees")}>
+          Back
+        </Button>
+      </Empty>
+    );
+  }
+
+  const { employee, site, shift, summary, records } = detail;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

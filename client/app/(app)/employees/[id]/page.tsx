@@ -40,7 +40,7 @@ import {
   OT_STATUS_LABELS,
   type OtRecord,
 } from "@/lib/overtime";
-import { canViewOtModule, scopedEmployeeId } from "@/lib/rbac";
+import { canAccessEmployeeRecord, canViewOtModule, scopedEmployeeId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const statusColor = {
@@ -181,7 +181,7 @@ export default function EmployeeDetailPage({
   const router = useRouter();
   const session = getSession();
   const selfId = scopedEmployeeId(session);
-  const showOt = canViewOtModule(session) || Boolean(selfId);
+  const showOt = canViewOtModule(session) || Boolean(session?.employeeId);
 
   useEffect(() => {
     if (selfId && selfId !== id) {
@@ -190,6 +190,12 @@ export default function EmployeeDetailPage({
   }, [selfId, id, router]);
 
   const employee = getEmployeeById(selfId && selfId !== id ? selfId : id);
+
+  useEffect(() => {
+    if (employee && !canAccessEmployeeRecord(session, employee) && !selfId) {
+      router.replace("/employees");
+    }
+  }, [employee, session, selfId, router]);
 
   const otDetail = useMemo(() => {
     if (!employee || !showOt) return null;
@@ -368,6 +374,30 @@ export default function EmployeeDetailPage({
                 "Unassigned"
               )}
             </Descriptions.Item>
+            <Descriptions.Item label="Designation">
+              {employee.designation}
+            </Descriptions.Item>
+            <Descriptions.Item label="Department">
+              {employee.department}
+            </Descriptions.Item>
+            <Descriptions.Item label="Category">
+              {employee.employeeCategory.replace(/_/g, " ")}
+            </Descriptions.Item>
+            <Descriptions.Item label="Manager">
+              {employee.managerId
+                ? (getEmployeeById(employee.managerId)?.name ?? "—")
+                : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Shift In-Charge">
+              {employee.shiftInChargeId
+                ? (getEmployeeById(employee.shiftInChargeId)?.name ?? "—")
+                : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Supervisor">
+              {employee.supervisorId
+                ? (getEmployeeById(employee.supervisorId)?.name ?? "—")
+                : "—"}
+            </Descriptions.Item>
           </Descriptions>
         </div>
 
@@ -382,8 +412,14 @@ export default function EmployeeDetailPage({
           >
             Skill map
           </div>
-          <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 13 }}>
-            Personal levels vs role-critical O&amp;M competencies.
+          <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
+            This person&apos;s competency scores (0–100) for each O&amp;M skill,
+            adjusted from their role baseline by their overall skill score.
+          </p>
+          <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
+            Example: if the role baseline for Safety is 90 and this employee&apos;s
+            skill score is above average, their Safety bar rises accordingly —
+            used when choosing who covers OT or leave.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {skillKeys.map((key) => {

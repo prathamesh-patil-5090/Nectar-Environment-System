@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   Avatar,
   Dropdown,
@@ -26,19 +26,36 @@ import {
   ClusterOutlined,
   CalendarOutlined,
   ScheduleOutlined,
+  SafetyCertificateOutlined,
+  WalletOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
 import { getSession, logout, type SessionUser } from "@/lib/auth";
 import { getEmployeeById, getSiteById } from "@/lib/mock-data";
 import {
+  canAssignOt,
   canViewLeaveManagement,
   canViewLeavePending,
   canViewOtModule,
+  hasDualDashboard,
   normalizeRole,
   roleLabel,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 const { Header, Sider, Content } = Layout;
+
+const FLYOUT_TITLES: Record<string, string> = {
+  leave: "Leave",
+  shifts: "Shifts",
+  overtime: "OverTime",
+  "my-employee": "My Employee",
+};
+
+function submenuTitleText(label: unknown): string {
+  if (typeof label === "string") return label;
+  return "Menu";
+}
 
 const overtimeChildren = [
   { key: "/overtime/overview", label: "Overview" },
@@ -89,6 +106,18 @@ const pageTitles: Record<string, string> = {
   "/overtime/sites": "Site OT",
   "/overtime/analysis": "OT Analysis",
   "/overtime/reports": "OT Reports",
+  "/overtime/assign": "Assign OT",
+  "/notifications": "Notifications",
+  "/certifications": "Certifications",
+  "/salary": "Salary history",
+};
+
+const MY_EMPLOYEE_ROUTES: Record<string, string> = {
+  "my-leave": "/leave/requests?mine=1",
+  "my-salary": "/salary",
+  "my-certifications": "/certifications",
+  "my-training": "/training",
+  "my-notifications": "/notifications",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -106,27 +135,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    setUser(session);
-    setReady(true);
+    const id = requestAnimationFrame(() => {
+      setUser(session);
+      setReady(true);
+    });
+    return () => cancelAnimationFrame(id);
   }, [router]);
 
   useEffect(() => {
-    if (pathname.startsWith("/overtime")) {
-      setOpenKeys((keys) =>
-        keys.includes("overtime") ? keys : [...keys, "overtime"],
-      );
-    }
-    if (pathname.startsWith("/leave")) {
-      setOpenKeys((keys) =>
-        keys.includes("leave") ? keys : [...keys, "leave"],
-      );
-    }
-    if (pathname.startsWith("/shifts")) {
-      setOpenKeys((keys) =>
-        keys.includes("shifts") ? keys : [...keys, "shifts"],
-      );
-    }
-  }, [pathname]);
+    if (collapsed) return;
+    const extras: string[] = [];
+    if (pathname.startsWith("/overtime")) extras.push("overtime");
+    if (pathname.startsWith("/leave")) extras.push("leave");
+    if (pathname.startsWith("/shifts")) extras.push("shifts");
+    if (!extras.length) return;
+    const id = requestAnimationFrame(() => {
+      setOpenKeys((keys) => {
+        let changed = false;
+        const next = [...keys];
+        for (const k of extras) {
+          if (!next.includes(k)) {
+            next.push(k);
+            changed = true;
+          }
+        }
+        return changed ? next : keys;
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [pathname, collapsed]);
 
   const selectedKey = useMemo(() => {
     if (pathname.startsWith("/leave/requests/")) {
@@ -194,7 +231,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navItemsFiltered = useMemo(() => {
     const role = normalizeRole(user?.role);
     if (role === "employee") {
-      const empId = user?.employeeId ?? "e1";
+      const empId = user?.employeeId ?? "e-etp-s1";
       return [
         { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
         {
@@ -212,6 +249,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ],
         },
         { key: "/training", icon: <ReadOutlined />, label: "Training" },
+        {
+          key: "/certifications",
+          icon: <SafetyCertificateOutlined />,
+          label: "Certifications",
+        },
+        {
+          key: "/salary",
+          icon: <WalletOutlined />,
+          label: "Salary history",
+        },
+        {
+          key: "/notifications",
+          icon: <BellOutlined />,
+          label: "Notifications",
+        },
       ] as MenuProps["items"];
     }
 
@@ -226,6 +278,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       { key: "/employees", icon: <TeamOutlined />, label: "Employees" },
       { key: "/sites", icon: <EnvironmentOutlined />, label: "Sites" },
       { key: "/training", icon: <ReadOutlined />, label: "Training" },
+      {
+        key: "/certifications",
+        icon: <SafetyCertificateOutlined />,
+        label: "Certifications",
+      },
       {
         key: "shifts",
         icon: <ScheduleOutlined />,
@@ -250,11 +307,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         key: "overtime",
         icon: <ClockCircleOutlined />,
         label: "OverTime",
-        children: overtimeChildren,
+        children: [
+          ...overtimeChildren,
+          ...(canAssignOt(user)
+            ? [{ key: "/overtime/assign", label: "Assign / notify" }]
+            : []),
+        ],
       });
     }
 
-    // Safety / HR / elevated keep full ops nav; employee branch handled above
+    if (hasDualDashboard(user) && user?.employeeId) {
+      const empId = user.employeeId;
+      items.push({
+        type: "divider",
+      });
+      items.push({
+        key: "my-employee",
+        icon: <UserOutlined />,
+        label: "My Employee",
+        children: [
+          { key: `/employees/${empId}`, label: "My profile" },
+          { key: "my-leave", label: "My leave" },
+          { key: "my-salary", label: "My salary" },
+          { key: "my-certifications", label: "My certifications" },
+          { key: "my-training", label: "My training" },
+          { key: "my-notifications", label: "Notifications & OT" },
+        ],
+      });
+    }
+
     return items;
   }, [user]);
 
@@ -295,15 +376,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sider
         collapsible
         collapsed={collapsed}
-        onCollapse={setCollapsed}
+        onCollapse={(next) => {
+          setCollapsed(next);
+          if (next) setOpenKeys([]);
+        }}
         breakpoint="lg"
         width={232}
+        collapsedWidth={72}
         trigger={null}
+        className={`nectar-sider${collapsed ? " nectar-sider-collapsed" : ""}`}
         style={{
           position: "sticky",
           top: 0,
           height: "100vh",
-          overflow: "auto",
+          overflow: collapsed ? "visible" : "auto",
+          zIndex: 20,
         }}
       >
         <Link
@@ -315,6 +402,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             padding: collapsed ? "20px 12px" : "20px 20px",
             textDecoration: "none",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
+            justifyContent: collapsed ? "center" : "flex-start",
           }}
         >
           <span
@@ -366,14 +454,58 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Menu
           theme="dark"
           mode="inline"
+          inlineCollapsed={collapsed}
           selectedKeys={[selectedKey]}
-          openKeys={collapsed ? [] : openKeys}
-          onOpenChange={setOpenKeys}
+          openKeys={openKeys}
+          onOpenChange={(keys) => {
+            if (collapsed) {
+              // One flyout at a time while collapsed
+              const latest = keys.filter((k) => !openKeys.includes(k));
+              setOpenKeys(latest.length ? [latest[latest.length - 1]] : keys.slice(-1));
+              return;
+            }
+            setOpenKeys(keys);
+          }}
           triggerSubMenuAction="hover"
+          tooltip={{ placement: "right" }}
           items={navItemsFiltered}
+          classNames={{
+            popup: {
+              root: "nectar-sider-flyout",
+            },
+          }}
+          popupRender={(node, info) => {
+            const path = info.keys ?? [];
+            const key = String(path[path.length - 1] ?? path[0] ?? "");
+            const title =
+              FLYOUT_TITLES[key] ??
+              submenuTitleText(
+                (info.item as { label?: unknown } | undefined)?.label,
+              );
+            return (
+              <div className="nectar-sider-flyout-card">
+                <div className="nectar-sider-flyout-title">{title}</div>
+                {node as ReactElement}
+              </div>
+            );
+          }}
           onClick={({ key }) => {
-            if (key === "overtime" || key === "leave" || key === "shifts") return;
+            if (
+              key === "overtime" ||
+              key === "leave" ||
+              key === "shifts" ||
+              key === "my-employee"
+            ) {
+              return;
+            }
+            const mineHref = MY_EMPLOYEE_ROUTES[key];
+            if (mineHref) {
+              router.push(mineHref);
+              if (collapsed) setOpenKeys([]);
+              return;
+            }
             router.push(key);
+            if (collapsed) setOpenKeys([]);
           }}
           style={{ marginTop: 8, borderInlineEnd: "none" }}
         />
@@ -397,7 +529,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              onClick={() => setCollapsed((c) => !c)}
+              onClick={() =>
+                setCollapsed((c) => {
+                  const next = !c;
+                  if (next) setOpenKeys([]);
+                  return next;
+                })
+              }
               style={{
                 border: "none",
                 background: "transparent",

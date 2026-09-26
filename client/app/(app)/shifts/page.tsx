@@ -14,6 +14,7 @@ import {
   getRotationPreviews,
   getShiftDashboardKpis,
   getShiftInsights,
+  rejectRotationPreview,
 } from "@/lib/shift";
 import { canManageShifts, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
@@ -25,14 +26,28 @@ export default function ShiftsDashboardPage() {
   const [siteId, setSiteId] = useState<string | undefined>(locked);
   const [tick, setTick] = useState(0);
 
-  const kpis = useMemo(
-    () => getShiftDashboardKpis(siteId),
-    [siteId, tick],
-  );
-  const upcoming = useMemo(() => getRotationPreviews(), [tick]);
-  const conflicts = useMemo(() => detectConflicts(siteId).slice(0, 5), [siteId, tick]);
-  const insights = useMemo(() => getShiftInsights(siteId), [siteId, tick]);
-  const otCause = useMemo(() => getOtByShiftCause(), [tick]);
+  const kpis = useMemo(() => {
+    void tick;
+    return getShiftDashboardKpis(siteId);
+  }, [siteId, tick]);
+  const upcoming = useMemo(() => {
+    void tick;
+    return getRotationPreviews().filter((p) =>
+      siteId ? p.siteId === siteId : true,
+    );
+  }, [tick, siteId]);
+  const conflicts = useMemo(() => {
+    void tick;
+    return detectConflicts(siteId).slice(0, 5);
+  }, [siteId, tick]);
+  const insights = useMemo(() => {
+    void tick;
+    return getShiftInsights(siteId);
+  }, [siteId, tick]);
+  const otCause = useMemo(() => {
+    void tick;
+    return getOtByShiftCause();
+  }, [tick]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -126,19 +141,37 @@ export default function ShiftsDashboardPage() {
               {
                 title: "",
                 key: "act",
-                render: (_, r) =>
-                  r.status === "pending_review" && canEdit ? (
-                    <Button
-                      size="small"
-                      type="primary"
-                      onClick={() => {
-                        activateRotationPreview(r.id);
-                        setTick((t) => t + 1);
-                      }}
-                    >
-                      Activate
-                    </Button>
-                  ) : null,
+                render: (_, r) => {
+                  const undecided =
+                    r.status === "pending_review" || r.status === "draft";
+                  if (!undecided || !canEdit) return null;
+                  if (siteId && r.siteId !== siteId) return null;
+                  return (
+                    <>
+                      <Button
+                        size="small"
+                        type="primary"
+                        style={{ marginRight: 6 }}
+                        onClick={() => {
+                          activateRotationPreview(r.id);
+                          setTick((t) => t + 1);
+                        }}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        onClick={() => {
+                          rejectRotationPreview(r.id);
+                          setTick((t) => t + 1);
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  );
+                },
               },
             ]}
           />

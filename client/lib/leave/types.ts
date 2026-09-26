@@ -9,6 +9,7 @@ export type LeaveType =
 
 export type LeaveStatus =
   | "REQUESTED"
+  | "PENDING_EMPLOYEE_CONSENT"
   | "SUPERVISOR_VERIFIED"
   | "SITE_APPROVED"
   | "HR_VALIDATED"
@@ -32,6 +33,9 @@ export type LeaveActorRole =
   | "hr"
   | "management";
 
+export type ConsentDecision = "approved" | "rejected";
+export type ManagerDecision = "approved" | "rejected";
+
 export type LeaveRequest = {
   id: string;
   employeeId: string;
@@ -54,6 +58,15 @@ export type LeaveRequest = {
   enteredByRole: LeaveActorRole;
   supervisorName: string;
   siteInChargeName: string;
+  /** Manager display name for the plant */
+  managerName?: string;
+  submittedByEmployeeId?: string;
+  employeeConsent?: ConsentDecision;
+  employeeConsentAt?: string;
+  employeeConsentNote?: string;
+  managerDecision?: ManagerDecision;
+  managerDecisionAt?: string;
+  rejectionReason?: string;
   replacementRequired: boolean;
   assignedRelieverId?: string;
   replacementPlan?: string;
@@ -101,6 +114,7 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
 
 export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
   REQUESTED: "Requested",
+  PENDING_EMPLOYEE_CONSENT: "Awaiting employee consent",
   SUPERVISOR_VERIFIED: "Supervisor verified",
   SITE_APPROVED: "Site approved",
   HR_VALIDATED: "HR validated",

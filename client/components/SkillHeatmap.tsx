@@ -31,9 +31,81 @@ export default function SkillHeatmap() {
       >
         Skill mapping
       </div>
-      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 13 }}>
-        Role coverage across critical O&amp;M competencies (0–100).
+      <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
+        Heatmap of how strong each <strong>job role</strong> is on critical O&amp;M
+        competencies (0–100). Darker green = stronger; amber/red = gap.
       </p>
+      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
+        Example: a Shift Employee scoring 86 on ETP Ops but 58 on Maintenance
+        means they can run process well, but need backup for mechanical work.
+      </p>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 10,
+          marginBottom: 12,
+          fontSize: 11,
+          color: nectarColors.muted,
+        }}
+      >
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              background: "rgba(63, 174, 124, 0.35)",
+              marginRight: 4,
+              borderRadius: 2,
+              verticalAlign: "middle",
+            }}
+          />
+          ≥85 strong
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              background: "rgba(63, 174, 124, 0.18)",
+              marginRight: 4,
+              borderRadius: 2,
+              verticalAlign: "middle",
+            }}
+          />
+          70–84 OK
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              background: "rgba(196, 92, 38, 0.16)",
+              marginRight: 4,
+              borderRadius: 2,
+              verticalAlign: "middle",
+            }}
+          />
+          55–69 watch
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              background: "rgba(196, 92, 38, 0.32)",
+              marginRight: 4,
+              borderRadius: 2,
+              verticalAlign: "middle",
+            }}
+          />
+          &lt;55 gap
+        </span>
+      </div>
 
       <div style={{ overflowX: "auto" }}>
         <table

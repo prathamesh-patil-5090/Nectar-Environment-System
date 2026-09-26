@@ -8,6 +8,7 @@ export type SkillTag =
   | "STP Ops"
   | "RO Ops"
   | "WTP Ops"
+  | "MEE Ops"
   | "Safety"
   | "Sampling"
   | "Maintenance"
@@ -69,31 +70,13 @@ export type AssignmentEvent = {
 
 export const siteClusters: SiteCluster[] = [
   {
-    id: "c-navi",
-    name: "Navi Mumbai Cluster",
-    region: "Navi Mumbai / Thane",
-    siteIds: ["s1", "s2", "s5"],
+    id: "c-demo",
+    name: "Demo Plant Cluster",
+    region: "Maharashtra",
+    siteIds: ["s-etp", "s-ro", "s-mee"],
     regularShifts: 3,
     generalShifts: 1,
-    sharedRelieverSlots: 2,
-  },
-  {
-    id: "c-pune",
-    name: "Pune–Nashik Corridor",
-    region: "Pune / Nashik",
-    siteIds: ["s3", "s4"],
-    regularShifts: 3,
-    generalShifts: 1,
-    sharedRelieverSlots: 1,
-  },
-  {
-    id: "c-aura",
-    name: "Aurangabad Cluster",
-    region: "Marathwada",
-    siteIds: ["s6"],
-    regularShifts: 3,
-    generalShifts: 1,
-    sharedRelieverSlots: 1,
+    sharedRelieverSlots: 3,
   },
 ];
 
@@ -102,8 +85,8 @@ export const relievers: Reliever[] = [
     id: "rv1",
     name: "Sanjay Kamble",
     phone: "+91 98765 22001",
-    clusterId: "c-navi",
-    homeSiteId: "s1",
+    clusterId: "c-demo",
+    homeSiteId: "s-etp",
     skills: ["ETP Ops", "Safety", "General Shift"],
     plantTypes: ["ETP"],
     availability: "available",
@@ -112,60 +95,60 @@ export const relievers: Reliever[] = [
     id: "rv2",
     name: "Lata More",
     phone: "+91 98765 22002",
-    clusterId: "c-navi",
-    homeSiteId: "s2",
-    skills: ["STP Ops", "Sampling", "Safety"],
-    plantTypes: ["STP"],
+    clusterId: "c-demo",
+    homeSiteId: "s-ro",
+    skills: ["RO Ops", "Sampling", "Safety"],
+    plantTypes: ["RO"],
     availability: "available",
   },
   {
     id: "rv3",
     name: "Deepak Salve",
     phone: "+91 98765 22003",
-    clusterId: "c-navi",
-    skills: ["ETP Ops", "STP Ops", "Maintenance"],
-    plantTypes: ["ETP", "STP"],
+    clusterId: "c-demo",
+    skills: ["ETP Ops", "MEE Ops", "Maintenance"],
+    plantTypes: ["ETP", "MEE"],
     availability: "available",
   },
   {
     id: "rv4",
     name: "Rina Pawaskar",
     phone: "+91 98765 22004",
-    clusterId: "c-pune",
-    homeSiteId: "s3",
+    clusterId: "c-demo",
+    homeSiteId: "s-ro",
     skills: ["RO Ops", "Safety", "General Shift"],
     plantTypes: ["RO"],
     availability: "assigned",
-    assignedSiteId: "s3",
+    assignedSiteId: "s-ro",
     assignedAbsenceId: "ab2",
   },
   {
     id: "rv5",
     name: "Yogesh Kale",
     phone: "+91 98765 22005",
-    clusterId: "c-pune",
-    homeSiteId: "s4",
-    skills: ["WTP Ops", "Sampling", "Safety"],
-    plantTypes: ["WTP"],
+    clusterId: "c-demo",
+    homeSiteId: "s-mee",
+    skills: ["MEE Ops", "Sampling", "Safety"],
+    plantTypes: ["MEE"],
     availability: "available",
   },
   {
     id: "rv6",
     name: "Nitin Jadhav",
     phone: "+91 98765 22006",
-    clusterId: "c-aura",
-    homeSiteId: "s6",
-    skills: ["STP Ops", "Maintenance", "General Shift"],
-    plantTypes: ["STP"],
+    clusterId: "c-demo",
+    homeSiteId: "s-mee",
+    skills: ["MEE Ops", "Maintenance", "General Shift"],
+    plantTypes: ["MEE"],
     availability: "unavailable",
   },
   {
     id: "rv7",
-    employeeId: "e2",
+    employeeId: "e-etp-s2",
     name: "Rohan Deshmukh",
-    phone: "+91 98201 11002",
-    clusterId: "c-navi",
-    homeSiteId: "s1",
+    phone: "+91 98201 11005",
+    clusterId: "c-demo",
+    homeSiteId: "s-etp",
     skills: ["ETP Ops", "Safety"],
     plantTypes: ["ETP"],
     availability: "available",
@@ -175,10 +158,10 @@ export const relievers: Reliever[] = [
 let absenceStore: AbsenceRecord[] = [
   {
     id: "ab1",
-    employeeId: "e1",
+    employeeId: "e-etp-s1",
     employeeName: "Asha Patil",
-    siteId: "s1",
-    clusterId: "c-navi",
+    siteId: "s-etp",
+    clusterId: "c-demo",
     date: "2026-09-23",
     shiftId: "sh-morning",
     reason: "Sudden leave",
@@ -187,10 +170,10 @@ let absenceStore: AbsenceRecord[] = [
   },
   {
     id: "ab2",
-    employeeId: "e4",
+    employeeId: "e-ro-s1",
     employeeName: "Imran Shaikh",
-    siteId: "s3",
-    clusterId: "c-pune",
+    siteId: "s-ro",
+    clusterId: "c-demo",
     date: "2026-09-23",
     shiftId: "sh-night",
     reason: "Medical",
@@ -201,27 +184,27 @@ let absenceStore: AbsenceRecord[] = [
   },
   {
     id: "ab3",
-    employeeId: "e10",
+    employeeId: "e-mee-s3",
     employeeName: "Suresh Pawar",
-    siteId: "s6",
-    clusterId: "c-aura",
+    siteId: "s-mee",
+    clusterId: "c-demo",
     date: "2026-09-22",
     shiftId: "sh-morning",
     reason: "Weekly-off clash",
-    requiredSkills: ["STP Ops"],
+    requiredSkills: ["MEE Ops"],
     status: "ot_fallback",
     resolutionNote: "No available pool match — OT authorized as last resort",
   },
   {
     id: "ab4",
-    employeeId: "e3",
-    employeeName: "Meera Kulkarni",
-    siteId: "s2",
-    clusterId: "c-navi",
+    employeeId: "e-etp-s3",
+    employeeName: "Kavita Rao",
+    siteId: "s-etp",
+    clusterId: "c-demo",
     date: "2026-09-23",
-    shiftId: "sh-afternoon",
+    shiftId: "sh-night",
     reason: "Travel delay",
-    requiredSkills: ["STP Ops", "Maintenance"],
+    requiredSkills: ["ETP Ops", "Maintenance"],
     status: "open",
   },
 ];
@@ -232,14 +215,14 @@ let eventStore: AssignmentEvent[] = [
     at: "2026-09-23T06:05:00Z",
     absenceId: "ab2",
     step: "local_check",
-    message: "No local home-site reliever free at Pune RO Plant.",
+    message: "No local home-site reliever free at RO Plant.",
   },
   {
     id: "ev2",
     at: "2026-09-23T06:06:00Z",
     absenceId: "ab2",
     step: "pool_check",
-    message: "Matched Rina Pawaskar in Pune–Nashik corridor pool (RO Ops).",
+    message: "Matched Rina Pawaskar in demo plant cluster (RO Ops).",
   },
   {
     id: "ev3",
@@ -254,7 +237,7 @@ let eventStore: AssignmentEvent[] = [
     absenceId: "ab2",
     step: "notify",
     channel: "whatsapp",
-    message: "WhatsApp sent to +91 98765 22004: Report to Pune RO Plant by 21:45.",
+    message: "WhatsApp sent to +91 98765 22004: Report to RO Plant by 21:45.",
   },
   {
     id: "ev5",
@@ -268,7 +251,7 @@ let eventStore: AssignmentEvent[] = [
     at: "2026-09-22T05:41:00Z",
     absenceId: "ab3",
     step: "pool_check",
-    message: "Aurangabad cluster has no other available STP-qualified reliever.",
+    message: "Demo cluster has no other available MEE-qualified reliever.",
   },
   {
     id: "ev7",
@@ -281,6 +264,53 @@ let eventStore: AssignmentEvent[] = [
 
 let relieverStore: Reliever[] = relievers.map((r) => ({ ...r }));
 
+const RELIEVER_STORAGE_KEY = "nectar-enviro-reliever-pool-v1";
+let relieverHydrated = false;
+
+type RelieverPersisted = {
+  relievers: Reliever[];
+  absences: AbsenceRecord[];
+  events: AssignmentEvent[];
+};
+
+function persistRelieverPool() {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: RelieverPersisted = {
+      relievers: relieverStore,
+      absences: absenceStore,
+      events: eventStore,
+    };
+    localStorage.setItem(RELIEVER_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+function ensureRelieverHydrated() {
+  if (relieverHydrated || typeof window === "undefined") return;
+  relieverHydrated = true;
+  try {
+    const raw = localStorage.getItem(RELIEVER_STORAGE_KEY);
+    if (!raw) {
+      persistRelieverPool();
+      return;
+    }
+    const parsed = JSON.parse(raw) as Partial<RelieverPersisted>;
+    if (Array.isArray(parsed.relievers) && parsed.relievers.length) {
+      relieverStore = parsed.relievers;
+    }
+    if (Array.isArray(parsed.absences) && parsed.absences.length) {
+      absenceStore = parsed.absences;
+    }
+    if (Array.isArray(parsed.events)) {
+      eventStore = parsed.events;
+    }
+  } catch {
+    // keep seed
+  }
+}
+
 export function getClusterById(id: string) {
   return siteClusters.find((c) => c.id === id);
 }
@@ -290,16 +320,19 @@ export function getClusterForSite(siteId: string) {
 }
 
 export function getAbsences() {
+  ensureRelieverHydrated();
   return [...absenceStore].sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function getRelievers(clusterId?: string) {
+  ensureRelieverHydrated();
   return relieverStore.filter((r) =>
     clusterId ? r.clusterId === clusterId : true,
   );
 }
 
 export function getEvents(absenceId?: string) {
+  ensureRelieverHydrated();
   return eventStore
     .filter((e) => (absenceId ? e.absenceId === absenceId : true))
     .sort((a, b) => b.at.localeCompare(a.at));
@@ -320,6 +353,7 @@ function plantMatch(reliever: Reliever, siteId: string) {
  * Absence → local reliever → cluster pool → OT last resort
  */
 export function findReplacementCandidates(absence: AbsenceRecord) {
+  ensureRelieverHydrated();
   const pool = relieverStore.filter(
     (r) =>
       r.clusterId === absence.clusterId &&
@@ -339,6 +373,7 @@ export function runReplacementFlow(absenceId: string): {
   events: AssignmentEvent[];
   outcome: "local_assigned" | "pool_assigned" | "ot_fallback";
 } {
+  ensureRelieverHydrated();
   const absence = absenceStore.find((a) => a.id === absenceId);
   if (!absence) throw new Error("Absence not found");
 
@@ -398,6 +433,7 @@ export function runReplacementFlow(absenceId: string): {
     absenceStore = absenceStore.map((a) =>
       a.id === absenceId ? { ...absence } : a,
     );
+    persistRelieverPool();
     return { absence: { ...absence }, events: getEvents(absenceId), outcome: "ot_fallback" };
   }
 
@@ -434,6 +470,7 @@ export function runReplacementFlow(absenceId: string): {
     a.id === absenceId ? { ...absence } : a,
   );
 
+  persistRelieverPool();
   return { absence: { ...absence }, events: getEvents(absenceId), outcome };
 }
 
@@ -441,6 +478,7 @@ export function setRelieverAvailability(
   relieverId: string,
   availability: RelieverAvailability,
 ) {
+  ensureRelieverHydrated();
   relieverStore = relieverStore.map((r) => {
     if (r.id !== relieverId) return r;
     if (availability === "available") {
@@ -453,9 +491,11 @@ export function setRelieverAvailability(
     }
     return { ...r, availability };
   });
+  persistRelieverPool();
 }
 
 export function getPoolKpis() {
+  ensureRelieverHydrated();
   const open = absenceStore.filter((a) => a.status === "open").length;
   const covered = absenceStore.filter(
     (a) => a.status === "local_assigned" || a.status === "pool_assigned",
@@ -483,6 +523,7 @@ export function getPoolKpis() {
 }
 
 export function getSiteManpowerRequirement(siteId: string) {
+  ensureRelieverHydrated();
   const cluster = getClusterForSite(siteId);
   const siteStaff = employees.filter(
     (e) => e.siteId === siteId && e.employmentStatus === "active",

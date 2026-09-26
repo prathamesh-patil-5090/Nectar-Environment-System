@@ -16,8 +16,10 @@ import type {
 } from "./types";
 
 const OT_HOURLY_COST = 270;
+const LEAVE_STORAGE_KEY = "nectar-enviro-leave-store-v1";
 
 let leaveStore: LeaveRequest[] = [];
+let leaveHydrated = false;
 
 function dayCount(start: string, end: string) {
   const a = new Date(start + "T00:00:00Z").getTime();
@@ -38,7 +40,7 @@ export function computeLeaveImpact(
   endDate?: string,
 ): LeaveImpact & { affectedShiftDays: LeaveShiftImpactDay[] } {
   const emp = getEmployeeById(employeeId);
-  const siteId = emp?.siteId ?? "s1";
+  const siteId = emp?.siteId ?? "s-etp";
   const site = getSiteById(siteId);
   const shift = getShiftById(emp?.shiftId ?? "sh-morning");
   const siteStaff = employees.filter(
@@ -137,9 +139,9 @@ function event(
 const seed: LeaveRequest[] = [
   {
     id: "lv1",
-    employeeId: "e1",
+    employeeId: "e-etp-s1",
     employeeName: "Asha Patil",
-    siteId: "s1",
+    siteId: "s-etp",
     department: "Operations",
     shiftId: "sh-morning",
     mode: "planned",
@@ -153,8 +155,9 @@ const seed: LeaveRequest[] = [
     requestedByName: "Asha Patil",
     enteredByName: "Asha Patil",
     enteredByRole: "employee",
-    supervisorName: "Farhan Qureshi",
-    siteInChargeName: "Thane Site Lead",
+    supervisorName: "Amit Supervisor",
+    siteInChargeName: "Sanjay Jadhav",
+    managerName: "Rajesh Kulkarni",
     replacementRequired: true,
     potentialOtHours: 0,
     potentialOtCost: 0,
@@ -168,10 +171,87 @@ const seed: LeaveRequest[] = [
   },
   {
     id: "lv2",
-    employeeId: "e3",
-    employeeName: "Meera Kulkarni",
-    siteId: "s2",
-    department: "Maintenance",
+    employeeId: "e-etp-s2",
+    employeeName: "Rohan Deshmukh",
+    siteId: "s-etp",
+    department: "Operations",
+    shiftId: "sh-afternoon",
+    mode: "planned",
+    leaveType: "sick",
+    status: "PENDING_EMPLOYEE_CONSENT",
+    entrySource: "supervisor_on_behalf",
+    startDate: "2026-09-28",
+    endDate: "2026-09-29",
+    expectedReturnDate: "2026-09-30",
+    reason: "Medical appointment — employee asked supervisor to file",
+    requestedByName: "Amit Supervisor",
+    enteredByName: "Amit Supervisor",
+    enteredByRole: "supervisor",
+    submittedByEmployeeId: "e-etp-sup",
+    supervisorName: "Amit Supervisor",
+    siteInChargeName: "Sanjay Jadhav",
+    managerName: "Rajesh Kulkarni",
+    replacementRequired: true,
+    potentialOtHours: 0,
+    potentialOtCost: 0,
+    leaveBalanceDays: 6,
+    daysRequested: 2,
+    createdAt: "2026-09-22T09:00:00Z",
+    updatedAt: "2026-09-22T09:00:00Z",
+    timeline: [
+      event(
+        "Amit Supervisor",
+        "supervisor",
+        "Leave submitted on behalf of employee",
+        "Awaiting employee consent",
+        "2026-09-22T09:00:00Z",
+      ),
+    ],
+  },
+  {
+    id: "lv3",
+    employeeId: "e-ro-s1",
+    employeeName: "Imran Shaikh",
+    siteId: "s-ro",
+    department: "Operations",
+    shiftId: "sh-morning",
+    mode: "planned",
+    leaveType: "casual",
+    status: "REQUESTED",
+    entrySource: "supervisor_on_behalf",
+    startDate: "2026-10-01",
+    endDate: "2026-10-02",
+    expectedReturnDate: "2026-10-03",
+    reason: "Personal work",
+    requestedByName: "Neha Kamat",
+    enteredByName: "Neha Kamat",
+    enteredByRole: "supervisor",
+    submittedByEmployeeId: "e-ro-sup",
+    employeeConsent: "approved",
+    employeeConsentAt: "2026-09-21T11:00:00Z",
+    supervisorName: "Neha Kamat",
+    siteInChargeName: "Vikram Shah",
+    managerName: "Priya Iyer",
+    replacementRequired: true,
+    assignedRelieverId: "rv2",
+    replacementPlan: "Cluster reliever Lata More assigned",
+    potentialOtHours: 0,
+    potentialOtCost: 0,
+    leaveBalanceDays: 5,
+    daysRequested: 2,
+    createdAt: "2026-09-20T09:00:00Z",
+    updatedAt: "2026-09-21T11:00:00Z",
+    timeline: [
+      event("Neha Kamat", "supervisor", "Leave submitted on behalf", undefined, "2026-09-20T09:00:00Z"),
+      event("Imran Shaikh", "employee", "Employee consented", "Approved to proceed to manager", "2026-09-21T11:00:00Z"),
+    ],
+  },
+  {
+    id: "lv4",
+    employeeId: "e-mee-s1",
+    employeeName: "Vikram Nair",
+    siteId: "s-mee",
+    department: "Operations",
     shiftId: "sh-morning",
     mode: "emergency",
     leaveType: "family_emergency",
@@ -182,127 +262,34 @@ const seed: LeaveRequest[] = [
     expectedReturnDate: "2026-09-25",
     reason: "Family emergency — informed verbally",
     lastCommunication: "Called supervisor at 07:10 — will return by 25 Sep",
-    enteredByName: "Amit Supervisor",
+    enteredByName: "Sunita Rane",
     enteredByRole: "supervisor",
-    supervisorName: "Amit Supervisor",
-    siteInChargeName: "Belapur Site Lead",
-    replacementRequired: true,
-    potentialOtHours: 8,
-    potentialOtCost: 2160,
-    leaveBalanceDays: 4,
-    daysRequested: 2,
-    createdAt: "2026-09-23T07:20:00Z",
-    updatedAt: "2026-09-23T07:20:00Z",
-    timeline: [
-      event("Amit Supervisor", "supervisor", "Absence detected", "Employee did not report", "2026-09-23T06:50:00Z"),
-      event("Amit Supervisor", "supervisor", "Contacted employee", "Reason obtained verbally", "2026-09-23T07:10:00Z"),
-      event("Amit Supervisor", "supervisor", "Emergency absence recorded", "Entered on behalf of employee", "2026-09-23T07:20:00Z"),
-    ],
-  },
-  {
-    id: "lv3",
-    employeeId: "e7",
-    employeeName: "Priya Sawant",
-    siteId: "s2",
-    department: "Operations",
-    shiftId: "sh-night",
-    mode: "planned",
-    leaveType: "sick",
-    status: "SITE_APPROVED",
-    entrySource: "supervisor_on_behalf",
-    startDate: "2026-09-28",
-    endDate: "2026-09-29",
-    expectedReturnDate: "2026-09-30",
-    reason: "Medical appointment",
-    enteredByName: "Amit Supervisor",
-    enteredByRole: "supervisor",
-    supervisorName: "Amit Supervisor",
-    siteInChargeName: "Belapur Site Lead",
-    replacementRequired: true,
-    assignedRelieverId: "rv2",
-    replacementPlan: "Cluster reliever Lata More assigned",
-    potentialOtHours: 0,
-    potentialOtCost: 0,
-    leaveBalanceDays: 6,
-    daysRequested: 2,
-    createdAt: "2026-09-18T09:00:00Z",
-    updatedAt: "2026-09-19T11:00:00Z",
-    timeline: [
-      event("Priya Sawant", "employee", "Informed supervisor", undefined, "2026-09-18T08:30:00Z"),
-      event("Amit Supervisor", "supervisor", "Verified & entered leave", "On behalf of employee", "2026-09-18T09:00:00Z"),
-      event("Belapur Site Lead", "site_incharge", "Site approved", "Reliever arranged — OT risk none", "2026-09-19T11:00:00Z"),
-    ],
-  },
-  {
-    id: "lv4",
-    employeeId: "e6",
-    employeeName: "Vikram Nair",
-    siteId: "s5",
-    department: "Operations",
-    shiftId: "sh-morning",
-    mode: "emergency",
-    leaveType: "other",
-    status: "PENDING_INFORMATION",
-    entrySource: "supervisor_on_behalf",
-    startDate: "2026-09-21",
-    endDate: "2026-09-23",
-    expectedReturnDate: "2026-09-24",
-    reason: "Family emergency",
-    lastCommunication: "Family emergency — no confirmed return date",
-    enteredByName: "Site Supervisor",
-    enteredByRole: "supervisor",
-    supervisorName: "Site Supervisor",
-    siteInChargeName: "Vashi Site Lead",
+    submittedByEmployeeId: "e-mee-sup",
+    employeeConsent: "approved",
+    employeeConsentAt: "2026-09-23T07:15:00Z",
+    supervisorName: "Sunita Rane",
+    siteInChargeName: "Farhan Qureshi",
+    managerName: "Anil Desai",
     replacementRequired: true,
     potentialOtHours: 8,
     potentialOtCost: 2160,
     leaveBalanceDays: 2,
-    daysRequested: 3,
-    createdAt: "2026-09-21T08:00:00Z",
-    updatedAt: "2026-09-22T18:00:00Z",
+    daysRequested: 2,
+    createdAt: "2026-09-23T07:20:00Z",
+    updatedAt: "2026-09-23T07:20:00Z",
     timeline: [
-      event("Site Supervisor", "supervisor", "Absence recorded", "Pending justification", "2026-09-21T08:00:00Z"),
-      event("HR Partner", "hr", "Flagged pending information", "Need expected return confirmation", "2026-09-22T18:00:00Z"),
+      event("Sunita Rane", "supervisor", "Absence detected", "Employee did not report", "2026-09-23T06:50:00Z"),
+      event("Vikram Nair", "employee", "Employee consented", "Permission to file emergency leave", "2026-09-23T07:15:00Z"),
+      event("Sunita Rane", "supervisor", "Emergency absence recorded", "Entered on behalf of employee", "2026-09-23T07:20:00Z"),
     ],
   },
   {
     id: "lv5",
-    employeeId: "e10",
-    employeeName: "Suresh Pawar",
-    siteId: "s6",
+    employeeId: "e-etp-g1",
+    employeeName: "Nisha Salvi",
+    siteId: "s-etp",
     department: "Operations",
-    shiftId: "sh-morning",
-    mode: "emergency",
-    leaveType: "other",
-    status: "UNEXPLAINED_ABSENCE",
-    entrySource: "supervisor_on_behalf",
-    startDate: "2026-09-22",
-    endDate: "2026-09-23",
-    expectedReturnDate: "2026-09-24",
-    reason: "Not reachable",
-    lastCommunication: "Calls unanswered since 22 Sep morning",
-    enteredByName: "Aurangabad Supervisor",
-    enteredByRole: "supervisor",
-    supervisorName: "Aurangabad Supervisor",
-    siteInChargeName: "Aurangabad Site Lead",
-    replacementRequired: true,
-    potentialOtHours: 8,
-    potentialOtCost: 2160,
-    leaveBalanceDays: 5,
-    daysRequested: 2,
-    createdAt: "2026-09-22T09:00:00Z",
-    updatedAt: "2026-09-23T09:00:00Z",
-    timeline: [
-      event("Aurangabad Supervisor", "supervisor", "Marked unexplained absence", "Could not contact employee", "2026-09-22T09:00:00Z"),
-    ],
-  },
-  {
-    id: "lv6",
-    employeeId: "e5",
-    employeeName: "Sneha Joshi",
-    siteId: "s4",
-    department: "Laboratory",
-    shiftId: "sh-morning",
+    shiftId: "sh-general",
     mode: "planned",
     leaveType: "casual",
     status: "APPROVED",
@@ -312,11 +299,14 @@ const seed: LeaveRequest[] = [
     expectedReturnDate: "2026-09-17",
     actualReturnDate: "2026-09-17",
     reason: "Personal work",
-    requestedByName: "Sneha Joshi",
-    enteredByName: "Sneha Joshi",
+    requestedByName: "Nisha Salvi",
+    enteredByName: "Nisha Salvi",
     enteredByRole: "employee",
-    supervisorName: "Lab Lead",
-    siteInChargeName: "Nashik Site Lead",
+    supervisorName: "Amit Supervisor",
+    siteInChargeName: "Sanjay Jadhav",
+    managerName: "Rajesh Kulkarni",
+    managerDecision: "approved",
+    managerDecisionAt: "2026-09-11T10:00:00Z",
     replacementRequired: false,
     potentialOtHours: 0,
     potentialOtCost: 0,
@@ -325,81 +315,95 @@ const seed: LeaveRequest[] = [
     createdAt: "2026-09-10T12:00:00Z",
     updatedAt: "2026-09-17T08:30:00Z",
     timeline: [
-      event("Sneha Joshi", "employee", "Leave requested", undefined, "2026-09-10T12:00:00Z"),
-      event("Lab Lead", "supervisor", "Verified", undefined, "2026-09-10T14:00:00Z"),
-      event("Nashik Site Lead", "site_incharge", "Site approved", "Manpower OK", "2026-09-11T10:00:00Z"),
-      event("HR Partner", "hr", "HR validated", "Balance OK", "2026-09-11T16:00:00Z"),
-      event("Lab Lead", "supervisor", "Return confirmed", "Duty resumed", "2026-09-17T08:30:00Z"),
+      event("Nisha Salvi", "employee", "Leave requested", undefined, "2026-09-10T12:00:00Z"),
+      event("Rajesh Kulkarni", "management", "Manager approved", "Manpower OK", "2026-09-11T10:00:00Z"),
+      event("Amit Supervisor", "supervisor", "Return confirmed", "Duty resumed", "2026-09-17T08:30:00Z"),
     ],
   },
   {
-    id: "lv7",
-    employeeId: "e8",
+    id: "lv6",
+    employeeId: "e-ro-s2",
     employeeName: "Arjun Mehta",
-    siteId: "s3",
-    department: "Maintenance",
+    siteId: "s-ro",
+    department: "Operations",
     shiftId: "sh-afternoon",
     mode: "planned",
     leaveType: "sick",
-    status: "EXTENSION_REQUIRED",
+    status: "REJECTED",
     entrySource: "employee",
     startDate: "2026-09-20",
     endDate: "2026-09-22",
     expectedReturnDate: "2026-09-23",
-    actualReturnDate: "2026-09-24",
     reason: "Fever",
     requestedByName: "Arjun Mehta",
     enteredByName: "Arjun Mehta",
     enteredByRole: "employee",
-    supervisorName: "Pune Supervisor",
-    siteInChargeName: "Pune Site Lead",
+    supervisorName: "Neha Kamat",
+    siteInChargeName: "Vikram Shah",
+    managerName: "Priya Iyer",
+    managerDecision: "rejected",
+    managerDecisionAt: "2026-09-19T15:00:00Z",
+    rejectionReason: "Critical RO maintenance window — reschedule after 25 Sep",
     replacementRequired: true,
     potentialOtHours: 0,
     potentialOtCost: 0,
     leaveBalanceDays: 3,
     daysRequested: 3,
     createdAt: "2026-09-19T11:00:00Z",
-    updatedAt: "2026-09-24T09:00:00Z",
+    updatedAt: "2026-09-19T15:00:00Z",
     timeline: [
       event("Arjun Mehta", "employee", "Leave requested", undefined, "2026-09-19T11:00:00Z"),
-      event("Pune Supervisor", "supervisor", "Verified", undefined, "2026-09-19T12:00:00Z"),
-      event("Pune Site Lead", "site_incharge", "Site approved", undefined, "2026-09-19T15:00:00Z"),
-      event("HR Partner", "hr", "Validated", undefined, "2026-09-19T17:00:00Z"),
-      event("Pune Supervisor", "supervisor", "Late return recorded", "+1 day vs planned — extension required", "2026-09-24T09:00:00Z"),
+      event(
+        "Priya Iyer",
+        "management",
+        "Manager rejected",
+        "Critical RO maintenance window — reschedule after 25 Sep",
+        "2026-09-19T15:00:00Z",
+      ),
     ],
   },
   {
-    id: "lv8",
-    employeeId: "e11",
-    employeeName: "Neha Gupta",
-    siteId: "s4",
-    department: "Maintenance",
+    id: "lv7",
+    employeeId: "e-mee-s2",
+    employeeName: "Pooja Ghate",
+    siteId: "s-mee",
+    department: "Operations",
     shiftId: "sh-afternoon",
     mode: "planned",
     leaveType: "casual",
-    status: "HR_VALIDATED",
-    entrySource: "employee",
-    startDate: "2026-10-02",
-    endDate: "2026-10-03",
-    expectedReturnDate: "2026-10-04",
-    reason: "Travel",
-    requestedByName: "Neha Gupta",
-    enteredByName: "Neha Gupta",
-    enteredByRole: "employee",
-    supervisorName: "Lab Lead",
-    siteInChargeName: "Nashik Site Lead",
+    status: "REJECTED",
+    entrySource: "supervisor_on_behalf",
+    startDate: "2026-09-26",
+    endDate: "2026-09-26",
+    expectedReturnDate: "2026-09-27",
+    reason: "Personal errand",
+    requestedByName: "Sunita Rane",
+    enteredByName: "Sunita Rane",
+    enteredByRole: "supervisor",
+    submittedByEmployeeId: "e-mee-sup",
+    employeeConsent: "rejected",
+    employeeConsentAt: "2026-09-22T14:00:00Z",
+    employeeConsentNote: "I did not ask for leave — please cancel",
+    rejectionReason: "Employee rejected consent",
+    supervisorName: "Sunita Rane",
+    siteInChargeName: "Farhan Qureshi",
+    managerName: "Anil Desai",
     replacementRequired: false,
     potentialOtHours: 0,
     potentialOtCost: 0,
     leaveBalanceDays: 7,
-    daysRequested: 2,
-    createdAt: "2026-09-21T10:00:00Z",
+    daysRequested: 1,
+    createdAt: "2026-09-22T10:00:00Z",
     updatedAt: "2026-09-22T14:00:00Z",
     timeline: [
-      event("Neha Gupta", "employee", "Leave requested", undefined, "2026-09-21T10:00:00Z"),
-      event("Lab Lead", "supervisor", "Verified", undefined, "2026-09-21T13:00:00Z"),
-      event("Nashik Site Lead", "site_incharge", "Site approved", undefined, "2026-09-22T09:00:00Z"),
-      event("HR Partner", "hr", "Policy validated", "Awaiting final approve stamp", "2026-09-22T14:00:00Z"),
+      event("Sunita Rane", "supervisor", "Leave submitted on behalf", undefined, "2026-09-22T10:00:00Z"),
+      event(
+        "Pooja Ghate",
+        "employee",
+        "Employee rejected consent",
+        "I did not ask for leave — please cancel",
+        "2026-09-22T14:00:00Z",
+      ),
     ],
   },
 ];
@@ -414,22 +418,69 @@ leaveStore = seed.map((l) => {
   };
 });
 
-export function getLeaveRequests(siteId?: string) {
+const seedSnapshot = leaveStore.map((l) => ({ ...l, timeline: [...l.timeline] }));
+
+function persistLeaveStore() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LEAVE_STORAGE_KEY, JSON.stringify(leaveStore));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function ensureLeaveHydrated() {
+  if (leaveHydrated || typeof window === "undefined") return;
+  leaveHydrated = true;
+  try {
+    const raw = localStorage.getItem(LEAVE_STORAGE_KEY);
+    if (!raw) {
+      persistLeaveStore();
+      return;
+    }
+    const parsed = JSON.parse(raw) as LeaveRequest[];
+    if (Array.isArray(parsed) && parsed.length) {
+      leaveStore = parsed;
+    }
+  } catch {
+    leaveStore = seedSnapshot.map((l) => ({
+      ...l,
+      timeline: [...l.timeline],
+    }));
+  }
+}
+
+/** Reset leave demo data to seed (optional helper) */
+export function resetLeaveStore() {
+  leaveStore = seedSnapshot.map((l) => ({
+    ...l,
+    timeline: [...l.timeline],
+  }));
+  leaveHydrated = true;
+  persistLeaveStore();
+}
+
+export function getLeaveRequests(siteId?: string, employeeId?: string) {
+  ensureLeaveHydrated();
   return [...leaveStore]
     .filter((l) => (siteId ? l.siteId === siteId : true))
+    .filter((l) => (employeeId ? l.employeeId === employeeId : true))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function getLeaveById(id: string) {
+  ensureLeaveHydrated();
   return leaveStore.find((l) => l.id === id);
 }
 
-export function getLeaveKpis(siteId?: string) {
-  const rows = getLeaveRequests(siteId);
+export function getLeaveKpis(siteId?: string, employeeId?: string) {
+  ensureLeaveHydrated();
+  const rows = getLeaveRequests(siteId, employeeId);
   const today = "2026-09-23";
   const pending = rows.filter((l) =>
     [
       "REQUESTED",
+      "PENDING_EMPLOYEE_CONSENT",
       "SUPERVISOR_VERIFIED",
       "SUPERVISOR_RECORDED",
       "SITE_APPROVED",
@@ -469,9 +520,11 @@ export function getLeaveKpis(siteId?: string) {
     .length;
 
   return {
-    totalEmployees: siteId
-      ? employees.filter((e) => e.siteId === siteId).length
-      : employees.length,
+    totalEmployees: employeeId
+      ? 1
+      : siteId
+        ? employees.filter((e) => e.siteId === siteId).length
+        : employees.length,
     pendingRequests: pending,
     unverifiedAbsences: unverified,
     currentlyOnLeave: onLeave,
@@ -480,10 +533,14 @@ export function getLeaveKpis(siteId?: string) {
     leaveOtRisk: otRisk,
     criticalSiteShortages: criticalShortages,
     longLeaveCases: longLeave,
+    totalRequests: rows.length,
+    approvedCount: rows.filter((l) => l.status === "APPROVED" || l.status === "CLOSED").length,
+    rejectedCount: rows.filter((l) => l.status === "REJECTED").length,
   };
 }
 
 export function getPendingJustifications() {
+  ensureLeaveHydrated();
   return getLeaveRequests().filter((l) =>
     ["PENDING_INFORMATION", "UNEXPLAINED_ABSENCE", "EXTENSION_REQUIRED"].includes(
       l.status,
@@ -504,20 +561,33 @@ export type CreateLeaveInput = {
   enteredByRole: LeaveRequest["enteredByRole"];
   supervisorName: string;
   siteInChargeName: string;
+  managerName?: string;
+  submittedByEmployeeId?: string;
   lastCommunication?: string;
 };
 
 export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
+  ensureLeaveHydrated();
   const emp = getEmployeeById(input.employeeId);
   if (!emp) throw new Error("Employee not found");
   const impact = computeLeaveImpact(input.employeeId, input.startDate);
   const id = `lv-${Date.now().toString(36)}`;
-  const status: LeaveStatus =
-    input.mode === "emergency"
-      ? input.entrySource === "supervisor_on_behalf"
+  const manager =
+    input.managerName ??
+    (emp.managerId ? getEmployeeById(emp.managerId)?.name : undefined) ??
+    "Plant Manager";
+
+  let status: LeaveStatus;
+  if (input.entrySource === "supervisor_on_behalf" && input.mode === "planned") {
+    status = "PENDING_EMPLOYEE_CONSENT";
+  } else if (input.mode === "emergency") {
+    status =
+      input.entrySource === "supervisor_on_behalf"
         ? "SUPERVISOR_RECORDED"
-        : "ABSENT"
-      : "REQUESTED";
+        : "ABSENT";
+  } else {
+    status = "REQUESTED";
+  }
 
   const row: LeaveRequest = {
     id,
@@ -536,11 +606,13 @@ export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
     reason: input.reason,
     lastCommunication: input.lastCommunication,
     requestedByName:
-      input.entrySource === "employee" ? emp.name : undefined,
+      input.entrySource === "employee" ? emp.name : input.enteredByName,
     enteredByName: input.enteredByName,
     enteredByRole: input.enteredByRole,
+    submittedByEmployeeId: input.submittedByEmployeeId,
     supervisorName: input.supervisorName,
     siteInChargeName: input.siteInChargeName,
+    managerName: manager,
     replacementRequired: impact.potentialOtHours > 0 || impact.availableRelievers > 0,
     potentialOtHours: impact.potentialOtHours,
     potentialOtCost: impact.potentialOtCost,
@@ -552,21 +624,27 @@ export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
       event(
         input.enteredByName,
         input.enteredByRole,
-        input.mode === "emergency"
-          ? "Emergency absence recorded"
-          : "Leave requested",
-        input.entrySource === "supervisor_on_behalf"
-          ? "Entered by supervisor on behalf of employee"
-          : "Requested by employee",
+        status === "PENDING_EMPLOYEE_CONSENT"
+          ? "Leave submitted on behalf of employee"
+          : input.mode === "emergency"
+            ? "Emergency absence recorded"
+            : "Leave requested",
+        status === "PENDING_EMPLOYEE_CONSENT"
+          ? "Awaiting employee consent"
+          : input.entrySource === "supervisor_on_behalf"
+            ? "Entered by supervisor on behalf of employee"
+            : "Requested by employee",
       ),
     ],
   };
 
   leaveStore = [row, ...leaveStore];
+  persistLeaveStore();
   return row;
 }
 
 function updateLeave(id: string, patch: Partial<LeaveRequest>, ev: LeaveTimelineEvent) {
+  ensureLeaveHydrated();
   leaveStore = leaveStore.map((l) => {
     if (l.id !== id) return l;
     return {
@@ -576,6 +654,7 @@ function updateLeave(id: string, patch: Partial<LeaveRequest>, ev: LeaveTimeline
       timeline: [...l.timeline, ev],
     };
   });
+  persistLeaveStore();
   return getLeaveById(id)!;
 }
 
@@ -675,17 +754,77 @@ export function hrValidate(id: string, actor: string) {
 export function finalizeApprove(id: string, actor: string) {
   return updateLeave(
     id,
-    { status: "APPROVED" },
-    event(actor, "hr", "Leave approved", "Final status"),
+    {
+      status: "APPROVED",
+      managerDecision: "approved",
+      managerDecisionAt: new Date().toISOString(),
+    },
+    event(actor, "management", "Leave approved", "Manager final approval"),
   );
 }
 
 export function rejectLeave(id: string, actor: string, note: string) {
   return updateLeave(
     id,
-    { status: "REJECTED" },
-    event(actor, "site_incharge", "Leave rejected", note),
+    {
+      status: "REJECTED",
+      managerDecision: "rejected",
+      managerDecisionAt: new Date().toISOString(),
+      rejectionReason: note,
+    },
+    event(actor, "management", "Leave rejected", note),
   );
+}
+
+/** Employee consents to a supervisor-submitted leave request */
+export function employeeConsentLeave(
+  id: string,
+  actor: string,
+  decision: "approved" | "rejected",
+  note?: string,
+) {
+  const leave = getLeaveById(id);
+  if (!leave) throw new Error("Not found");
+  if (leave.status !== "PENDING_EMPLOYEE_CONSENT") {
+    throw new Error("Leave is not awaiting employee consent");
+  }
+  const at = new Date().toISOString();
+  if (decision === "rejected") {
+    return updateLeave(
+      id,
+      {
+        status: "REJECTED",
+        employeeConsent: "rejected",
+        employeeConsentAt: at,
+        employeeConsentNote: note,
+        rejectionReason: note ?? "Employee rejected consent",
+      },
+      event(actor, "employee", "Employee rejected consent", note),
+    );
+  }
+  return updateLeave(
+    id,
+    {
+      status: "REQUESTED",
+      employeeConsent: "approved",
+      employeeConsentAt: at,
+      employeeConsentNote: note,
+    },
+    event(actor, "employee", "Employee consented", "Approved to proceed to manager"),
+  );
+}
+
+/** Plant manager final approve / reject (demo path — no HR) */
+export function managerDecideLeave(
+  id: string,
+  actor: string,
+  decision: "approved" | "rejected",
+  note?: string,
+) {
+  if (decision === "rejected") {
+    return rejectLeave(id, actor, note ?? "Rejected by manager");
+  }
+  return finalizeApprove(id, actor);
 }
 
 export function confirmReturn(id: string, actor: string, actualReturnDate: string) {

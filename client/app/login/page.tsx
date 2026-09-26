@@ -6,7 +6,7 @@ import { Alert, Button, Form, Input, Typography } from "antd";
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import {
   DEMO_CREDENTIALS,
-  DEMO_USERS,
+  DEMO_USERS_VISIBLE,
   isAuthenticated,
   login,
   ROLE_LABELS,
@@ -198,12 +198,25 @@ export default function LoginPage() {
               background: "rgba(15,42,36,0.04)",
               borderRadius: 8,
               padding: "10px 12px",
+              maxHeight: 220,
+              overflowY: "auto",
             }}
           >
             <div style={{ marginBottom: 6, textAlign: "center" }}>
               Demo accounts (password <code>{DEMO_CREDENTIALS.password}</code>)
             </div>
-            {DEMO_USERS.map((u) => (
+            <div
+              style={{
+                marginBottom: 8,
+                fontSize: 11,
+                textAlign: "center",
+                opacity: 0.85,
+              }}
+            >
+              Admin · plant Managers · Shift In-Charge · Supervisor · Employees
+              (ETP / RO / MEE)
+            </div>
+            {DEMO_USERS_VISIBLE.map((u) => (
               <div
                 key={u.email}
                 style={{
@@ -214,7 +227,12 @@ export default function LoginPage() {
                 }}
               >
                 <code style={{ fontSize: 11 }}>{u.email}</code>
-                <span>{ROLE_LABELS[u.role]}</span>
+                <span style={{ whiteSpace: "nowrap" }}>
+                  {ROLE_LABELS[u.role]}
+                  {u.siteId
+                    ? ` · ${u.siteId.replace("s-", "").toUpperCase()}`
+                    : ""}
+                </span>
               </div>
             ))}
           </div>
