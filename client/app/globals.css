@@ -63,6 +63,24 @@ body {
   }
 }
 
+.nectar-employee-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 1200px) {
+  .nectar-employee-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .nectar-employee-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .nectar-ot-two {
   display: grid;
   grid-template-columns: 1fr 1fr;
