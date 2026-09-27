@@ -87,20 +87,21 @@ All authenticated pages share **AppShell**:
 
 | Feature | Description |
 |--------|-------------|
-| Collapsible sidebar | Expand/collapse; auto-collapses on smaller breakpoints |
+| Collapsible sidebar | Expand/collapse; state persisted in localStorage; auto-collapses on smaller breakpoints |
 | Nested menus | Shifts, Leave, OverTime expand to sub-pages |
 | Hover submenus | When collapsed, hover opens quick switch to child routes |
-| Sticky header | Page title + user menu (role shown, logout) |
+| Sticky header | Page title + bell (Notifications) + user menu (My Profile, role, logout) |
 | Branding | Nectar Enviro mark + “Ops Console” |
 
-**Sidebar structure (conceptual):**
+**Sidebar structure (conceptual — filtered by role):**
 
 ```text
 Dashboard
 Employees
-Sites
+Sites                    ← Manager, SIC, Admin (not Supervisor)
 Training
-Shifts
+Certifications
+Shifts                   ← Manager, SIC, Admin (not Supervisor)
   ├── Dashboard
   ├── Shift Master
   ├── Schedule
@@ -108,19 +109,21 @@ Shifts
   ├── Change Requests
   ├── Reliever Allocation
   └── Deviations
-Reliever Pool
+Reliever Pool            ← Supervisor, SIC, Manager, Admin
 Leave
   ├── Overview
   ├── Requests
-  ├── Pending justifications
-  └── Management
+  └── Management         ← Manager / Admin only
 OverTime
   ├── Overview
   ├── Employees
   ├── Sites
-  ├── Analysis
-  └── Reports
+  ├── Analysis & reports
+  └── Assign / notify    ← Manager / Admin only
 ```
+
+**Navbar:** Bell icon opens Notifications (unread badge when present). User menu has My Profile, role label, and Log out.
+
 
 ---
 
@@ -226,11 +229,17 @@ OverTime
 
 | Feature | Description |
 |--------|-------------|
-| Employee rotation table | Current shift, next shift, effective date, group, site |
+| Employee rotation table | Demo roster: 4 per plant (A, B, C, Reliever) — current / next shift, effective date, site |
 | Active pattern display | Shows which rotation rule is driving next shifts |
-| Generate next schedule | Creates a draft rotation for a site for Shift In-Charge review |
-| Pending reviews | List of generated schedules (draft / pending_review / active / rejected) |
-| Approve / Reject | Shift In-Charge (or Manager) activates the rotation onto the roster, or rejects it |
+| Build monthly schedule | Multi-step drawer: site + month → pattern + roles → editable week grid → conflict check → submit draft |
+| Same-month lock | After a month is **active** (published), Shift In-Charge cannot submit another draft for that site + month |
+| Drafts pending publish | List of monthly drafts (`pending_manager` → `pending_admin` → `active` / `rejected`) |
+| View → decide | Manager and Admin must **View schedule** before Approve / Reject; remark is required |
+| Two-step approval | Manager approves (sends to Admin) → Admin approves and publishes onto the live roster |
+
+**Who does what:** Shift In-Charge builds the month. Manager views and approves or rejects with a remark. Admin views and gives final approval (publishes) or rejects. Employees only request one-day changes. Supervisors do not publish the month. Day-by-day result is on **Shifts → Schedule**.
+
+**Conflict check:** Rest-hour and leave-cover issues block submit (`attention`). Weekly-off mismatches are shown as `watch`.
 
 ---
 
@@ -303,7 +312,7 @@ OverTime
 ## 7. Leave module
 
 **Design principle:**  
-Employee informs → Supervisor records/verifies → Site manages manpower → HR policy/exceptions → Management visibility.
+Employee requests (or consents) → Supervisor verifies → Shift In-Charge covers the shift → Manager approves → Admin finalizes. Admin may also perform earlier hops. HR validation is not part of this chain.
 
 ### 7.1 Leave Overview — `/leave`
 
@@ -335,17 +344,21 @@ Employee informs → Supervisor records/verifies → Site manages manpower → H
 
 | Feature | Description |
 |--------|-------------|
-| Full leave profile | Type, dates, balance, supervisor, site in-charge, reason, communications |
+| Full leave profile | Type, dates, balance, supervisor, shift in-charge, reason, communications |
 | Leave → shift impact | Day-by-day planned shifts affected (from Shift Rotation) |
 | Manpower / OT panel | Current vs required manpower, relievers, nearby workers, potential OT hours & cost |
-| Role actions | Supervisor verify; Site arrange replacement / approve anyway / escalate / reject; HR validate & final approve |
-| Return to duty | Confirm actual return; late return → extension required; release temporary replacement |
+| Role actions | Employee consent; Supervisor verify; Shift In-Charge arranges replacement; Manager approves; Admin finalizes |
+| Return to duty | After Admin approval. On-time return closes the leave and releases the reliever. A late return stays `EXTENSION_REQUIRED` and keeps the reliever until the extension is closed |
 | Workflow timeline | Full audit of who did what |
 
-**Statuses (examples):**  
-`REQUESTED` → `SUPERVISOR_VERIFIED` → `SITE_APPROVED` → `HR_VALIDATED` → `APPROVED`  
-Emergency: `ABSENT` / `SUPERVISOR_RECORDED` → `SITE_VERIFIED` → … → `CLOSED`  
-Exceptions: `PENDING_INFORMATION`, `UNEXPLAINED_ABSENCE`, `EXTENSION_REQUIRED`, `REJECTED`, `CANCELLED`
+**Planned leave:**  
+Employee file → `REQUESTED` → Supervisor verifies → Shift In-Charge covers (`SITE_APPROVED`) → Manager (`MANAGER_APPROVED`) → Admin → `APPROVED` → return `CLOSED`.  
+Supervisor on behalf → `PENDING_EMPLOYEE_CONSENT` → employee consent (`REQUESTED`) or reject (`REJECTED`).
+
+**Emergency:**  
+`ABSENT` or `SUPERVISOR_RECORDED` → Shift In-Charge covers (`SITE_VERIFIED`) → Manager (`MANAGER_APPROVED`) → Admin → `APPROVED` → `CLOSED`.
+
+Illegal status jumps are rejected. Reject, cancel, and a confirmed return release any reliever reserved for that leave.
 
 ---
 
@@ -367,7 +380,7 @@ Exceptions: `PENDING_INFORMATION`, `UNEXPLAINED_ABSENCE`, `EXTENSION_REQUIRED`, 
 | Site → impact table | On leave / OT risk / unexplained by site |
 | Exception drill-down | Employee → site → supervisor → status → OT impact |
 
-Management does **not** approve every routine leave; they see escalations and impact.
+Managers approve after the shift is covered; Admin gives the final sign-off. This page is the plant-level view of impact.
 
 ---
 
@@ -461,11 +474,13 @@ Shared **filters** across OT pages: date range, year, month, site, department, e
 
 ### Leave + Shift Rotation
 
-When leave is opened for a date range, the system shows **which planned shifts** are hit (e.g. 26 Sep A, 27 Sep B) and estimates replacement / OT risk.
+When leave is opened for a date range, the system shows **which planned shifts** are hit (e.g. 26 Sep A, 27 Sep B) and estimates replacement / OT risk. A shift-change approval is refused when that date sits inside an approved or in-flight leave, or when the new shift breaks the configured minimum rest hours.
 
 ### Leave / Absence + Reliever Pool
 
-Site In-Charge can **arrange replacement** from the pool before approving leave that would otherwise create OT.
+Shift In-Charge opens the leave and chooses who covers it. The list shows available people at the home site first, then the cluster. They can also accept overtime when nobody fits.
+
+A chosen person is marked `assigned` and tied to the leave. Reject, cancel, and an on-time return set them back to `available`. A late return keeps them assigned until the extension is closed.
 
 ### Shift gap + Reliever Pool
 
@@ -521,7 +536,7 @@ Urgent training on the main dashboard links into the employee master for follow-
 
 - **Data today** is rich **mock / demo** data shaped for Nectar Enviro O&M (**ETP / RO / MEE** demo plants), ready to swap for live attendance, payroll, and HR APIs.
 - **OT is last resort** in the product story: plan shifts → detect gaps → use relievers → only then OT.
-- **Literacy-friendly leave:** supervisors can enter absences on behalf of workers; employee must consent before the request reaches the plant Manager.
+- **Literacy-friendly leave:** supervisors can enter absences on behalf of workers; the employee must consent before a supervisor verifies the request. Shift In-Charge covers the shift, the plant Manager approves, then Admin finalizes.
 - **Configurable rules** (rest hours, OT minimums/rounding, leave policy gates) are designed so compliance can own thresholds without hard-coding one legal interpretation into the UI.
 
 ---

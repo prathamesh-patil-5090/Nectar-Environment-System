@@ -7,24 +7,20 @@ import KpiStat from "@/components/KpiStat";
 import { getSession } from "@/lib/auth";
 import { getSiteName, sites } from "@/lib/mock-data";
 import {
-  TODAY,
-  activateRotationPreview,
   detectConflicts,
   getOtByShiftCause,
   getRotationPreviews,
   getShiftDashboardKpis,
   getShiftInsights,
-  rejectRotationPreview,
 } from "@/lib/shift";
-import { canManageShifts, scopedSiteId } from "@/lib/rbac";
+import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function ShiftsDashboardPage() {
   const session = getSession();
   const locked = scopedSiteId(session);
-  const canEdit = canManageShifts(session);
   const [siteId, setSiteId] = useState<string | undefined>(locked);
-  const [tick, setTick] = useState(0);
+  const [tick] = useState(0);
 
   const kpis = useMemo(() => {
     void tick;
@@ -105,40 +101,22 @@ export default function ShiftsDashboardPage() {
               {
                 title: "Status",
                 dataIndex: "status",
-                render: (s) => <Tag>{s.replace("_", " ")}</Tag>,
+                render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag>,
               },
               {
                 title: "",
                 key: "act",
                 render: (_, r) => {
-                  const undecided =
-                    r.status === "pending_review" || r.status === "draft";
-                  if (!undecided || !canEdit) return null;
+                  const open =
+                    r.status === "pending_manager" ||
+                    r.status === "pending_admin" ||
+                    r.status === "draft";
+                  if (!open) return null;
                   if (siteId && r.siteId !== siteId) return null;
                   return (
-                    <>
-                      <Button
-                        size="small"
-                        type="primary"
-                        style={{ marginRight: 6 }}
-                        onClick={() => {
-                          activateRotationPreview(r.id);
-                          setTick((t) => t + 1);
-                        }}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="small"
-                        danger
-                        onClick={() => {
-                          rejectRotationPreview(r.id);
-                          setTick((t) => t + 1);
-                        }}
-                      >
-                        Reject
-                      </Button>
-                    </>
+                    <Link href="/shifts/rotation">
+                      <Button size="small">Review on Rotation</Button>
+                    </Link>
                   );
                 },
               },

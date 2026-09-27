@@ -35,8 +35,8 @@ export default function ShiftChangeRequestsPage() {
           Shift change requests
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Supervisor requests → manpower / OT impact → Site In-Charge approve or
-          reject.
+          Supervisor or employee requests a shift change. Shift In-Charge, Manager,
+          or Admin approve it when the day is not on leave and rest rules hold.
         </p>
       </div>
 
@@ -98,9 +98,17 @@ export default function ShiftChangeRequestsPage() {
                     type="primary"
                     style={{ marginRight: 6 }}
                     onClick={() => {
-                      decideChangeRequest(r.id, "APPROVED");
-                      message.success("Shift change approved");
-                      setTick((t) => t + 1);
+                      try {
+                        decideChangeRequest(r.id, "APPROVED");
+                        message.success("Shift change approved");
+                        setTick((t) => t + 1);
+                      } catch (err) {
+                        message.error(
+                          err instanceof Error
+                            ? err.message
+                            : "Could not approve this shift change",
+                        );
+                      }
                     }}
                   >
                     Approve
@@ -119,7 +127,7 @@ export default function ShiftChangeRequestsPage() {
                 </>
               ) : r.status === "PENDING" ? (
                 <span style={{ color: nectarColors.muted, fontSize: 12 }}>
-                  Awaiting site / shift in-charge
+                  Awaiting shift in-charge / manager
                 </span>
               ) : (
                 "—"

@@ -27,6 +27,7 @@ const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
   SUPERVISOR_RECORDED: nectarColors.leaf,
   SITE_APPROVED: nectarColors.mint,
   SITE_VERIFIED: nectarColors.mint,
+  MANAGER_APPROVED: nectarColors.leaf,
   HR_VALIDATED: nectarColors.leaf,
   APPROVED: nectarColors.mint,
   PENDING_INFORMATION: "#D97706",

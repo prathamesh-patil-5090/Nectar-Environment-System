@@ -12,6 +12,7 @@ export type LeaveStatus =
   | "PENDING_EMPLOYEE_CONSENT"
   | "SUPERVISOR_VERIFIED"
   | "SITE_APPROVED"
+  | "MANAGER_APPROVED"
   | "HR_VALIDATED"
   | "APPROVED"
   | "ABSENT"
@@ -31,7 +32,8 @@ export type LeaveActorRole =
   | "supervisor"
   | "site_incharge"
   | "hr"
-  | "management";
+  | "management"
+  | "admin";
 
 export type ConsentDecision = "approved" | "rejected";
 export type ManagerDecision = "approved" | "rejected";
@@ -117,6 +119,7 @@ export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
   PENDING_EMPLOYEE_CONSENT: "Awaiting employee consent",
   SUPERVISOR_VERIFIED: "Supervisor verified",
   SITE_APPROVED: "Site approved",
+  MANAGER_APPROVED: "Manager approved — awaiting Admin",
   HR_VALIDATED: "HR validated",
   APPROVED: "Approved",
   ABSENT: "Absent",
