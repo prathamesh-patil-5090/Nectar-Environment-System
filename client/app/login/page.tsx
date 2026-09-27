@@ -11,7 +11,6 @@ import {
   login,
   ROLE_LABELS,
 } from "@/lib/auth";
-import { nectarColors } from "@/lib/theme";
 
 import InteractiveEnvironmentalCanvas, {
   type ThemeMode,

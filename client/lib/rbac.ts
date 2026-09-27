@@ -115,10 +115,15 @@ export function canSiteApproveLeave(user: SessionUser | null): boolean {
   );
 }
 
-/** Final leave approve/reject for demo — Manager / Admin (HR path inactive) */
+/** Plant manager (or Admin acting as manager) after the shift is covered */
 export function canManagerDecideLeave(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return role === "admin" || role === "manager";
+}
+
+/** Final leave sign-off — Admin only */
+export function canAdminFinalizeLeave(user: SessionUser | null): boolean {
+  return normalizeRole(user?.role) === "admin";
 }
 
 /** Kept for hidden HR role; demo UI prefers canManagerDecideLeave */
@@ -146,6 +151,27 @@ export function canManageShifts(user: SessionUser | null): boolean {
     role === "site_incharge" ||
     role === "shift_incharge"
   );
+}
+
+/** Draft the monthly rotation — Shift In-Charge, Manager, Admin */
+export function canGenerateRotation(user: SessionUser | null): boolean {
+  return canManageShifts(user);
+}
+
+/** Manager (or Admin) first approval of a monthly draft */
+export function canManagerDecideRotation(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return role === "admin" || role === "manager";
+}
+
+/** Admin final approval — publishes onto the live roster */
+export function canAdminFinalizeRotation(user: SessionUser | null): boolean {
+  return normalizeRole(user?.role) === "admin";
+}
+
+/** @deprecated Prefer canManagerDecideRotation / canAdminFinalizeRotation */
+export function canPublishRotation(user: SessionUser | null): boolean {
+  return canManagerDecideRotation(user);
 }
 
 export function canApproveShiftChanges(user: SessionUser | null): boolean {
@@ -182,12 +208,13 @@ export function canViewSafetyInsights(user: SessionUser | null): boolean {
 
 export function leaveActorRole(
   user: SessionUser | null,
-): "employee" | "supervisor" | "site_incharge" | "hr" | "management" {
+): "employee" | "supervisor" | "site_incharge" | "hr" | "management" | "admin" {
   const role = normalizeRole(user?.role);
+  if (role === "admin") return "admin";
   if (role === "hr") return "hr";
   if (role === "site_incharge" || role === "shift_incharge") return "site_incharge";
   if (role === "supervisor") return "supervisor";
-  if (role === "admin" || role === "manager") return "management";
+  if (role === "manager") return "management";
   return "employee";
 }
 
@@ -205,4 +232,53 @@ export function hasDualDashboard(user: SessionUser | null): boolean {
       role === "shift_incharge" ||
       role === "supervisor")
   );
+}
+
+/** Sites list in sidebar — plant leads & above (not supervisor) */
+export function canViewSitesNav(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return (
+    role === "admin" ||
+    role === "manager" ||
+    role === "shift_incharge" ||
+    role === "site_incharge" ||
+    role === "hr" ||
+    role === "safety_incharge"
+  );
+}
+
+/**
+ * Shifts module in sidebar — SIC / Manager / Admin.
+ * Supervisors stay out of day-to-day shift planning nav.
+ */
+export function canViewShiftsNav(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return (
+    role === "admin" ||
+    role === "manager" ||
+    role === "shift_incharge" ||
+    role === "site_incharge"
+  );
+}
+
+/** Reliever pool — Supervisor (availability) + SIC + Manager + Admin */
+export function canViewRelieverPoolNav(user: SessionUser | null): boolean {
+  return canManageRelieverPool(user);
+}
+
+/**
+ * Which shift sub-pages appear in the sidebar.
+ * Supervisors: none. SIC/Manager/Admin: full set.
+ */
+export function visibleShiftNavKeys(user: SessionUser | null): string[] | null {
+  if (!canViewShiftsNav(user)) return null;
+  return [
+    "/shifts",
+    "/shifts/master",
+    "/shifts/schedule",
+    "/shifts/rotation",
+    "/shifts/change-requests",
+    "/shifts/reliever-allocation",
+    "/shifts/deviations",
+  ];
 }

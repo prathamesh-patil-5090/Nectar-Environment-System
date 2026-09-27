@@ -176,6 +176,13 @@ export function ensureNotificationSeed(): void {
   localStorage.setItem(NOTIFICATIONS_SEEDED_KEY, "1");
 }
 
+/** Restore demo notification seeds (drops user-added / read-state edits). */
+export function resetNotifications(): void {
+  if (typeof window === "undefined") return;
+  writeAll(DEMO_SEED.map((n) => ({ ...n })));
+  localStorage.setItem(NOTIFICATIONS_SEEDED_KEY, "1");
+}
+
 export function getNotificationsForEmployee(employeeId: string): AppNotification[] {
   ensureNotificationSeed();
   return readAll()

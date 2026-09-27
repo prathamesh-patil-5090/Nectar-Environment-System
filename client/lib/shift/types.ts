@@ -55,6 +55,26 @@ export type PlannedShiftDay = {
   status: "planned" | "active" | "completed";
 };
 
+export type RotationAssignmentCell = {
+  employeeId: string;
+  date: string;
+  code: ShiftCode;
+};
+
+export type RotationDecision = {
+  by: string;
+  at: string;
+  remark: string;
+  outcome: "approved" | "rejected";
+};
+
+export type RotationPreviewStatus =
+  | "draft"
+  | "pending_manager"
+  | "pending_admin"
+  | "active"
+  | "rejected";
+
 export type RotationPreview = {
   id: string;
   siteId: string;
@@ -63,7 +83,16 @@ export type RotationPreview = {
   employeesAffected: number;
   fromCode: ShiftCode;
   toCode: ShiftCode;
-  status: "draft" | "pending_review" | "active" | "rejected";
+  status: RotationPreviewStatus;
+  /** Monthly builder fields */
+  patternId?: RotationPatternId;
+  groupIds?: string[];
+  assignments?: RotationAssignmentCell[];
+  label?: string;
+  managerViewedAt?: string;
+  adminViewedAt?: string;
+  managerDecision?: RotationDecision;
+  adminDecision?: RotationDecision;
 };
 
 export type ShiftChangeRequest = {
@@ -84,7 +113,7 @@ export type ShiftChangeRequest = {
 
 export type ShiftConflict = {
   id: string;
-  type: "rest" | "weekly_off" | "double_booking";
+  type: "rest" | "weekly_off" | "double_booking" | "leave";
   employeeId: string;
   employeeName: string;
   siteId: string;

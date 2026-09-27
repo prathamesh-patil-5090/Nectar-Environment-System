@@ -11,6 +11,7 @@ import {
   Empty,
   Input,
   Modal,
+  Radio,
   Space,
   Tag,
   Timeline,
@@ -29,6 +30,8 @@ import {
   LEAVE_STATUS_LABELS,
   LEAVE_TYPE_LABELS,
   managerDecideLeave,
+  adminFinalizeLeave,
+  rejectLeave,
   siteApprove,
   supervisorVerify,
 } from "@/lib/leave";
@@ -36,6 +39,7 @@ import { pushNotification } from "@/lib/notifications";
 import {
   canConfirmLeaveReturn,
   canManagerDecideLeave,
+  canAdminFinalizeLeave,
   canSiteApproveLeave,
   canSupervisorVerifyLeave,
   normalizeRole,
@@ -43,6 +47,7 @@ import {
   scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { getRelievers, listReplacementOptions } from "@/lib/reliever/pool";
 
 export default function LeaveDetailPage({
   params,
@@ -57,6 +62,7 @@ export default function LeaveDetailPage({
   const [returnDate, setReturnDate] = useState(dayjs());
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [coverChoice, setCoverChoice] = useState<string>();
 
   const leave = useMemo(() => {
     void tick;
@@ -67,6 +73,12 @@ export default function LeaveDetailPage({
     return leave
       ? computeLeaveImpact(leave.employeeId, leave.startDate, leave.endDate)
       : null;
+  }, [leave, tick]);
+
+  const replacementOptions = useMemo(() => {
+    void tick;
+    if (!leave) return { local: [], cluster: [] };
+    return listReplacementOptions(leave.siteId);
   }, [leave, tick]);
 
   if (!leave || !impact) {
@@ -105,6 +117,7 @@ export default function LeaveDetailPage({
   const canVerify = canSupervisorVerifyLeave(session);
   const canSite = canSiteApproveLeave(session);
   const canManager = canManagerDecideLeave(session);
+  const canAdmin = canAdminFinalizeLeave(session);
   const canReturn = canConfirmLeaveReturn(session);
   /** Only the employee role who owns the leave may consent */
   const canGiveConsent =
@@ -120,8 +133,8 @@ export default function LeaveDetailPage({
       fn();
       message.success(ok);
       refresh();
-    } catch {
-      message.error("Action failed");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Action failed");
     }
   };
 
@@ -252,6 +265,157 @@ export default function LeaveDetailPage({
 
       <LeaveImpactPanel impact={impact} />
 
+      {(() => {
+        const awaitingCover = [
+          "REQUESTED",
+          "ABSENT",
+          "SUPERVISOR_VERIFIED",
+          "SUPERVISOR_RECORDED",
+        ].includes(leave.status);
+        const canPick =
+          canSite &&
+          ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED"].includes(leave.status);
+        const assigned = leave.assignedRelieverId
+          ? getRelievers().find((r) => r.id === leave.assignedRelieverId)
+          : undefined;
+        const people = [
+          ...replacementOptions.local.map((p) => ({ ...p, label: "This site" })),
+          ...replacementOptions.cluster.map((p) => ({
+            ...p,
+            label: p.homeSiteId
+              ? `Cluster · ${getSiteName(p.homeSiteId)}`
+              : "Cluster",
+          })),
+        ];
+        const showPanel =
+          awaitingCover ||
+          Boolean(leave.replacementPlan) ||
+          Boolean(assigned) ||
+          canPick;
+
+        if (!showPanel) return null;
+
+        return (
+          <div
+            style={{
+              background: nectarColors.white,
+              padding: 20,
+              borderRadius: 10,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-fraunces), Georgia, serif",
+                fontSize: 18,
+                marginBottom: 8,
+              }}
+            >
+              Replacement
+            </div>
+            {assigned || leave.replacementPlan ? (
+              <p style={{ margin: "0 0 12px", color: nectarColors.ink, fontSize: 14 }}>
+                {leave.replacementPlan ??
+                  (assigned
+                    ? `${assigned.name} assigned`
+                    : "Replacement arranged")}
+              </p>
+            ) : (
+              <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
+                {canPick
+                  ? "Choose who covers this shift. People at this site are listed first, then the cluster."
+                  : "People available to cover this leave once the Shift In-Charge arranges replacement."}
+              </p>
+            )}
+
+            {canPick ? (
+              <>
+                <Radio.Group
+                  value={coverChoice}
+                  onChange={(e) => setCoverChoice(e.target.value)}
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  {people.map((person) => (
+                    <Radio key={person.relieverId} value={person.relieverId}>
+                      {person.name} · {person.label} · {person.phone}
+                    </Radio>
+                  ))}
+                  <Radio value="ot">No one — accept overtime</Radio>
+                </Radio.Group>
+                <Space wrap style={{ marginTop: 12 }}>
+                  <Button
+                    type="primary"
+                    disabled={!coverChoice}
+                    onClick={() => {
+                      if (!coverChoice) return;
+                      run(
+                        () =>
+                          siteApprove(
+                            leave.id,
+                            actor,
+                            coverChoice === "ot"
+                              ? { otFallback: true }
+                              : { relieverId: coverChoice },
+                          ),
+                        coverChoice === "ot"
+                          ? "Covered with overtime"
+                          : "Replacement arranged",
+                      );
+                    }}
+                  >
+                    Cover this shift
+                  </Button>
+                  <Button
+                    danger
+                    onClick={() => {
+                      setRejectNote("");
+                      setRejectOpen(true);
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      run(
+                        () =>
+                          escalateLeave(
+                            leave.id,
+                            actor,
+                            "Escalated for manpower / OT review",
+                          ),
+                        "Escalated",
+                      )
+                    }
+                  >
+                    Escalate
+                  </Button>
+                </Space>
+              </>
+            ) : people.length ? (
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: 18,
+                  color: nectarColors.ink,
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                }}
+              >
+                {people.map((person) => (
+                  <li key={person.relieverId}>
+                    {person.name} · {person.label} · {person.phone}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
+                No available relievers in the pool right now — overtime may be
+                needed.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       <div
         style={{
           background: nectarColors.white,
@@ -278,8 +442,8 @@ export default function LeaveDetailPage({
         ) : null}
         {canGiveConsent && leave.status === "PENDING_EMPLOYEE_CONSENT" ? (
           <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
-            Your supervisor submitted this leave for you. Approve to send it to
-            your Manager, or reject to stop it here.
+            Your supervisor submitted this leave for you. Approve to send it
+            to your supervisor for verification, or reject to stop it here.
           </p>
         ) : null}
         {(() => {
@@ -294,27 +458,35 @@ export default function LeaveDetailPage({
             );
           const showManager =
             canManager &&
-            !waitingOnConsent &&
-            [
-              "REQUESTED",
-              "SUPERVISOR_VERIFIED",
-              "SUPERVISOR_RECORDED",
-              "SITE_APPROVED",
-              "SITE_VERIFIED",
-            ].includes(leave.status);
+            ["SITE_APPROVED", "SITE_VERIFIED"].includes(leave.status);
+          const showAdmin =
+            canAdmin && leave.status === "MANAGER_APPROVED";
           const showReturn =
             canReturn &&
-            ["APPROVED", "SITE_APPROVED", "HR_VALIDATED", "SITE_VERIFIED"].includes(
-              leave.status,
-            );
+            ["APPROVED", "EXTENSION_REQUIRED"].includes(leave.status);
+          const showReject =
+            (canVerify && ["REQUESTED", "ABSENT"].includes(leave.status)) ||
+            (canSite &&
+              ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED"].includes(
+                leave.status,
+              )) ||
+            (canManager &&
+              ["SITE_APPROVED", "SITE_VERIFIED"].includes(leave.status)) ||
+            (canAdmin && leave.status === "MANAGER_APPROVED");
           const hasButtons =
-            showConsent || showVerify || showSite || showManager || showReturn;
+            showConsent ||
+            showVerify ||
+            showSite ||
+            showManager ||
+            showAdmin ||
+            showReturn ||
+            showReject;
 
           if (!hasButtons && !waitingOnConsent) {
             let statusNote = "No actions available for your role on this leave.";
             if (canGiveConsent && leave.status === "REQUESTED") {
               statusNote =
-                "You approved consent. This leave is now with your Manager for a final decision.";
+                "You approved consent. This leave is now with your supervisor to verify.";
             } else if (leave.status === "APPROVED") {
               statusNote = "Leave is approved. Confirm return when you are back on duty (supervisor/manager).";
             } else if (leave.status === "REJECTED") {
@@ -336,8 +508,21 @@ export default function LeaveDetailPage({
             ) : null;
           }
 
+          const rejectBtn = showReject ? (
+            <Button
+              danger
+              onClick={() => {
+                setRejectNote("");
+                setRejectOpen(true);
+              }}
+            >
+              Reject
+            </Button>
+          ) : null;
+
           return (
-        <Space wrap>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <Space wrap>
           {showConsent ? (
             <>
               <Button
@@ -350,14 +535,14 @@ export default function LeaveDetailPage({
                         employeeId: leave.submittedByEmployeeId,
                         kind: "leave_decision",
                         title: "Employee approved leave consent",
-                        body: `${leave.employeeName} approved the on-behalf leave — pending manager.`,
+                        body: `${leave.employeeName} approved the on-behalf leave — pending supervisor verification.`,
                         href: `/leave/requests/${leave.id}`,
                       });
                     }
-                  }, "Consent approved — sent to manager")
+                  }, "Consent approved — sent to supervisor")
                 }
               >
-                Approve — send to Manager
+                Approve — send to supervisor
               </Button>
               <Button
                 danger
@@ -373,6 +558,7 @@ export default function LeaveDetailPage({
 
           {showVerify ? (
             <Button
+              type="primary"
               onClick={() =>
                 run(() => supervisorVerify(leave.id, actor), "Supervisor verified")
               }
@@ -381,67 +567,37 @@ export default function LeaveDetailPage({
             </Button>
           ) : null}
 
-          {showSite ? (
-            <>
-              <Button
-                type="primary"
-                onClick={() =>
-                  run(
-                    () =>
-                      siteApprove(leave.id, actor, {
-                        arrangeReplacement: true,
-                      }),
-                    "Replacement arranged",
-                  )
-                }
-              >
-                Arrange replacement
-              </Button>
-              <Button
-                onClick={() =>
-                  run(
-                    () =>
-                      escalateLeave(
-                        leave.id,
-                        actor,
-                        "Escalated for manpower / OT review",
-                      ),
-                    "Escalated",
-                  )
-                }
-              >
-                Escalate
-              </Button>
-            </>
+          {showManager ? (
+            <Button
+              type="primary"
+              onClick={() =>
+                run(() => {
+                  managerDecideLeave(leave.id, actor, "approved");
+                }, "Manager approved — sent to Admin")
+              }
+            >
+              Manager approve
+            </Button>
           ) : null}
 
-          {showManager ? (
-            <>
-              <Button
-                type="primary"
-                onClick={() =>
-                  run(() => {
-                    managerDecideLeave(leave.id, actor, "approved");
-                    notifyDecision(true);
-                  }, "Leave approved by manager")
-                }
-              >
-                Manager approve
-              </Button>
-              <Button
-                danger
-                onClick={() => {
-                  setRejectNote("");
-                  setRejectOpen(true);
-                }}
-              >
-                Manager reject
-              </Button>
-            </>
+          {showAdmin ? (
+            <Button
+              type="primary"
+              onClick={() =>
+                run(() => {
+                  adminFinalizeLeave(leave.id, actor, "approved");
+                  notifyDecision(true);
+                }, "Leave approved by Admin")
+              }
+            >
+              Admin approve
+            </Button>
           ) : null}
+
+          {rejectBtn}
 
           {showReturn ? (
-            <Space>
+            <>
               <DatePicker value={returnDate} onChange={(d) => d && setReturnDate(d)} />
               <Button
                 onClick={() =>
@@ -458,9 +614,17 @@ export default function LeaveDetailPage({
               >
                 Confirm return to duty
               </Button>
-            </Space>
+            </>
           ) : null}
-        </Space>
+          </Space>
+
+          {showSite ? (
+            <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>
+              Use the <strong>Replacement</strong> section above to choose who
+              covers this shift.
+            </p>
+          ) : null}
+        </div>
           );
         })()}
       </div>
@@ -515,13 +679,14 @@ export default function LeaveDetailPage({
         open={rejectOpen}
         onCancel={() => setRejectOpen(false)}
         onOk={() => {
+          const note = rejectNote.trim();
           if (leave.status === "PENDING_EMPLOYEE_CONSENT" && canGiveConsent) {
             run(() => {
               employeeConsentLeave(
                 leave.id,
                 actor,
                 "rejected",
-                rejectNote || "Employee rejected consent",
+                note || "Employee rejected consent",
               );
               if (leave.submittedByEmployeeId) {
                 pushNotification({
@@ -533,17 +698,26 @@ export default function LeaveDetailPage({
                 });
               }
             }, "Consent rejected — request stopped");
-          } else {
-            run(() => {
-              managerDecideLeave(
-                leave.id,
-                actor,
-                "rejected",
-                rejectNote || "Rejected by manager",
-              );
-              notifyDecision(false, rejectNote);
-            }, "Leave rejected");
+            setRejectOpen(false);
+            return;
           }
+          if (!note) {
+            message.error("Add a remark before rejecting");
+            return;
+          }
+          const role =
+            leave.status === "MANAGER_APPROVED"
+              ? "admin"
+              : leave.status === "SITE_APPROVED" || leave.status === "SITE_VERIFIED"
+                ? "management"
+                : leave.status === "SUPERVISOR_VERIFIED" ||
+                    leave.status === "SUPERVISOR_RECORDED"
+                  ? "site_incharge"
+                  : "supervisor";
+          run(() => {
+            rejectLeave(leave.id, actor, note, role);
+            notifyDecision(false, note);
+          }, "Leave rejected");
           setRejectOpen(false);
         }}
         okText="Reject"
@@ -551,7 +725,7 @@ export default function LeaveDetailPage({
       >
         <Input.TextArea
           rows={3}
-          placeholder="Reason for rejection"
+          placeholder="Remark — why this leave is rejected"
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
         />

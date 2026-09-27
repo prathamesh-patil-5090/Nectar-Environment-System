@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export type ThemeMode = "deep" | "light";
 
@@ -237,6 +237,7 @@ export default function InteractiveEnvironmentalCanvas({
             const factor = (1 - dist / mouseRadius) ** 2;
             const pushY = (dy / dist) * factor * 48;
             const pushX = (dx / dist) * factor * 22;
+            x += pushX;
             y += pushY;
           }
 

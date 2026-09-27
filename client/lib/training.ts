@@ -56,6 +56,16 @@ export function resetTrainingStatus(id: string) {
   writeOverrides(map);
 }
 
+/** Drop all training status overrides so mock-data statuses apply again. */
+export function clearTrainingOverrides() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(TRAINING_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getUrgentTrainingItems(siteId?: string): TrainingItem[] {
   return getTrainingItems()
     .filter((t) => t.status === "overdue" || t.status === "due-soon")

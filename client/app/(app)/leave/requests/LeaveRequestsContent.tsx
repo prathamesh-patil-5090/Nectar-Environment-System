@@ -10,6 +10,7 @@ import {
   Drawer,
   Form,
   Input,
+  Modal,
   Radio,
   Select,
   Table,
@@ -24,6 +25,11 @@ import {
   createLeaveRequest,
   getLeaveRequests,
   getPendingJustifications,
+  managerDecideLeave,
+  rejectLeave,
+  siteApprove,
+  supervisorVerify,
+  adminFinalizeLeave,
   LEAVE_STATUS_LABELS,
   LEAVE_TYPE_LABELS,
   type LeaveMode,
@@ -32,7 +38,12 @@ import {
 } from "@/lib/leave";
 import { pushNotification } from "@/lib/notifications";
 import {
+  canConfirmLeaveReturn,
   canEnterLeaveForOthers,
+  canManagerDecideLeave,
+  canAdminFinalizeLeave,
+  canSiteApproveLeave,
+  canSupervisorVerifyLeave,
   canViewLeavePending,
   leaveActorRole,
   scopedEmployeeId,
@@ -40,6 +51,7 @@ import {
   selfEmployeeId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { listReplacementOptions } from "@/lib/reliever/pool";
 
 export default function LeaveRequestsContent() {
   const { message } = App.useApp();
@@ -61,6 +73,10 @@ export default function LeaveRequestsContent() {
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
+  const [coverLeave, setCoverLeave] = useState<LeaveRequest | null>(null);
+  const [coverChoice, setCoverChoice] = useState<string>();
+  const [rejectRow, setRejectRow] = useState<LeaveRequest | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
   const activeTab =
     showPendingTab && viewParam === "pending" ? "pending" : "requests";
 
@@ -79,6 +95,12 @@ export default function LeaveRequestsContent() {
       siteScope ? l.siteId === siteScope : true,
     );
   }, [siteScope, tick]);
+
+  const coverOptions = useMemo(() => {
+    void tick;
+    if (!coverLeave) return { local: [] as ReturnType<typeof listReplacementOptions>["local"], cluster: [] as ReturnType<typeof listReplacementOptions>["cluster"] };
+    return listReplacementOptions(coverLeave.siteId);
+  }, [coverLeave, tick]);
 
   const setView = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -153,6 +175,172 @@ export default function LeaveRequestsContent() {
       render: (s: LeaveRequest["status"]) => (
         <Tag>{LEAVE_STATUS_LABELS[s]}</Tag>
       ),
+    },
+    {
+      title: "Action",
+      key: "action",
+      render: (_, r) => {
+        const actor = session?.name ?? "User";
+        const act = (fn: () => void, ok: string) => {
+          try {
+            fn();
+            message.success(ok);
+            setTick((t) => t + 1);
+          } catch (err) {
+            message.error(err instanceof Error ? err.message : "Action failed");
+          }
+        };
+        const waiting = (text: string) => (
+          <span style={{ color: nectarColors.muted, fontSize: 12 }}>{text}</span>
+        );
+
+        if (r.status === "REQUESTED" || r.status === "ABSENT") {
+          if (canSupervisorVerifyLeave(session)) {
+            return (
+              <span style={{ display: "inline-flex", gap: 6 }}>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() =>
+                    act(() => supervisorVerify(r.id, actor), "Supervisor verified")
+                  }
+                >
+                  Verify
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => {
+                    setRejectNote("");
+                    setRejectRow(r);
+                  }}
+                >
+                  Reject
+                </Button>
+              </span>
+            );
+          }
+          return waiting("Waiting for supervisor");
+        }
+
+        if (
+          r.status === "SUPERVISOR_VERIFIED" ||
+          r.status === "SUPERVISOR_RECORDED"
+        ) {
+          if (canSiteApproveLeave(session)) {
+            return (
+              <span style={{ display: "inline-flex", gap: 6 }}>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() => {
+                    setCoverChoice(undefined);
+                    setCoverLeave(r);
+                  }}
+                >
+                  Choose replacement
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => {
+                    setRejectNote("");
+                    setRejectRow(r);
+                  }}
+                >
+                  Reject
+                </Button>
+              </span>
+            );
+          }
+          return waiting("Waiting for shift in-charge");
+        }
+
+        if (r.status === "SITE_APPROVED" || r.status === "SITE_VERIFIED") {
+          if (canManagerDecideLeave(session)) {
+            return (
+              <span style={{ display: "inline-flex", gap: 6 }}>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() =>
+                    act(
+                      () => managerDecideLeave(r.id, actor, "approved"),
+                      "Manager approved — sent to Admin",
+                    )
+                  }
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => {
+                    setRejectNote("");
+                    setRejectRow(r);
+                  }}
+                >
+                  Reject
+                </Button>
+              </span>
+            );
+          }
+          return waiting("Waiting for manager");
+        }
+
+        if (r.status === "MANAGER_APPROVED") {
+          if (canAdminFinalizeLeave(session)) {
+            return (
+              <span style={{ display: "inline-flex", gap: 6 }}>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() =>
+                    act(
+                      () => adminFinalizeLeave(r.id, actor, "approved"),
+                      "Leave approved by Admin",
+                    )
+                  }
+                >
+                  Admin approve
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => {
+                    setRejectNote("");
+                    setRejectRow(r);
+                  }}
+                >
+                  Reject
+                </Button>
+              </span>
+            );
+          }
+          return waiting("Waiting for Admin");
+        }
+
+        if (r.status === "PENDING_EMPLOYEE_CONSENT") {
+          return waiting(`Waiting for ${r.employeeName}`);
+        }
+
+        if (r.status === "APPROVED" || r.status === "EXTENSION_REQUIRED") {
+          if (canConfirmLeaveReturn(session)) {
+            return (
+              <Link href={`/leave/requests/${r.id}`}>
+                <Button size="small">Confirm return</Button>
+              </Link>
+            );
+          }
+          return waiting("Approved");
+        }
+
+        return (
+          <Link href={`/leave/requests/${r.id}`} style={{ fontSize: 12 }}>
+            Open
+          </Link>
+        );
+      },
     },
   ];
 
@@ -303,7 +491,7 @@ export default function LeaveRequestsContent() {
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
           {personalOnly
             ? "Your leave and absence requests."
-            : "Planned leave and emergency absences — supervisor on-behalf requires employee consent before manager approval."}
+            : "Open a name for the full record. Action column: supervisor verifies → shift in-charge covers → manager approves → Admin finalizes."}
         </p>
         <Button
           type="primary"
@@ -423,6 +611,109 @@ export default function LeaveRequestsContent() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <Modal
+        title={
+          coverLeave
+            ? `Who covers ${coverLeave.employeeName}?`
+            : "Choose replacement"
+        }
+        open={Boolean(coverLeave)}
+        okText="Cover this shift"
+        okButtonProps={{ disabled: !coverChoice }}
+        onCancel={() => {
+          setCoverLeave(null);
+          setCoverChoice(undefined);
+        }}
+        onOk={() => {
+          if (!coverLeave || !coverChoice) return;
+          try {
+            siteApprove(
+              coverLeave.id,
+              session?.name ?? "Shift In-Charge",
+              coverChoice === "ot"
+                ? { otFallback: true }
+                : { relieverId: coverChoice },
+            );
+            message.success(
+              coverChoice === "ot"
+                ? "Covered with overtime"
+                : "Replacement arranged",
+            );
+            setCoverLeave(null);
+            setCoverChoice(undefined);
+            setTick((t) => t + 1);
+          } catch (err) {
+            message.error(err instanceof Error ? err.message : "Action failed");
+          }
+        }}
+      >
+        <p style={{ marginTop: 0, color: nectarColors.muted, fontSize: 13 }}>
+          People at this site are listed first, then the cluster.
+        </p>
+        <Radio.Group
+          value={coverChoice}
+          onChange={(e) => setCoverChoice(e.target.value)}
+          style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        >
+          {coverOptions.local.map((person) => (
+            <Radio key={person.relieverId} value={person.relieverId}>
+              {person.name} · this site · {person.phone}
+            </Radio>
+          ))}
+          {coverOptions.cluster.map((person) => (
+            <Radio key={person.relieverId} value={person.relieverId}>
+              {person.name} · cluster
+              {person.homeSiteId ? ` · ${getSiteName(person.homeSiteId)}` : ""}
+              {" · "}
+              {person.phone}
+            </Radio>
+          ))}
+          <Radio value="ot">No one — accept overtime</Radio>
+        </Radio.Group>
+      </Modal>
+
+      <Modal
+        title="Reject leave"
+        open={Boolean(rejectRow)}
+        okText="Reject"
+        okButtonProps={{ danger: true }}
+        onCancel={() => setRejectRow(null)}
+        onOk={() => {
+          if (!rejectRow) return;
+          const note = rejectNote.trim();
+          if (!note) {
+            message.error("Add a remark before rejecting");
+            return;
+          }
+          const role =
+            rejectRow.status === "MANAGER_APPROVED"
+              ? "admin"
+              : rejectRow.status === "SITE_APPROVED" ||
+                  rejectRow.status === "SITE_VERIFIED"
+                ? "management"
+                : rejectRow.status === "SUPERVISOR_VERIFIED" ||
+                    rejectRow.status === "SUPERVISOR_RECORDED"
+                  ? "site_incharge"
+                  : "supervisor";
+          try {
+            rejectLeave(rejectRow.id, session?.name ?? "User", note, role);
+            message.success("Leave rejected");
+            setRejectRow(null);
+            setRejectNote("");
+            setTick((t) => t + 1);
+          } catch (err) {
+            message.error(err instanceof Error ? err.message : "Action failed");
+          }
+        }}
+      >
+        <Input.TextArea
+          rows={3}
+          placeholder="Remark — why this leave is rejected"
+          value={rejectNote}
+          onChange={(e) => setRejectNote(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }
