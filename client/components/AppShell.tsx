@@ -739,9 +739,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             alignItems: "center",
             justifyContent: "space-between",
             borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
             background: nectarColors.white,
           }}
         >

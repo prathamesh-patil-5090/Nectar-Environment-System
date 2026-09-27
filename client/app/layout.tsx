@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "Nectar Enviro | Ops Console",
   description:
     "Workforce, site readiness, and training insights for Nectar Enviro India Pvt Ltd.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
