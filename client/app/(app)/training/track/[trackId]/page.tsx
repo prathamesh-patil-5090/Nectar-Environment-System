@@ -51,7 +51,7 @@ export default function SpecializationTrackPage() {
   const trackId = Array.isArray(params.trackId) ? params.trackId[0] : params.trackId;
 
   const session = getSession();
-  const employeeId = scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "e-etp-op1";
+  const employeeId = scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "emp0126";
   const employee = getEmployeeById(employeeId);
 
   const [track, setTrack] = useState<SpecializationTrack | null>(null);

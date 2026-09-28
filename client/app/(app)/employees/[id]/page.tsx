@@ -220,8 +220,8 @@ export default function EmployeeDetailPage({
     );
   }
 
-  const site = getSiteById(employee.siteId);
-  const siteReadiness = computeSiteReadiness(employee.siteId);
+  const site = employee.siteId ? getSiteById(employee.siteId) : undefined;
+  const siteReadiness = employee.siteId ? computeSiteReadiness(employee.siteId) : null;
   const skills = getEmployeeSkills(employee);
   const skillKeys = Object.keys(skillLabels) as SkillKey[];
   const training = getEmployeeTraining(employee.id);
@@ -369,11 +369,12 @@ export default function EmployeeDetailPage({
                     {site.plantType}
                   </Tag>
                   <span style={{ color: nectarColors.muted }}>
-                    · {site.location} · readiness {siteReadiness.readiness}%
+                    · {site.location}
+                    {siteReadiness ? ` · readiness ${siteReadiness.readiness}%` : ""}
                   </span>
                 </span>
               ) : (
-                "Unassigned"
+                "Corporate HQ (Org-wide)"
               )}
             </Descriptions.Item>
             <Descriptions.Item label="Designation">

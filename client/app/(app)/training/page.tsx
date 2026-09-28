@@ -2,11 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { App, Button, Switch, Table, Tag, Segmented } from "antd";
 import {
   SafetyCertificateOutlined,
   AuditOutlined,
+  BookOutlined,
+  DashboardOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { getSession } from "@/lib/auth";
@@ -15,9 +18,10 @@ import {
   type TrainingItem,
   type TrainingPriority,
 } from "@/lib/mock-data";
-import { getTrainingItems, markTrainingCompleted } from "@/lib/training";
+import { getTrainingItems } from "@/lib/training/store";
 import {
   canEnterLeaveForOthers,
+  canEvaluateAssessments,
   scopedEmployeeId,
   scopedSiteId,
   selfEmployeeId,
@@ -32,6 +36,7 @@ import {
   getCourseByTitle,
   getEnrollment,
   getAssessmentResults,
+  checkAndTriggerCertification,
 } from "@/lib/training/store";
 import type { Course, CourseEnrollment } from "@/lib/training/types";
 
@@ -66,26 +71,106 @@ export default function TrainingPage() {
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [tick, setTick] = useState(0);
 
+  // Dual-mode state for supervisory / managerial roles
+  const [activeConsoleMode, setActiveConsoleMode] = useState<"console" | "personal">(
+    mineParam ? "personal" : "console"
+  );
+
   // 1. Pure employees are routed exclusively to the dedicated Coursera Employee Training Portal
   if (isPureEmployee) {
     return <EmployeeTrainingPortal employeeId={selfId} />;
   }
 
-  // 2. For everyone else (Manager, Admin, Shift In-Charge, Safety In-Charge, Supervisor):
-  // Recovered original training status, site compliance & certification tracking
+  // 2. For managerial / supervisory roles with dual view toggling:
   return (
-    <NonEmployeeTrainingView
-      isPersonal={isPersonal}
-      targetEmpId={targetEmpId}
-      empScope={empScope}
-      siteScope={siteScope}
-      canMarkForOthers={canMarkForOthers}
-      urgentOnly={urgentOnly}
-      setUrgentOnly={setUrgentOnly}
-      tick={tick}
-      setTick={setTick}
-      message={message}
-    />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Dual Mode Switcher Bar */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+          padding: "12px 18px",
+          background: "#FFFFFF",
+          borderRadius: 12,
+          border: "1px solid rgba(28, 68, 99, 0.1)",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              background: "#F0FDF4",
+              border: "1px solid #BBF7D0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: nectarColors.leaf,
+              fontWeight: 700,
+            }}
+          >
+            <SafetyCertificateOutlined style={{ fontSize: 18 }} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#1C4463" }}>
+              Nectar Enviro Operational Training & Certification
+            </div>
+            <div style={{ fontSize: 11, color: nectarColors.muted }}>
+              {session?.name ?? "Authorized Operator"} · {session?.role?.toUpperCase() ?? "MANAGEMENT"}{" "}
+              {siteScope ? `(${siteScope.toUpperCase()})` : "(All Plants)"}
+            </div>
+          </div>
+        </div>
+
+        <Segmented
+          value={activeConsoleMode}
+          onChange={(val) => setActiveConsoleMode(val as "console" | "personal")}
+          options={[
+            {
+              label: (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 8px" }}>
+                  <DashboardOutlined />
+                  <span style={{ fontWeight: 600 }}>Plant Evaluation & LNI Console</span>
+                </div>
+              ),
+              value: "console",
+            },
+            {
+              label: (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 8px" }}>
+                  <BookOutlined />
+                  <span style={{ fontWeight: 600 }}>My Personal Learning Portal</span>
+                </div>
+              ),
+              value: "personal",
+            },
+          ]}
+          style={{ background: "#F1F5F9", padding: 3, borderRadius: 8 }}
+        />
+      </div>
+
+      {activeConsoleMode === "personal" ? (
+        <EmployeeTrainingPortal employeeId={selfId} />
+      ) : (
+        <NonEmployeeTrainingView
+          isPersonal={isPersonal}
+          targetEmpId={targetEmpId}
+          empScope={empScope}
+          siteScope={siteScope}
+          canMarkForOthers={canMarkForOthers}
+          urgentOnly={urgentOnly}
+          setUrgentOnly={setUrgentOnly}
+          tick={tick}
+          setTick={setTick}
+          message={message}
+        />
+      )}
+    </div>
   );
 }
 
@@ -112,6 +197,8 @@ function NonEmployeeTrainingView({
   setTick: React.Dispatch<React.SetStateAction<number>>;
   message: any;
 }) {
+  const router = useRouter();
+  const session = getSession();
   const [managerTab, setManagerTab] = useState<"sessions" | "lni">("sessions");
   const [evalModal, setEvalModal] = useState<{
     open: boolean;
@@ -153,36 +240,52 @@ function NonEmployeeTrainingView({
       ? ([
           {
             title: "Employee",
-            dataIndex: "employeeName",
             key: "employeeName",
             sorter: (a: TrainingItem, b: TrainingItem) =>
               a.employeeName.localeCompare(b.employeeName),
-            render: (name: string, record: TrainingItem) => (
-              <Link
-                href={`/employees/${record.employeeId}`}
-                style={{ color: nectarColors.leaf, fontWeight: 600 }}
-              >
-                {name}
-              </Link>
-            ),
+            render: (_, record: TrainingItem) => {
+              const emp = getEmployeeById(record.employeeId);
+              return (
+                <div>
+                  <Link
+                    href={`/employees/${record.employeeId}`}
+                    style={{ color: nectarColors.leaf, fontWeight: 600, fontSize: 13.5 }}
+                  >
+                    {record.employeeName}
+                  </Link>
+                  <div style={{ fontSize: 11, color: "#64748B", display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
+                    <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#475569" }}>{record.employeeId}</span>
+                    {emp?.designation && <span>· {emp.designation}</span>}
+                  </div>
+                </div>
+              );
+            },
           },
           {
             title: "Site",
             dataIndex: "siteName",
             key: "siteName",
+            render: (site: string) => (
+              <Tag color="cyan" style={{ borderRadius: 6, fontWeight: 600, fontSize: 11 }}>
+                {site}
+              </Tag>
+            ),
           },
         ] as ColumnsType<TrainingItem>)
       : []),
     {
-      title: "Course",
+      title: "Course Curriculum",
       dataIndex: "course",
       key: "course",
       render: (courseTitle: string) => {
         const course = getCourseByTitle(courseTitle);
         return (
           <div>
-            <div style={{ fontWeight: 600, color: "#0F172A" }}>{courseTitle}</div>
-            <div style={{ fontSize: 11, color: "#64748B" }}>Code: {course.code}</div>
+            <div style={{ fontWeight: 600, color: "#0F172A", fontSize: 13 }}>{course.title || courseTitle}</div>
+            <div style={{ fontSize: 11, color: "#64748B", display: "flex", gap: 8, marginTop: 2 }}>
+              <span style={{ fontWeight: 600, color: "#0284C7" }}>Code: {course.code}</span>
+              {course.section && <span>· {course.section}</span>}
+            </div>
           </div>
         );
       },
@@ -192,16 +295,28 @@ function NonEmployeeTrainingView({
       dataIndex: "priority",
       key: "priority",
       render: (p: TrainingPriority) => (
-        <Tag color={priorityColor[p]} style={{ border: "none" }}>
+        <Tag color={priorityColor[p]} style={{ border: "none", textTransform: "capitalize", fontWeight: 600 }}>
           {p}
         </Tag>
       ),
     },
     {
-      title: "Due",
+      title: "Target Due Date",
       dataIndex: "dueDate",
       key: "dueDate",
       sorter: (a, b) => a.dueDate.localeCompare(b.dueDate),
+      render: (due: string, record: TrainingItem) => (
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: record.status === "overdue" ? "#DC2626" : "#334155" }}>
+            {due}
+          </div>
+          {record.completedAt && (
+            <div style={{ fontSize: 11, color: "#166534" }}>
+              Completed: {record.completedAt}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: "Status",
@@ -225,100 +340,26 @@ function NonEmployeeTrainingView({
                   ? "success"
                   : "default"
           }
+          style={{ fontWeight: 600, borderRadius: 6, fontSize: 11.5 }}
         >
           {statusLabel[status]}
         </Tag>
       ),
     },
     {
-      title: "Field & Viva Evaluation",
-      key: "evalStatus",
+      title: "Action",
+      key: "action",
       render: (_, row: TrainingItem) => {
         const course = getCourseByTitle(row.course);
-        const enr = getEnrollment(row.employeeId, course.id);
-        const res = getAssessmentResults(enr.id);
         return (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            {res.practical ? (
-              <Tag color="cyan" style={{ fontSize: 11, fontWeight: 700, borderRadius: 6 }}>
-                ✓ Practical: {res.practical.overallPct}%
-              </Tag>
-            ) : (
-              <Tag color="default" style={{ fontSize: 11, color: "#64748B", borderRadius: 6 }}>
-                Practical: Pending
-              </Tag>
-            )}
-            {res.oral ? (
-              <Tag color="purple" style={{ fontSize: 11, fontWeight: 700, borderRadius: 6 }}>
-                ✓ Oral: {res.oral.overallPct}%
-              </Tag>
-            ) : (
-              <Tag color="default" style={{ fontSize: 11, color: "#64748B", borderRadius: 6 }}>
-                Oral: Pending
-              </Tag>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: "Evaluator Action",
-      key: "action",
-      render: (_, row) => {
-        const allow =
-          (canMarkForOthers && !empScope) || (empScope && row.employeeId === empScope);
-        if (!allow) return "—";
-
-        const course = getCourseByTitle(row.course);
-        const enr = getEnrollment(row.employeeId, course.id);
-        const res = getAssessmentResults(enr.id);
-
-        return (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <Button
               size="small"
-              type={res.practical ? "default" : "primary"}
-              onClick={() => {
-                setEvalModal({
-                  open: true,
-                  type: "practical",
-                  enrollment: enr,
-                  candidateName: row.employeeName,
-                  course,
-                });
-              }}
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                ...(res.practical
-                  ? { borderColor: "#0284C7", color: "#0284C7" }
-                  : { background: "#1C4463", borderColor: "#1C4463" }),
-              }}
+              type="link"
+              onClick={() => course ? router.push(`/training/learn/${course.id}`) : router.push("/training")}
+              style={{ padding: 0, fontWeight: 600, fontSize: 12, color: "#0284C7" }}
             >
-              {res.practical ? "Re-Score Practical" : "Score Practical"}
-            </Button>
-
-            <Button
-              size="small"
-              type={res.oral ? "default" : "primary"}
-              onClick={() => {
-                setEvalModal({
-                  open: true,
-                  type: "oral",
-                  enrollment: enr,
-                  candidateName: row.employeeName,
-                  course,
-                });
-              }}
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                ...(res.oral
-                  ? { borderColor: "#7C3AED", color: "#7C3AED" }
-                  : { background: "#D97706", borderColor: "#D97706" }),
-              }}
-            >
-              {res.oral ? "Re-Score Oral" : "Score Oral"}
+              View Curriculum →
             </Button>
           </div>
         );
@@ -360,7 +401,12 @@ function NonEmployeeTrainingView({
       )}
 
       {managerTab === "lni" && !isPersonal ? (
-        <LniMatrixView />
+        <LniMatrixView
+          siteScope={siteScope}
+          onOpenCourse={(c) => {
+            router.push(`/training/learn/${c.id}`);
+          }}
+        />
       ) : (
         <>
           {/* Manager Field & Viva Evaluation Directive Banner */}
@@ -378,117 +424,114 @@ function NonEmployeeTrainingView({
               gap: 12,
             }}
           >
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#0369A1" }}>
-            In-Person Plant Practical & Oral Viva Evaluation Console
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0369A1" }}>
+                In-Person Plant Practical & Oral Viva Evaluation Console
+              </div>
+              <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
+                Plant Managers observe hands-on physical operation and oral viva responses on-site, recording 1–5 rubric scores and tailored qualitative remarks per ability.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <Tag color="cyan" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>
+                Gate 1: Practical Observation
+              </Tag>
+              <Tag color="purple" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>
+                Gate 3: Oral Technical Viva
+              </Tag>
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-            Plant Managers observe hands-on physical operation and oral viva responses on-site, recording 1–7 rubric scores and tailored qualitative remarks per ability.
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <Tag color="cyan" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>
-            Gate 1: Practical Observation
-          </Tag>
-          <Tag color="purple" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>
-            Gate 3: Oral Technical Viva
-          </Tag>
-        </div>
-      </div>
 
-      {/* Pending Evaluations Queue for Plant Managers */}
-      {!isPersonal && (
-        <div style={{ marginBottom: 24 }}>
-          <PendingEvaluationsQueue
-            onScorePractical={(enrollment, candidateName, course) => {
-              setEvalModal({
-                open: true,
-                type: "practical",
-                enrollment,
-                candidateName,
-                course,
-              });
+          {/* Pending Evaluations Queue for Plant Managers */}
+          {!isPersonal && (
+            <div style={{ marginBottom: 24 }}>
+              <PendingEvaluationsQueue
+                siteScope={siteScope}
+                canEvaluate={canEvaluateAssessments(session)}
+                onScorePractical={(enrollment, candidateName, course) => {
+                  setEvalModal({
+                    open: true,
+                    type: "practical",
+                    enrollment,
+                    candidateName,
+                    course,
+                  });
+                }}
+                onScoreOral={(enrollment, candidateName, course) => {
+                  setEvalModal({
+                    open: true,
+                    type: "oral",
+                    enrollment,
+                    candidateName,
+                    course,
+                  });
+                }}
+              />
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 16,
+              marginBottom: 16,
+              flexWrap: "wrap",
             }}
-            onScoreOral={(enrollment, candidateName, course) => {
-              setEvalModal({
-                open: true,
-                type: "oral",
-                enrollment,
-                candidateName,
-                course,
-              });
-            }}
+          >
+            <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
+              {isPersonal
+                ? "Your assigned, completed, and upcoming training courses."
+                : "Certifications and refresher courses for site-critical skills."}
+            </p>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                color: nectarColors.ink,
+                cursor: "pointer",
+              }}
+            >
+              <Switch checked={urgentOnly} onChange={setUrgentOnly} />
+              Urgent only
+            </label>
+          </div>
+
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={data}
+            pagination={{ pageSize: 10 }}
+            style={{ background: nectarColors.white }}
           />
-        </div>
-      )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-          marginBottom: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          {isPersonal
-            ? "Your assigned, completed, and upcoming training courses."
-            : "Certifications and refresher courses for site-critical skills."}
-        </p>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13,
-            color: nectarColors.ink,
-            cursor: "pointer",
-          }}
-        >
-          <Switch checked={urgentOnly} onChange={setUrgentOnly} />
-          Urgent only
-        </label>
-      </div>
-
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={data}
-        pagination={{ pageSize: 10 }}
-        style={{ background: nectarColors.white }}
-      />
-
-      {evalModal.open && evalModal.enrollment && evalModal.course && (
-        <EvaluatorScoringModal
-          enrollment={evalModal.enrollment}
-          candidateName={evalModal.candidateName}
-          course={evalModal.course}
-          type={evalModal.type}
-          onClose={() => setEvalModal((prev) => ({ ...prev, open: false }))}
-          onSubmitted={() => {
-            if (evalModal.enrollment && evalModal.course) {
-              const res = getAssessmentResults(evalModal.enrollment.id);
-              if (res.practical && res.oral) {
-                const allItems = getTrainingItems();
-                const matched = allItems.find(
-                  (t) =>
-                    t.employeeId === evalModal.enrollment?.employeeId &&
-                    t.course === evalModal.course?.title,
-                );
-                if (matched) {
-                  markTrainingCompleted(matched.id);
-                }
+          {evalModal.open && evalModal.enrollment && evalModal.course && (
+            <EvaluatorScoringModal
+              enrollment={evalModal.enrollment}
+              candidateName={evalModal.candidateName}
+              course={evalModal.course}
+              type={evalModal.type}
+              evaluatorName={
+                session?.name
+                  ? `${session.name} (${session.role || "Plant Manager"})`
+                  : undefined
               }
-            }
-            setTick((t) => t + 1);
-            message.success(
-              `${evalModal.type === "practical" ? "Practical Field" : "Oral Viva"} evaluation recorded successfully!`
-            );
-          }}
-        />
-      )}
+              evaluatorId={session?.employeeId || selfEmployeeId(session) || undefined}
+              onClose={() => setEvalModal((prev) => ({ ...prev, open: false }))}
+              onSubmitted={() => {
+                if (evalModal.enrollment) {
+                  checkAndTriggerCertification(evalModal.enrollment.id);
+                }
+                setTick((t) => t + 1);
+                message.success(
+                  `${evalModal.type === "practical" ? "Practical Field" : "Oral Viva"} evaluation recorded successfully!`
+                );
+              }}
+            />
+          )}
         </>
       )}
     </div>

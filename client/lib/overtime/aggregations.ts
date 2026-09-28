@@ -1,6 +1,6 @@
 import { employees, getEmployeeById, getSiteById, sites } from "@/lib/mock-data";
 import { defaultOtRules } from "./rules";
-import { getShiftById, otRecords } from "./mock-data";
+import { getShiftById, otRecords } from "./data";
 import type {
   OtFilters,
   OtInsight,

@@ -2,3 +2,13 @@
 DOC/
 *.xlsx
 *.pptx
+# Dependencies & Builds
+**/node_modules/
+**/dist/
+**/.next/
+**/.vscode/
+
+# Environment variables
+.env
+.env.*
+.env.local

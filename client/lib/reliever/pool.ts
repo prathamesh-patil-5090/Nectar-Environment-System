@@ -1,5 +1,5 @@
 import { employees, sites, type PlantType } from "@/lib/mock-data";
-import { shifts } from "@/lib/overtime/mock-data";
+import { shifts } from "@/lib/overtime/data";
 
 export type RelieverAvailability = "available" | "assigned" | "unavailable";
 
@@ -144,8 +144,8 @@ export const relievers: Reliever[] = [
   },
   {
     id: "rv7",
-    employeeId: "e-etp-s2",
-    name: "Rohan Deshmukh",
+    employeeId: "emp0127",
+    name: "Rohit Kumar Singh",
     phone: "+91 98201 11005",
     clusterId: "c-demo",
     homeSiteId: "s-etp",
@@ -158,8 +158,8 @@ export const relievers: Reliever[] = [
 let absenceStore: AbsenceRecord[] = [
   {
     id: "ab1",
-    employeeId: "e-etp-s1",
-    employeeName: "Asha Patil",
+    employeeId: "emp0126",
+    employeeName: "Shilpa Hotkar",
     siteId: "s-etp",
     clusterId: "c-demo",
     date: "2026-09-23",
@@ -170,8 +170,8 @@ let absenceStore: AbsenceRecord[] = [
   },
   {
     id: "ab2",
-    employeeId: "e-ro-s1",
-    employeeName: "Imran Shaikh",
+    employeeId: "emp0134",
+    employeeName: "Rafik Shaikh",
     siteId: "s-ro",
     clusterId: "c-demo",
     date: "2026-09-23",
@@ -184,8 +184,8 @@ let absenceStore: AbsenceRecord[] = [
   },
   {
     id: "ab3",
-    employeeId: "e-mee-s3",
-    employeeName: "Suresh Pawar",
+    employeeId: "emp0144",
+    employeeName: "Meghal Salgaonkar",
     siteId: "s-mee",
     clusterId: "c-demo",
     date: "2026-09-22",
@@ -197,8 +197,8 @@ let absenceStore: AbsenceRecord[] = [
   },
   {
     id: "ab4",
-    employeeId: "e-etp-s3",
-    employeeName: "Kavita Rao",
+    employeeId: "emp0128",
+    employeeName: "Mohee Vinchu",
     siteId: "s-etp",
     clusterId: "c-demo",
     date: "2026-09-23",
@@ -279,7 +279,7 @@ const absenceSeed = absenceStore.map((a) => ({
 }));
 const eventSeed = eventStore.map((e) => ({ ...e }));
 
-const RELIEVER_STORAGE_KEY = "nectar-enviro-reliever-pool-v1";
+const RELIEVER_STORAGE_KEY = "nectar-enviro-reliever-pool-v2";
 let relieverHydrated = false;
 
 type RelieverPersisted = {
@@ -769,3 +769,33 @@ export function getSiteManpowerRequirement(siteId: string) {
     ).length,
   };
 }
+
+// ----------------------------------------------------
+// Live NestJS Backend Synchronization
+// ----------------------------------------------------
+export async function syncRelieversWithApi(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { getRelievers } = await import('../api/relievers');
+    const live = await getRelievers().catch(() => []);
+    if (live && live.length) {
+      relieverStore = live.map((r: any) => ({
+        id: r.id,
+        employeeId: r.employeeId,
+        name: r.name,
+        phone: r.phone || '',
+        clusterId: r.clusterId || 'c-demo',
+        homeSiteId: r.homeSiteId,
+        skills: r.skills || r.skillTags || [],
+        plantTypes: r.plantTypes || [],
+        availability: r.availability || 'available',
+        assignedSiteId: r.assignedSiteId,
+        assignedAbsenceId: r.assignedAbsenceId,
+      }));
+      persistRelieverPool();
+    }
+  } catch {
+    // Graceful offline fallback
+  }
+}
+

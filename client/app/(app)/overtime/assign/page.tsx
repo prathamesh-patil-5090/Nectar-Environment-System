@@ -76,7 +76,7 @@ export default function OtAssignPage() {
 
   const onAssign = async () => {
     if (!canAssign) {
-      message.error("Only plant managers (and admin) can assign OT.");
+      message.error("Only plant managers (and director) can assign OT.");
       return;
     }
     const values = await form.validateFields();
@@ -103,7 +103,7 @@ export default function OtAssignPage() {
       <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
         {siteScope
           ? `Assign and notify OT for ${getSiteName(siteScope)} staff.`
-          : "Assign and notify OT across plants (admin)."}
+          : "Assign and notify OT across plants (director)."}
       </p>
 
       {canAssign ? (

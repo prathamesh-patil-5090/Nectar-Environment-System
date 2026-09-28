@@ -69,7 +69,12 @@ export interface RoleProgressionTrack {
 
 export type CompetencyLevel = "LOW" | "MED" | "HIGH";
 
-export type SessionType = "ONLINE_VIDEO" | "PRACTICAL" | "ORAL";
+export type SessionType =
+  | "ONLINE_VIDEO"
+  | "PRACTICAL"
+  | "ORAL"
+  | "classroom"
+  | "on_site";
 
 export type EnrollmentStatus =
   | "IN_PROGRESS"
@@ -225,6 +230,8 @@ export interface Certificate {
   practicalPct: number;
   oralPct: number;
   issuedAt: string;
+  expiresAt?: string; // 1-year certificate validation rule (expires 12 months after issuedAt)
+  status?: "active" | "expired" | "expiring_soon";
   managerSignatory: string;
   verificationHash: string;
 }

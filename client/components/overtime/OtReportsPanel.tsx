@@ -9,8 +9,8 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import { getSession } from "@/lib/auth";
+import { canDownloadReports } from "@/lib/rbac";
 import {
-  canDownloadReports,
   downloadOtReport,
   type OtFilters,
   type ReportFormat,

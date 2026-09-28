@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { Table, Tag, Input, Select, Button, Tooltip, Alert, Segmented } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -11,22 +13,36 @@ import {
   SafetyCertificateOutlined,
   FileTextOutlined,
   AppstoreOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import type { LearningNeedRecord, Course } from "@/lib/training/types";
 import { getLearningNeedRecords, getAllCourses } from "@/lib/training/store";
-import { getEmployeeById } from "@/lib/mock-data";
-import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/mock-data";
+import { getEmployeeById, employees } from "@/lib/mock-data";
+import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/data";
 import { nectarColors } from "@/lib/theme";
 
 interface LniMatrixViewProps {
+  siteScope?: string;
   onOpenCourse?: (course: Course) => void;
 }
 
-export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
+export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixViewProps) {
   const [activeTab, setActiveTab] = useState<"legacy_sheet" | "synthesis_ledger">("legacy_sheet");
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [plantFilter, setPlantFilter] = useState<string>(siteScope ?? "all");
   const [lniItems, setLniItems] = useState<NectarLniItem[]>(NECTAR_LNI_COMPETENCIES);
+
+  // Available employees for the Legacy sheet
+  const availableEmployees = siteScope
+    ? employees.filter((e) => e.siteId === siteScope)
+    : employees;
+
+  const defaultEmpId = availableEmployees[0]?.id ?? "emp0126";
+  const [selectedEmpId, setSelectedEmpId] = useState<string>(defaultEmpId);
+  const selectedEmp = getEmployeeById(selectedEmpId) ?? availableEmployees[0];
+
+  const activeSite = siteScope ?? (plantFilter === "all" ? undefined : plantFilter);
 
   const records = getLearningNeedRecords();
   const allCourses = getAllCourses();
@@ -47,6 +63,9 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
 
   const filtered = records.filter((r) => {
     const emp = getEmployeeById(r.employeeId);
+    if (activeSite && emp?.siteId !== activeSite) {
+      return false;
+    }
     const empName = emp?.name.toLowerCase() || "";
     const matchesSearch =
       !search ||
@@ -72,7 +91,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
               {emp?.name ?? r.employeeId}
             </div>
             <div style={{ fontSize: 11, color: nectarColors.muted }}>
-              {emp?.designation ?? "Operator"} · {emp?.siteId ?? "Plant"}
+              {emp?.designation ?? "Operator"} · {emp?.siteId?.toUpperCase() ?? "Plant"}
             </div>
           </div>
         );
@@ -91,7 +110,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
       dataIndex: "skillMapScorePct",
       key: "skillMapScorePct",
       align: "center",
-      render: (s: number | null) => (
+      render: (s: number | null) =>
         s !== null && s !== undefined ? (
           <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#D97706" }}>
             {s}%
@@ -100,15 +119,14 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>
             Pending
           </Tag>
-        )
-      ),
+        ),
     },
     {
       title: "2. Written",
       dataIndex: "writtenScorePct",
       key: "writtenScorePct",
       align: "center",
-      render: (s: number | null) => (
+      render: (s: number | null) =>
         s !== null && s !== undefined ? (
           <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#D97706" }}>
             {s}%
@@ -127,15 +145,14 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           >
             Pending Exam
           </Tag>
-        )
-      ),
+        ),
     },
     {
       title: "3. Practical",
       dataIndex: "practicalScorePct",
       key: "practicalScorePct",
       align: "center",
-      render: (s: number | null) => (
+      render: (s: number | null) =>
         s !== null && s !== undefined ? (
           <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#DC2626" }}>
             {s}%
@@ -144,15 +161,14 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>
             Pending
           </Tag>
-        )
-      ),
+        ),
     },
     {
       title: "4. Oral Viva",
       dataIndex: "oralScorePct",
       key: "oralScorePct",
       align: "center",
-      render: (s: number | null) => (
+      render: (s: number | null) =>
         s !== null && s !== undefined ? (
           <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#D97706" }}>
             {s}%
@@ -161,8 +177,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>
             Pending
           </Tag>
-        )
-      ),
+        ),
     },
     {
       title: "Level",
@@ -270,9 +285,49 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           style={{ background: "#E2E8F0", padding: 3, borderRadius: 8 }}
         />
 
-        <Tag color="cyan" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>
-          Assessor: Mr. Anand Dakave (Team Leader)
-        </Tag>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {activeTab === "legacy_sheet" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>
+                Operator Sheet:
+              </span>
+              <Select
+                value={selectedEmp?.id}
+                onChange={(val) => setSelectedEmpId(val)}
+                style={{ width: 220 }}
+                options={availableEmployees.map((e) => ({
+                  value: e.id,
+                  label: `${e.name} (${e.siteId?.toUpperCase()})`,
+                }))}
+              />
+            </div>
+          )}
+
+          {activeTab === "synthesis_ledger" && !siteScope && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>Plant:</span>
+              <Select
+                value={plantFilter}
+                onChange={(v) => setPlantFilter(v)}
+                style={{ width: 140 }}
+                options={[
+                  { value: "all", label: "All Plants" },
+                  { value: "s-etp", label: "ETP Plant" },
+                  { value: "s-ro", label: "RO Plant" },
+                  { value: "s-mee", label: "MEE Plant" },
+                ]}
+              />
+            </div>
+          )}
+
+          <Tag color="cyan" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>
+            {selectedEmp?.siteId === "s-ro"
+              ? "Assessor: Priya Iyer (Plant Manager)"
+              : selectedEmp?.siteId === "s-mee"
+              ? "Assessor: Sameer Joshi (Plant Manager)"
+              : "Assessor: Rajesh Kulkarni (Plant Manager)"}
+          </Tag>
+        </div>
       </div>
 
       {activeTab === "legacy_sheet" ? (
@@ -314,11 +369,18 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
                 textAlign: "left",
               }}
             >
-              <div><strong>Name :</strong> Mr. Akshay Jamble</div>
-              <div><strong>Date :</strong> 4/4/2026</div>
-              <div><strong>EC No :</strong> NEIPL125</div>
-              <div><strong>Assessed by :</strong> Mr. Anand Dakave</div>
-              <div><strong>Desig :</strong> Site Incharge</div>
+              <div><strong>Name :</strong> {selectedEmp ? selectedEmp.name : "Shilpa Hotkar"}</div>
+              <div><strong>Date :</strong> 28/09/2026</div>
+              <div><strong>EC No :</strong> NEIPL-{selectedEmp?.id?.replace("e-", "")?.toUpperCase() ?? "125"}</div>
+              <div>
+                <strong>Assessed by :</strong>{" "}
+                {selectedEmp?.siteId === "s-ro"
+                  ? "Uday Patil"
+                  : selectedEmp?.siteId === "s-mee"
+                  ? "Sanjay Waghaskar"
+                  : "Anand Dakave"}
+              </div>
+              <div><strong>Desig :</strong> {selectedEmp ? selectedEmp.designation : "Shift Operator"}</div>
               <div><strong>Department :</strong> Plant Operations & Environmental Services</div>
             </div>
           </div>
@@ -449,10 +511,10 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
             }}
           >
             <div style={{ fontSize: 12.5, color: "#475569" }}>
-              <strong>Summary:</strong> {lniItems.filter((i) => i.trainingRequired === "Yes").length} of 20 competencies require training intervention.
+              <strong>Summary:</strong> {lniItems.filter((i) => i.trainingRequired === "Yes").length} of 20 competencies require training intervention for {selectedEmp?.name}.
             </div>
             <Tag color="green" style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px" }}>
-              TL Assessor Sign-off: Mr. Anand Dakave (Verified)
+              Manager Assessor Sign-off: Verified
             </Tag>
           </div>
         </div>
@@ -496,19 +558,19 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#86EFAC" }}>
-                  {records.filter((r) => r.currentLevel === "HIGH").length}
+                  {filtered.filter((r) => r.currentLevel === "HIGH").length}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Autonomous</div>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#FDE68A" }}>
-                  {records.filter((r) => r.currentLevel === "MED").length}
+                  {filtered.filter((r) => r.currentLevel === "MED").length}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Supervised</div>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#FCA5A5" }}>
-                  {records.filter((r) => r.currentLevel === "LOW").length}
+                  {filtered.filter((r) => r.currentLevel === "LOW").length}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Intervention</div>
               </div>

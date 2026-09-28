@@ -14,7 +14,7 @@ import {
   mockMentors,
   mockRoleTracks,
   mockSpecializationTracks,
-} from "./mock-data";
+} from "./data";
 import type {
   Course,
   CourseEnrollment,
@@ -36,14 +36,14 @@ import type {
 import { getEmployeeById } from "@/lib/mock-data";
 
 const STORAGE_KEYS = {
-  ENROLLMENTS: "neipl_training_enrollments_v1",
-  SKILL_MAPPING: "neipl_training_skill_mapping_v1",
-  WRITTEN_TESTS: "neipl_training_written_tests_v1",
-  PRACTICAL_TESTS: "neipl_training_practical_tests_v1",
-  ORAL_TESTS: "neipl_training_oral_tests_v1",
-  CERTIFICATES: "neipl_training_certificates_v1",
-  LNI_RECORDS: "neipl_training_lni_records_v1",
-  SESSIONS: "neipl_training_sessions_v1",
+  ENROLLMENTS: "neipl_training_enrollments_v3",
+  SKILL_MAPPING: "neipl_training_skill_mapping_v3",
+  WRITTEN_TESTS: "neipl_training_written_tests_v3",
+  PRACTICAL_TESTS: "neipl_training_practical_tests_v3",
+  ORAL_TESTS: "neipl_training_oral_tests_v3",
+  CERTIFICATES: "neipl_training_certificates_v3",
+  LNI_RECORDS: "neipl_training_lni_records_v3",
+  SESSIONS: "neipl_training_sessions_v3",
 };
 
 function readStorage<T>(key: string, defaultValue: T): T {
@@ -83,15 +83,39 @@ export function getCourseById(courseId: string): Course | undefined {
 
 export const COURSE_TITLE_TO_ID_MAP: Record<string, string> = {
   "ETP Process Fundamentals": "course-etp-101",
-  "PPE & Site Induction": "course-safety-101",
-  "Confined Space Entry": "course-confined-space",
-  "Hazardous Waste Handling": "course-haz-waste",
-  "First Aid Refresh": "course-safety-101",
-  "Factory Safety Audit & Statutory Compliance": "course-safety-101",
-  "Environmental Risk Assessment & Crisis Management": "course-etp-101",
+  "ETP Biological & Chemical Treatment Operations": "course-etp-101",
+  "PPE & Site Induction": "course-saf-202",
+  "Confined Space Entry": "course-saf-203",
+  "Hazardous Waste Handling": "course-saf-202",
+  "First Aid Refresh": "course-saf-202",
+  "Lockout / Tagout": "course-saf-203",
+  "Factory Safety Audit & Statutory Compliance": "course-saf-203",
+  "Environmental Risk Assessment & Crisis Management": "course-qac-401",
   "STP Operation & Biological Nutrient Removal": "course-stp-101",
-  "WTP Clarification, Filtration & Disinfection": "course-wtp-101",
-  "Zero Liquid Discharge (ZLD) Thermal & Evaporator Operations": "course-zld-101",
+  "WTP Clarification, Filtration & Disinfection": "course-ops-301",
+  "Zero Liquid Discharge (ZLD) Thermal & Evaporator Operations": "course-zld-301",
+  "Industrial RO Membrane Operations & CIP Descaling": "course-ops-301",
+  "Advanced Membrane Bio-Reactor (MBR) for Industrial Effluents": "course-etp-102",
+  "Sludge Thickening, Dewatering & Filter Press Operations": "course-slu-104",
+  "Ultrafiltration (UF) Hollow-Fiber Membrane Backwash": "course-ops-304",
+  "High-Pressure Booster Pumps & Energy Recovery Devices": "course-ops-303",
+  "Electro-Deionization (EDI) & High-Purity Demineralization": "course-ops-302",
+  "Multiple Effect Evaporator (MEE) Thermo-Compressor Dynamics": "course-zld-301",
+  "Agitated Thin Film Dryer (ATFD) Salt Crystallization": "course-zld-302",
+  "Centrifuge Salt Dewatering & Mother Liquor Recycling": "course-zld-303",
+  "Industrial Water Balance Audits & CPCB / MPCB Consents": "course-qac-401",
+  "Industrial Bench Treatability Studies & Jar Testing Protocols": "course-env-402",
+  "Continuous Online Effluent Telemetry (OCEMS) Calibration": "course-qac-403",
+  "Environmental Clearances (CTE/CTO) & Form-V Filings": "course-qac-404",
+  "Hazardous Chemical Handling & Spillage Emergency Response": "course-saf-202",
+  "Electrical Safety, LOTO Protocols & Arc-Flash Protection": "course-saf-203",
+  "Industrial Water Plant Manpower Operations & Shift Logbooks": "course-onm-501",
+  "Safe Workplace: Confined Space Entry & H2S Gas Rescue": "course-saf-202",
+  "Electrical Safety, Lockout / Tagout (LOTO) & Arc Flash": "course-saf-203",
+  "Ultrafiltration (UF) & Membrane Integrity Testing": "course-ops-304",
+  "Multiple Effect Evaporator (MEE) & Steam Economy Optimization": "course-zld-301",
+  "Agitated Thin Film Dryer (ATFD) & Salt Crystallization": "course-zld-302",
+  "Preventive Maintenance Scheduling & Rotary Equipment Overhauls": "course-onm-502",
 };
 
 export function getCourseByTitle(title: string): Course {
@@ -565,6 +589,10 @@ export function checkAndTriggerCertification(enrollmentId: string): Certificate 
     Math.random().toString(36).substring(2, 8).toUpperCase() +
     Math.random().toString(36).substring(2, 8).toUpperCase();
 
+  const issueDate = new Date();
+  const expireDate = new Date(issueDate);
+  expireDate.setFullYear(expireDate.getFullYear() + 1); // 1-year validity rule
+
   const newCert: Certificate = {
     id: `cert-${Date.now()}`,
     certificateNo: `NEIPL-CERT-2026-${String(Math.floor(1000 + Math.random() * 9000))}`,
@@ -578,8 +606,17 @@ export function checkAndTriggerCertification(enrollmentId: string): Certificate 
     writtenPct: results.written.scorePct,
     practicalPct: results.practical.overallPct,
     oralPct: results.oral.overallPct,
-    issuedAt: new Date().toISOString(),
-    managerSignatory: "Rajesh Kulkarni (Head of Treatment Plants)",
+    issuedAt: issueDate.toISOString(),
+    expiresAt: expireDate.toISOString(),
+    status: "active",
+    managerSignatory:
+      emp?.siteId === "s-ro"
+        ? "Uday Patil (RO Plant Manager)"
+        : emp?.siteId === "s-mee"
+          ? "Sanjay Waghaskar (MEE Plant Manager)"
+          : emp?.siteId === "s-etp"
+            ? "Anand Dakave (ETP Plant Manager)"
+            : "Prashant Rohidas Adsul (Director)",
     verificationHash: randomHash,
   };
 
@@ -597,6 +634,90 @@ export function getCertificates(employeeId?: string): Certificate[] {
   const all = readStorage<Certificate[]>(STORAGE_KEYS.CERTIFICATES, initialCertificates);
   if (!employeeId) return all;
   return all.filter((c) => c.employeeId === employeeId);
+}
+
+export type CertificateStatus = "valid" | "expiring_soon" | "expired";
+
+export interface ViewCertificateItem {
+  id: string;
+  certificateNo: string;
+  enrollmentId: string;
+  employeeId: string;
+  employeeName: string;
+  siteName: string;
+  name: string;
+  courseTitle: string;
+  issuer: string;
+  issuedOn: string;
+  expiresOn: string;
+  status: CertificateStatus;
+  overallPct: number;
+  managerSignatory: string;
+  verificationHash: string;
+  raw: Certificate;
+}
+
+export const CERT_STATUS_LABELS: Record<CertificateStatus, string> = {
+  valid: "Valid",
+  expiring_soon: "Expiring soon",
+  expired: "Expired",
+};
+
+export function getCertificateStatus(expiresAt?: string): CertificateStatus {
+  if (!expiresAt) return "valid";
+  const exp = new Date(expiresAt).getTime();
+  const now = Date.now();
+  const days = (exp - now) / 86400000;
+  if (days < 0) return "expired";
+  if (days <= 60) return "expiring_soon";
+  return "valid";
+}
+
+export function getAllCertificates(siteId?: string): ViewCertificateItem[] {
+  const { employees } = require("@/lib/mock-data");
+  const certs = getCertificates();
+  return certs
+    .map((c) => {
+      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === c.employeeId);
+      const siteName =
+        emp?.siteId === "s-ro"
+          ? "RO Plant"
+          : emp?.siteId === "s-mee"
+            ? "MEE Plant"
+            : emp?.siteId === "s-etp"
+              ? "ETP Plant"
+              : "Corporate HQ";
+      const issuedOn = c.issuedAt ? c.issuedAt.slice(0, 10) : "2026-08-01";
+      const expiresOn = c.expiresAt ? c.expiresAt.slice(0, 10) : "2027-08-01";
+      return {
+        id: c.id,
+        certificateNo: c.certificateNo,
+        enrollmentId: c.enrollmentId,
+        employeeId: c.employeeId,
+        employeeName: c.employeeName,
+        siteName,
+        name: c.courseTitle,
+        courseTitle: c.courseTitle,
+        issuer: c.managerSignatory || "Nectar Enviro Academy",
+        issuedOn,
+        expiresOn,
+        status: getCertificateStatus(c.expiresAt),
+        overallPct: c.overallPct,
+        managerSignatory: c.managerSignatory,
+        verificationHash: c.verificationHash,
+        raw: c,
+      };
+    })
+    .filter((c) => {
+      if (!siteId) return true;
+      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === c.employeeId);
+      return emp?.siteId === siteId;
+    })
+    .sort((a, b) => b.issuedOn.localeCompare(a.issuedOn));
+}
+
+export function getCertificatesForEmployee(employeeId: string): ViewCertificateItem[] {
+  return getAllCertificates().filter((c) => c.employeeId === employeeId);
 }
 
 export function getLearningNeedRecords(employeeId?: string): LearningNeedRecord[] {
@@ -704,10 +825,11 @@ function updateLniForEnrollment(enrollmentId: string) {
   writeStorage(STORAGE_KEYS.LNI_RECORDS, lniRecords);
 }
 
-export function getPendingEvaluations(): {
+export function getPendingEvaluations(siteId?: string): {
   enrollment: CourseEnrollment;
   employeeName: string;
   employeeDesignation: string;
+  siteId: string;
   siteName: string;
   course: Course;
   skillMapScore: number;
@@ -722,6 +844,9 @@ export function getPendingEvaluations(): {
     if (e.status === "CERTIFIED") return false;
     const course = getCourseById(e.courseId);
     if (!course) return false;
+    const emp = getEmployeeById(e.employeeId);
+    if (!emp) return false;
+    if (siteId && emp.siteId !== siteId) return false;
 
     // If candidate completed all module videos and quizzes, they are ready for manager evaluation!
     const modulesDone = canTakeSkillMapping(e, course);
@@ -759,11 +884,21 @@ export function getPendingEvaluations(): {
             )
           : 100;
 
+      const siteLabel =
+        emp.siteId === "s-etp"
+          ? "ETP Plant"
+          : emp.siteId === "s-ro"
+            ? "RO Plant"
+            : emp.siteId === "s-mee"
+              ? "MEE Plant"
+              : "Cross-Plant";
+
       return {
         enrollment: e,
         employeeName: emp.name,
         employeeDesignation: emp.designation,
-        siteName: emp.siteId,
+        siteId: emp.siteId,
+        siteName: siteLabel,
         course,
         skillMapScore: res.skillMap?.scorePct ?? avgQuizScore,
         writtenScore: res.written?.scorePct,
@@ -772,6 +907,18 @@ export function getPendingEvaluations(): {
       };
     })
     .filter(Boolean) as any[];
+}
+
+export function resetTrainingStore(): void {
+  if (typeof window === "undefined") return;
+  writeStorage(STORAGE_KEYS.ENROLLMENTS, initialEnrollments);
+  writeStorage(STORAGE_KEYS.SKILL_MAPPING, initialSkillMappingResults);
+  writeStorage(STORAGE_KEYS.WRITTEN_TESTS, initialWrittenTestResults);
+  writeStorage(STORAGE_KEYS.PRACTICAL_TESTS, initialPracticalTestResults);
+  writeStorage(STORAGE_KEYS.ORAL_TESTS, initialOralTestResults);
+  writeStorage(STORAGE_KEYS.CERTIFICATES, initialCertificates);
+  writeStorage(STORAGE_KEYS.LNI_RECORDS, initialLearningNeedRecords);
+  writeStorage(STORAGE_KEYS.SESSIONS, initialTrainingSessions);
 }
 
 export function getTrainingSessions(employeeId?: string): TrainingSession[] {
@@ -860,3 +1007,95 @@ export function getSpecializationTrackById(id: string): SpecializationTrack | un
   return mockSpecializationTracks.find((t) => t.id === id || t.slug === id);
 }
 
+// ----------------------------------------------------
+// Live NestJS Backend Synchronization
+// ----------------------------------------------------
+export async function syncTrainingWithApi(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { getCourses, getCertificates, getSessions } = await import('../api/training');
+    const [courses, certs, sessions] = await Promise.all([
+      getCourses().catch(() => []),
+      getCertificates().catch(() => []),
+      getSessions().catch(() => []),
+    ]);
+
+    if (certs && certs.length) {
+      writeStorage(STORAGE_KEYS.CERTIFICATES, certs);
+    }
+    if (sessions && sessions.length) {
+      writeStorage(STORAGE_KEYS.SESSIONS, sessions);
+    }
+  } catch {
+    // Graceful offline fallback
+  }
+}
+
+// ----------------------------------------------------
+// Training Items View (Derived directly from live enrollments & courses)
+// ----------------------------------------------------
+export function getTrainingItems(opts?: {
+  employeeId?: string;
+  siteEmployeeIds?: string[];
+}): import("@/lib/mock-data").TrainingItem[] {
+  const enrollments = getAllEnrollments();
+  const courses = getAllCourses();
+  const { employees } = require("@/lib/mock-data");
+
+  return enrollments
+    .filter((enr) => {
+      if (opts?.employeeId && enr.employeeId !== opts.employeeId) return false;
+      if (opts?.siteEmployeeIds && !opts.siteEmployeeIds.includes(enr.employeeId)) return false;
+      return true;
+    })
+    .map((enr) => {
+      const course = courses.find((c) => c.id === enr.courseId);
+      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === enr.employeeId);
+      const isCertified = enr.status === "CERTIFIED";
+      const siteName =
+        emp?.siteId === "s-ro"
+          ? "RO Plant"
+          : emp?.siteId === "s-mee"
+            ? "MEE Plant"
+            : emp?.siteId === "s-etp"
+              ? "ETP Plant"
+              : "Corporate HQ";
+
+      const abilityList = Object.values(enr.abilityProgress || {});
+      const abilitiesCompleted = abilityList.filter((a) => a.videoComplete && a.quizPassed).length;
+      const totalAbilities = course?.abilities?.length || abilityList.length || 1;
+      const progressPct = isCertified
+        ? 100
+        : Math.round((abilitiesCompleted / totalAbilities) * 100);
+
+      const res = getAssessmentResults(enr.id);
+      const score = res.oral?.overallPct ?? res.practical?.overallPct ?? res.written?.scorePct ?? (isCertified ? 92 : undefined);
+
+      const isHighPriority = course?.section?.includes("ETP") || course?.section?.includes("ZLD");
+
+      return {
+        id: enr.id,
+        employeeId: enr.employeeId,
+        employeeName: emp?.name ?? "Operator",
+        siteName,
+        course: course?.title ?? "Industrial Plant Operations",
+        priority: (isHighPriority ? "high" : "medium") as import("@/lib/mock-data").TrainingPriority,
+        dueDate: enr.completedAt ? enr.completedAt.slice(0, 10) : "2026-10-15",
+        completedAt: enr.completedAt?.slice(0, 10),
+        status: (isCertified ? "completed" : progressPct > 0 ? "due-soon" : "scheduled") as import("@/lib/mock-data").TrainingItem["status"],
+        score,
+      };
+    });
+}
+
+export function getUrgentTrainingItems(siteId?: string): import("@/lib/mock-data").TrainingItem[] {
+  const { employees } = require("@/lib/mock-data");
+  return getTrainingItems()
+    .filter((t) => t.status === "overdue" || t.status === "due-soon")
+    .filter((t) => {
+      if (!siteId) return true;
+      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === t.employeeId);
+      return emp?.siteId === siteId;
+    })
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}

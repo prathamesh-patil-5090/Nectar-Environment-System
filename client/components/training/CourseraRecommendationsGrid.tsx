@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Row, Col } from "antd";
 import { StarFilled, ClockCircleOutlined, ArrowRightOutlined, SafetyCertificateOutlined, UserOutlined } from "@ant-design/icons";
-import { mockSpecializationTracks } from "@/lib/training/mock-data";
+import { mockSpecializationTracks } from "@/lib/training/data";
 import type { PlantSection } from "@/lib/training/types";
 
 interface CourseraRecommendationsGridProps {

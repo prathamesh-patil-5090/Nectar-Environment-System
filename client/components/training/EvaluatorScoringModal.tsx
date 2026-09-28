@@ -40,8 +40,8 @@ export default function EvaluatorScoringModal({
   candidateName,
   course,
   type,
-  evaluatorName = "Rajesh Kulkarni (Plant Manager)",
-  evaluatorId = "e-mgr-1",
+  evaluatorName = "Anand Dakave (ETP Plant Manager)",
+  evaluatorId = "emp0123",
   onClose,
   onSubmitted,
 }: EvaluatorScoringModalProps) {
@@ -154,7 +154,7 @@ export default function EvaluatorScoringModal({
               {evaluatorName}
             </span>
             <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
-              Role: Site Manager / O&M Assessor
+              Role: Plant Operations Manager (Authorized Assessor)
             </div>
           </div>
 

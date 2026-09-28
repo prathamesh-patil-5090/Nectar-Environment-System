@@ -141,7 +141,17 @@ const TODAY = "2026-09-23";
  * one A (morning), one B (afternoon), one C (night), one Reliever (general).
  * IDs: e-{site}-s1|s2|s3|g1 (excludes managers, SIC, supervisors, extra s4).
  */
+const DEMO_ROTATION_EMP_IDS = new Set([
+  // ETP (s1, s2, s3, g1)
+  "emp0126", "emp0127", "emp0128", "emp0130",
+  // RO (s1, s2, s3, g1)
+  "emp0134", "emp0135", "emp0136", "emp0138",
+  // MEE (s1, s2, s3, g1)
+  "emp0142", "emp0143", "emp0144", "emp0146",
+]);
+
 function isDemoRotationEmployee(employeeId: string): boolean {
+  if (DEMO_ROTATION_EMP_IDS.has(employeeId)) return true;
   return /-(s[123]|g1)$/.test(employeeId);
 }
 
@@ -265,14 +275,14 @@ let rotationPreviews: RotationPreview[] = [
 let changeRequests: ShiftChangeRequest[] = [
   {
     id: "scr1",
-    employeeId: "e-etp-s2",
-    employeeName: "Rohan Deshmukh",
+    employeeId: "emp0127",
+    employeeName: "Rohit Kumar Singh",
     siteId: "s-etp",
     date: "2026-09-28",
     fromShiftId: "sh-afternoon",
     toShiftId: "sh-night",
     reason: "Replacement required due to absence",
-    requestedBy: "Amit Supervisor",
+    requestedBy: "Neetesh Diwathe",
     status: "PENDING",
     potentialOtHours: 0,
     manpowerOk: true,
@@ -280,14 +290,14 @@ let changeRequests: ShiftChangeRequest[] = [
   },
   {
     id: "scr2",
-    employeeId: "e-ro-s1",
-    employeeName: "Imran Shaikh",
+    employeeId: "emp0134",
+    employeeName: "Rafik Shaikh",
     siteId: "s-ro",
     date: "2026-09-24",
     fromShiftId: "sh-night",
     toShiftId: "sh-morning",
     reason: "Personal constraint",
-    requestedBy: "Neha Kamat",
+    requestedBy: "Vikas Dabade",
     status: "PENDING",
     potentialOtHours: 8,
     manpowerOk: false,
@@ -303,7 +313,7 @@ const shiftSeed = {
   restRules: { ...restRules },
 };
 
-const SHIFT_STORAGE_KEY = "nectar-enviro-shift-store-v2";
+const SHIFT_STORAGE_KEY = "nectar-enviro-shift-store-v3";
 let shiftHydrated = false;
 
 type ShiftPersisted = {
@@ -581,7 +591,7 @@ export function activateRotationPreview(id: string) {
   const status = normalizePreviewStatus(preview).status;
   if (
     status !== "pending_manager" &&
-    status !== "pending_admin" &&
+    status !== "pending_director" &&
     status !== "draft"
   ) {
     throw new Error("Only a pending draft can be published");
@@ -674,14 +684,14 @@ function applyPreviewToLiveRoster(preview: RotationPreview) {
 
 export function markRotationScheduleViewed(
   id: string,
-  role: "manager" | "admin",
+  role: "manager" | "director",
 ) {
   ensureShiftHydrated();
   const now = new Date().toISOString();
   rotationPreviews = rotationPreviews.map((p) => {
     if (p.id !== id) return p;
     if (role === "manager") return { ...p, managerViewedAt: now };
-    return { ...p, adminViewedAt: now };
+    return { ...p, directorViewedAt: now };
   });
   persistShiftStore();
   return getRotationPreviewById(id);
@@ -719,7 +729,7 @@ export function managerDecideRotation(
   } else {
     rotationPreviews = rotationPreviews.map((p) =>
       p.id === id
-        ? { ...p, status: "pending_admin", managerDecision: decision }
+        ? { ...p, status: "pending_director", managerDecision: decision }
         : p,
     );
   }
@@ -727,6 +737,10 @@ export function managerDecideRotation(
   return getRotationPreviewById(id);
 }
 
+/**
+ * Director final decide — approve publishes the rotation onto live roster.
+ * Prefer adminDecideRotation — this name kept for backwards compat.
+ */
 export function adminDecideRotation(
   id: string,
   input: { by: string; remark: string; outcome: "approved" | "rejected" },
@@ -734,10 +748,10 @@ export function adminDecideRotation(
   ensureShiftHydrated();
   const preview = getRotationPreviewById(id);
   if (!preview) throw new Error("Rotation draft not found");
-  if (preview.status !== "pending_admin") {
-    throw new Error("Draft is not awaiting admin approval");
+  if (preview.status !== "pending_director") {
+    throw new Error("Draft is not awaiting director approval");
   }
-  if (!preview.adminViewedAt) {
+  if (!preview.directorViewedAt) {
     throw new Error("View the schedule before approving or rejecting");
   }
   const remark = input.remark.trim();
@@ -752,7 +766,7 @@ export function adminDecideRotation(
 
   if (input.outcome === "rejected") {
     rotationPreviews = rotationPreviews.map((p) =>
-      p.id === id ? { ...p, status: "rejected", adminDecision: decision } : p,
+      p.id === id ? { ...p, status: "rejected", directorDecision: decision } : p,
     );
     persistShiftStore();
     return getRotationPreviewById(id);
@@ -767,7 +781,7 @@ export function adminDecideRotation(
 
   applyPreviewToLiveRoster(preview);
   rotationPreviews = rotationPreviews.map((p) =>
-    p.id === id ? { ...p, status: "active", adminDecision: decision } : p,
+    p.id === id ? { ...p, status: "active", directorDecision: decision } : p,
   );
   persistShiftStore();
   return getRotationPreviewById(id);
@@ -777,8 +791,8 @@ export function rejectRotationPreview(id: string, remark = "Rejected") {
   ensureShiftHydrated();
   const preview = getRotationPreviewById(id);
   if (!preview) throw new Error("Rotation draft not found");
-  if (preview.status === "pending_admin") {
-    if (!preview.adminViewedAt) {
+  if (preview.status === "pending_director") {
+    if (!preview.directorViewedAt) {
       throw new Error("View the schedule before rejecting");
     }
     return adminDecideRotation(id, {
@@ -1264,6 +1278,30 @@ export function getOtByShiftCause() {
     ],
     byShift: getShiftInsights().otByShift,
   };
+}
+
+// ----------------------------------------------------
+// Live NestJS Backend Synchronization
+// ----------------------------------------------------
+export async function syncShiftsWithApi(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { getRosters, getChangeRequests } = await import('../api/shifts');
+    const [rosters, requests] = await Promise.all([
+      getRosters().catch(() => []),
+      getChangeRequests().catch(() => []),
+    ]);
+
+    if (rosters && rosters.length) {
+      rotationPreviews = rosters.map(normalizePreviewStatus);
+    }
+    if (requests && requests.length) {
+      changeRequests = requests;
+    }
+    persistShiftStore();
+  } catch {
+    // Graceful offline fallback
+  }
 }
 
 export { ACTIVE_PATTERN, TODAY, EFFECTIVE, addDays };

@@ -3,7 +3,7 @@
  */
 
 export const NOTIFICATIONS_STORAGE_KEY = "nectar-enviro-notifications";
-export const NOTIFICATIONS_SEEDED_KEY = "nectar-enviro-notifications-seeded-v2";
+export const NOTIFICATIONS_SEEDED_KEY = "nectar-enviro-notifications-seeded-v3";
 
 export type NotificationKind =
   | "leave_consent"
@@ -27,121 +27,121 @@ export type AppNotification = {
 
 /** Demo seed — shown for employee logins until cleared */
 const DEMO_SEED: AppNotification[] = [
-  // Asha Patil — primary employee demo
+  // Shilpa Hotkar — primary employee demo
   {
-    id: "seed-n-asha-ot1",
-    employeeId: "e-etp-s1",
+    id: "seed-n-shilpa-ot1",
+    employeeId: "emp0126",
     kind: "ot_assign",
     title: "OT assigned — tomorrow morning",
-    body: "Rajesh Kulkarni (ETP Manager) assigned you 4h OT on 2026-09-27 for coverage during Rohan's leave. Report by 06:00.",
+    body: "Anand Dakave (ETP Manager) assigned you 4h OT on 2026-09-27 for coverage during Rohit's leave. Report by 06:00.",
     href: "/notifications",
     createdAt: "2026-09-25T09:15:00Z",
     read: false,
-    meta: { assignmentId: "seed-ota-asha-1" },
+    meta: { assignmentId: "seed-ota-shilpa-1" },
   },
   {
-    id: "seed-n-asha-sic1",
-    employeeId: "e-etp-s1",
+    id: "seed-n-shilpa-sic1",
+    employeeId: "emp0126",
     kind: "shift_message",
     title: "Shift adjustment — A → B swap request",
-    body: "Sanjay Jadhav (Shift In-Charge): Please confirm if you can move to B shift on 28 Sep to cover Kavita's night off.",
+    body: "Bidhichand Rajbhar (Shift In-Charge): Please confirm if you can move to B shift on 28 Sep to cover Mohee's night off.",
     href: "/shifts/schedule",
     createdAt: "2026-09-24T14:30:00Z",
     read: false,
   },
   {
-    id: "seed-n-asha-mgr1",
-    employeeId: "e-etp-s1",
+    id: "seed-n-shilpa-mgr1",
+    employeeId: "emp0126",
     kind: "manager_message",
     title: "Toolbox talk — Friday 07:00",
-    body: "Rajesh Kulkarni: Mandatory toolbox talk on hazardous waste handling this Friday before A shift. Attendance will be recorded.",
+    body: "Anand Dakave: Mandatory toolbox talk on hazardous waste handling this Friday before A shift. Attendance will be recorded.",
     href: "/training",
     createdAt: "2026-09-23T11:00:00Z",
     read: true,
   },
   {
-    id: "seed-n-asha-leave1",
-    employeeId: "e-etp-s1",
+    id: "seed-n-shilpa-leave1",
+    employeeId: "emp0126",
     kind: "leave_decision",
     title: "Leave approved — Sep 15–16",
-    body: "Your casual leave for 15–16 Sep was approved by Rajesh Kulkarni. Manpower covered by general shift.",
+    body: "Your casual leave for 15–16 Sep was approved by Anand Dakave. Manpower covered by general shift.",
     href: "/leave/requests",
     createdAt: "2026-09-11T10:05:00Z",
     read: true,
   },
-  // Rohan — consent pending example
+  // Rohit — consent pending example
   {
-    id: "seed-n-rohan-consent",
-    employeeId: "e-etp-s2",
+    id: "seed-n-rohit-consent",
+    employeeId: "emp0127",
     kind: "leave_consent",
     title: "Leave request needs your consent",
-    body: "Amit Supervisor submitted sick leave on your behalf for 28–29 Sep. Approve or reject to continue to the Manager.",
+    body: "Neetesh Diwathe submitted sick leave on your behalf for 28–29 Sep. Approve or reject to continue to the Manager.",
     href: "/leave/requests/lv2",
     createdAt: "2026-09-22T09:05:00Z",
     read: false,
   },
   {
-    id: "seed-n-rohan-ot",
-    employeeId: "e-etp-s2",
+    id: "seed-n-rohit-ot",
+    employeeId: "emp0127",
     kind: "ot_assign",
     title: "OT assigned — RO membrane support",
-    body: "Rajesh Kulkarni assigned you 6h OT on 2026-09-26 for plant upset coverage.",
+    body: "Anand Dakave assigned you 6h OT on 2026-09-26 for plant upset coverage.",
     href: "/notifications",
     createdAt: "2026-09-24T08:00:00Z",
     read: false,
-    meta: { assignmentId: "seed-ota-rohan-1" },
+    meta: { assignmentId: "seed-ota-rohit-1" },
   },
-  // Imran — RO
+  // Rafik — RO
   {
-    id: "seed-n-imran-ot",
-    employeeId: "e-ro-s1",
+    id: "seed-n-rafik-ot",
+    employeeId: "emp0134",
     kind: "ot_assign",
     title: "OT assigned — Night coverage",
-    body: "Priya Iyer (RO Manager) assigned you 8h OT on 2026-09-25 for membrane CIP support.",
+    body: "Uday Patil (RO Manager) assigned you 8h OT on 2026-09-25 for membrane CIP support.",
     href: "/notifications",
     createdAt: "2026-09-24T16:00:00Z",
     read: false,
-    meta: { assignmentId: "seed-ota-imran-1" },
+    meta: { assignmentId: "seed-ota-rafik-1" },
   },
   {
-    id: "seed-n-imran-sic",
-    employeeId: "e-ro-s1",
+    id: "seed-n-rafik-sic",
+    employeeId: "emp0134",
     kind: "shift_message",
     title: "Deployment note from Shift In-Charge",
-    body: "Vikram Shah: You are tagged as primary for skid-2 checks this week. Confirm availability on WhatsApp group.",
+    body: "Pawan Jagdhane: You are tagged as primary for skid-2 checks this week. Confirm availability on WhatsApp group.",
     href: "/dashboard",
     createdAt: "2026-09-23T07:45:00Z",
     read: false,
   },
-  // Vikram MEE
+  // Abhinandan MEE
   {
-    id: "seed-n-vikram-mgr",
-    employeeId: "e-mee-s1",
+    id: "seed-n-abhinandan-mgr",
+    employeeId: "emp0142",
     kind: "manager_message",
     title: "MEE vacuum check checklist",
-    body: "Anil Desai: Complete the vacuum integrity checklist before end of shift and upload photos to the site folder.",
+    body: "Sanjay Waghaskar: Complete the vacuum integrity checklist before end of shift and upload photos to the site folder.",
     href: "/dashboard",
     createdAt: "2026-09-24T10:20:00Z",
     read: false,
   },
   {
-    id: "seed-n-vikram-ot",
-    employeeId: "e-mee-s1",
+    id: "seed-n-abhinandan-ot",
+    employeeId: "emp0142",
     kind: "ot_assign",
     title: "OT assigned — Evaporator restart",
-    body: "Anil Desai assigned you 5h OT on 2026-09-26 after planned shutdown.",
+    body: "Sanjay Waghaskar assigned you 5h OT on 2026-09-26 after planned shutdown.",
     href: "/notifications",
     createdAt: "2026-09-25T06:30:00Z",
     read: false,
-    meta: { assignmentId: "seed-ota-vikram-1" },
+    meta: { assignmentId: "seed-ota-abhinandan-1" },
   },
-  // Nisha general
+  // Sandip general
   {
-    id: "seed-n-nisha-sic",
-    employeeId: "e-etp-g1",
+    id: "seed-n-sandip-sic",
+    employeeId: "emp0130",
     kind: "shift_message",
     title: "Reliever standby today",
-    body: "Sanjay Jadhav: Stay on standby as general-shift reliever for Asha's OT window tomorrow morning.",
+    body: "Bidhichand Rajbhar: Stay on standby as general-shift reliever for Shilpa's OT window tomorrow morning.",
     href: "/notifications",
     createdAt: "2026-09-25T12:00:00Z",
     read: false,

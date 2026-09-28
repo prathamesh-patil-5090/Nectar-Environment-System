@@ -13,7 +13,6 @@ import {
   getSiteById,
   getSiteName,
 } from "@/lib/mock-data";
-import { getCertificatesForEmployee } from "@/lib/certificates";
 import {
   formatInrAmount,
   getSalaryHistory,
@@ -39,7 +38,7 @@ function dashboardSubtitle(
   role: ReturnType<typeof normalizeRole>,
   siteScope?: string,
 ) {
-  if (role === "admin") {
+  if (role === "director") {
     return "Organization-wide workforce posture across ETP, RO and MEE plants.";
   }
   if (role === "manager" && siteScope) {

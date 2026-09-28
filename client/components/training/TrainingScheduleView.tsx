@@ -35,7 +35,7 @@ export default function TrainingScheduleView({
     const newSess = createTrainingSession({
       title: values.title,
       type: values.type,
-      scheduledBy: "e-mgr-1",
+      scheduledBy: "emp0123",
       scheduledByName: "Rajesh Kulkarni (Plant Manager)",
       scheduledAt: values.scheduledAt.format("YYYY-MM-DD HH:mm"),
       venueOrLink: values.venueOrLink,

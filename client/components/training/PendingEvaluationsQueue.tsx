@@ -14,31 +14,21 @@ import { getPendingEvaluations } from "@/lib/training/store";
 import { nectarColors } from "@/lib/theme";
 
 interface PendingEvaluationsQueueProps {
+  siteScope?: string;
+  canEvaluate?: boolean;
   onScorePractical: (enrollment: CourseEnrollment, candidateName: string, course: Course) => void;
   onScoreOral: (enrollment: CourseEnrollment, candidateName: string, course: Course) => void;
 }
 
 export default function PendingEvaluationsQueue({
+  siteScope,
+  canEvaluate = true,
   onScorePractical,
   onScoreOral,
 }: PendingEvaluationsQueueProps) {
-  const pending = getPendingEvaluations();
-
-  if (pending.length === 0) {
-    return (
-      <div
-        style={{
-          background: "#FFFFFF",
-          borderRadius: 14,
-          padding: 40,
-          textAlign: "center",
-          border: "1px solid rgba(28, 68, 99, 0.08)",
-        }}
-      >
-        <Empty description="No candidates currently waiting for Practical or Oral evaluations. Once an employee passes the course-end Skill Mapping test, they appear here." />
-      </div>
-    );
-  }
+  const [selectedSite, setSelectedSite] = React.useState<string>(siteScope ?? "all");
+  const activeSite = siteScope ?? (selectedSite === "all" ? undefined : selectedSite);
+  const pending = getPendingEvaluations(activeSite);
 
   const columns: ColumnsType<any> = [
     {
@@ -62,10 +52,10 @@ export default function PendingEvaluationsQueue({
       render: (c: Course) => (
         <div>
           <div style={{ fontWeight: 600, fontSize: 13, color: nectarColors.ink }}>
-            {c.title}
+            {c?.title}
           </div>
           <div style={{ fontSize: 11, color: nectarColors.muted }}>
-            Code: {c.code} · {c.section}
+            Code: {c?.code} · {c?.section}
           </div>
         </div>
       ),
@@ -117,9 +107,16 @@ export default function PendingEvaluationsQueue({
       render: (_, r) => {
         if (r.hasPractical) {
           return (
-            <span style={{ color: "#166534", fontWeight: 600, fontSize: 12 }}>
+            <span style={{ color: "#166534", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <CheckCircleFilled /> Evaluated
             </span>
+          );
+        }
+        if (!canEvaluate) {
+          return (
+            <Tag color="default" style={{ fontSize: 11, borderRadius: 6 }}>
+              Manager Evaluated
+            </Tag>
           );
         }
         return (
@@ -147,9 +144,16 @@ export default function PendingEvaluationsQueue({
       render: (_, r) => {
         if (r.hasOral) {
           return (
-            <span style={{ color: "#166534", fontWeight: 600, fontSize: 12 }}>
+            <span style={{ color: "#166534", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <CheckCircleFilled /> Evaluated
             </span>
+          );
+        }
+        if (!canEvaluate) {
+          return (
+            <Tag color="default" style={{ fontSize: 11, borderRadius: 6 }}>
+              Manager Evaluated
+            </Tag>
           );
         }
         return (
@@ -177,34 +181,73 @@ export default function PendingEvaluationsQueue({
       style={{
         background: "#FFFFFF",
         borderRadius: 14,
-        border: "1px solid rgba(28, 68, 99, 0.08)",
-        boxShadow: "0 2px 10px rgba(11, 26, 36, 0.03)",
-        overflow: "hidden",
+        padding: 24,
+        border: "1px solid rgba(28, 68, 99, 0.12)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
       }}
     >
       <div
         style={{
-          padding: "16px 20px",
-          borderBottom: "1px solid rgba(28, 68, 99, 0.08)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: 16,
+          flexWrap: "wrap",
+          gap: 12,
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: nectarColors.ink }}>
-            Manager Assessment & Scoring Queue
-          </h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1C4463" }}>
+              Manager Assessment & In-Person Scoring Queue
+            </h3>
+            <Tag color="orange" style={{ borderRadius: 12, fontSize: 11, fontWeight: 700 }}>
+              {pending.length} Pending
+            </Tag>
+          </div>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>
-            Candidates who completed all sequential modules and passed the Skill Mapping auto-test. Awaiting hands-on evaluation.
+            Candidates who completed their online module learning and passed the skill mapping exam.
           </p>
         </div>
-        <Tag color="orange" style={{ borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
-          {pending.length} Pending Actions
-        </Tag>
+        {!siteScope && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>Filter Plant:</span>
+            <select
+              value={selectedSite}
+              onChange={(e) => setSelectedSite(e.target.value)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "1px solid #CBD5E1",
+                fontSize: 12,
+                color: nectarColors.ink,
+                background: "#F8FAFC",
+              }}
+            >
+              <option value="all">All Plants (ETP, RO, MEE)</option>
+              <option value="s-etp">ETP Plant</option>
+              <option value="s-ro">RO Plant</option>
+              <option value="s-mee">MEE Plant</option>
+            </select>
+          </div>
+        )}
       </div>
 
-      <Table rowKey={(r) => r.enrollment.id} columns={columns} dataSource={pending} pagination={false} />
+      {pending.length === 0 ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No candidates currently waiting for evaluations in this plant scope."
+          style={{ margin: "24px 0" }}
+        />
+      ) : (
+        <Table
+          rowKey={(r) => r.enrollment.id}
+          columns={columns}
+          dataSource={pending}
+          pagination={false}
+          size="middle"
+        />
+      )}
     </div>
   );
 }

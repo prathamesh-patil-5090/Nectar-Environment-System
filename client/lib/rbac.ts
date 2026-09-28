@@ -14,10 +14,10 @@ export function roleLabel(role: UserRole | undefined): string {
   return ROLE_LABELS[normalizeRole(role)];
 }
 
-/** Org-wide visibility — Admin (+ hidden HR / Safety for compat) */
+/** Org-wide visibility — Director + HR + Safety In-Charge */
 export function canViewAllSites(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "hr" || role === "safety_incharge";
+  return role === "director" || role === "hr" || role === "safety_incharge";
 }
 
 export function scopedSiteId(user: SessionUser | null): string | undefined {
@@ -60,8 +60,17 @@ export function canAccessEmployeeRecord(
 
 export function canDownloadOtReports(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager" || role === "hr";
+  return (
+    role === "director" ||
+    role === "manager" ||
+    role === "hr" ||
+    role === "shift_incharge" ||
+    role === "site_incharge" ||
+    role === "supervisor"
+  );
 }
+
+export const canDownloadReports = canDownloadOtReports;
 
 export function canViewOtModule(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
@@ -70,12 +79,12 @@ export function canViewOtModule(user: SessionUser | null): boolean {
 
 export function canAssignOt(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager";
+  return role === "director" || role === "manager";
 }
 
 export function canViewLeaveManagement(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager";
+  return role === "director" || role === "manager" || role === "hr";
 }
 
 export function canViewLeavePending(user: SessionUser | null): boolean {
@@ -86,7 +95,7 @@ export function canViewLeavePending(user: SessionUser | null): boolean {
 export function canEnterLeaveForOthers(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "hr" ||
     role === "site_incharge" ||
@@ -98,7 +107,7 @@ export function canEnterLeaveForOthers(user: SessionUser | null): boolean {
 export function canSupervisorVerifyLeave(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "supervisor" ||
     role === "shift_incharge"
@@ -108,34 +117,34 @@ export function canSupervisorVerifyLeave(user: SessionUser | null): boolean {
 export function canSiteApproveLeave(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "site_incharge" ||
     role === "shift_incharge"
   );
 }
 
-/** Plant manager (or Admin acting as manager) after the shift is covered */
+/** Plant manager (or Director acting as manager) after the shift is covered */
 export function canManagerDecideLeave(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager";
+  return role === "director" || role === "manager";
 }
 
-/** Final leave sign-off — Admin only */
+/** Final leave sign-off — Director only */
 export function canAdminFinalizeLeave(user: SessionUser | null): boolean {
-  return normalizeRole(user?.role) === "admin";
+  return normalizeRole(user?.role) === "director";
 }
 
-/** Kept for hidden HR role; demo UI prefers canManagerDecideLeave */
+/** HR role — leave validation and policy oversight */
 export function canHrValidateLeave(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "hr" || role === "admin";
+  return role === "hr" || role === "director";
 }
 
 export function canConfirmLeaveReturn(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "supervisor" ||
     role === "site_incharge" ||
@@ -146,27 +155,27 @@ export function canConfirmLeaveReturn(user: SessionUser | null): boolean {
 export function canManageShifts(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "site_incharge" ||
     role === "shift_incharge"
   );
 }
 
-/** Draft the monthly rotation — Shift In-Charge, Manager, Admin */
+/** Draft the monthly rotation — Shift In-Charge, Manager, Director */
 export function canGenerateRotation(user: SessionUser | null): boolean {
   return canManageShifts(user);
 }
 
-/** Manager (or Admin) first approval of a monthly draft */
+/** Manager (or Director) first approval of a monthly draft */
 export function canManagerDecideRotation(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager";
+  return role === "director" || role === "manager";
 }
 
-/** Admin final approval — publishes onto the live roster */
+/** Director final approval — publishes onto the live roster */
 export function canAdminFinalizeRotation(user: SessionUser | null): boolean {
-  return normalizeRole(user?.role) === "admin";
+  return normalizeRole(user?.role) === "director";
 }
 
 /** @deprecated Prefer canManagerDecideRotation / canAdminFinalizeRotation */
@@ -177,7 +186,7 @@ export function canPublishRotation(user: SessionUser | null): boolean {
 export function canApproveShiftChanges(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "site_incharge" ||
     role === "shift_incharge"
@@ -187,7 +196,7 @@ export function canApproveShiftChanges(user: SessionUser | null): boolean {
 export function canManageRelieverPool(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "site_incharge" ||
     role === "shift_incharge" ||
@@ -198,7 +207,7 @@ export function canManageRelieverPool(user: SessionUser | null): boolean {
 export function canViewSafetyInsights(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "hr" ||
     role === "safety_incharge" ||
@@ -206,11 +215,28 @@ export function canViewSafetyInsights(user: SessionUser | null): boolean {
   );
 }
 
+/** HR — training oversight and compliance management */
+export function canManageTraining(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return (
+    role === "director" ||
+    role === "manager" ||
+    role === "hr" ||
+    role === "shift_incharge"
+  );
+}
+
+/** Assessment Evaluator — Plant Manager is the primary and only authorized person conducting and scoring in-person practical & oral viva assessments */
+export function canEvaluateAssessments(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return role === "manager" || role === "director";
+}
+
 export function leaveActorRole(
   user: SessionUser | null,
-): "employee" | "supervisor" | "site_incharge" | "hr" | "management" | "admin" {
+): "employee" | "supervisor" | "site_incharge" | "hr" | "management" | "director" {
   const role = normalizeRole(user?.role);
-  if (role === "admin") return "admin";
+  if (role === "director") return "director";
   if (role === "hr") return "hr";
   if (role === "site_incharge" || role === "shift_incharge") return "site_incharge";
   if (role === "supervisor") return "supervisor";
@@ -220,7 +246,7 @@ export function leaveActorRole(
 
 export function isElevated(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
-  return role === "admin" || role === "manager";
+  return role === "director" || role === "manager";
 }
 
 /** Dual management + employee nav for Mgr / SIC / Supervisor */
@@ -238,7 +264,7 @@ export function hasDualDashboard(user: SessionUser | null): boolean {
 export function canViewSitesNav(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "shift_incharge" ||
     role === "site_incharge" ||
@@ -248,27 +274,27 @@ export function canViewSitesNav(user: SessionUser | null): boolean {
 }
 
 /**
- * Shifts module in sidebar — SIC / Manager / Admin.
+ * Shifts module in sidebar — SIC / Manager / Director.
  * Supervisors stay out of day-to-day shift planning nav.
  */
 export function canViewShiftsNav(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (
-    role === "admin" ||
+    role === "director" ||
     role === "manager" ||
     role === "shift_incharge" ||
     role === "site_incharge"
   );
 }
 
-/** Reliever pool — Supervisor (availability) + SIC + Manager + Admin */
+/** Reliever pool — Supervisor (availability) + SIC + Manager + Director */
 export function canViewRelieverPoolNav(user: SessionUser | null): boolean {
   return canManageRelieverPool(user);
 }
 
 /**
  * Which shift sub-pages appear in the sidebar.
- * Supervisors: none. SIC/Manager/Admin: full set.
+ * Supervisors: none. SIC/Manager/Director: full set.
  */
 export function visibleShiftNavKeys(user: SessionUser | null): string[] | null {
   if (!canViewShiftsNav(user)) return null;

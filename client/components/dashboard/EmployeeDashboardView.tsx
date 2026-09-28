@@ -19,9 +19,9 @@ import {
   BankOutlined,
 } from "@ant-design/icons";
 import type { Employee, Site } from "@/lib/mock-data";
-import { getShiftById } from "@/lib/overtime/mock-data";
-import { getCertificatesForEmployee } from "@/lib/certificates";
+import { getShiftById } from "@/lib/overtime/data";
 import { formatInrAmount, getSalaryHistory, salaryMonthLabel } from "@/lib/salary";
+import { getCertificatesForEmployee, type ViewCertificateItem } from "@/lib/training/store";
 import { getNotificationsForEmployee } from "@/lib/notifications";
 import { getOtAssignments } from "@/lib/overtime";
 import { getEmployeeTraining, getEmployeeSkills } from "@/lib/mock-data";
@@ -1059,7 +1059,7 @@ export default function EmployeeDashboardView({
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {certs.slice(0, 4).map((c) => (
+              {certs.slice(0, 4).map((c: ViewCertificateItem) => (
                 <div
                   key={c.id}
                   style={{

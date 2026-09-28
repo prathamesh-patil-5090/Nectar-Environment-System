@@ -20,7 +20,7 @@ import {
 import KpiStat from "@/components/KpiStat";
 import { getSession } from "@/lib/auth";
 import { sites } from "@/lib/mock-data";
-import { shifts } from "@/lib/overtime/mock-data";
+import { shifts } from "@/lib/overtime/data";
 import {
   getAbsences,
   getClusterById,

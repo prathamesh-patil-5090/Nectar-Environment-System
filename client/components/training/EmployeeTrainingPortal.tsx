@@ -221,7 +221,7 @@ interface EmployeeTrainingPortalProps {
 
 export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingPortalProps) {
   const session = getSession();
-  const selfId = employeeId ?? scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "e-etp-op1";
+  const selfId = employeeId ?? scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "emp0126";
   const currentUser = getEmployeeById(selfId);
 
   const router = useRouter();

@@ -266,7 +266,7 @@ export default function LeaveRequestsContent() {
                   onClick={() =>
                     act(
                       () => managerDecideLeave(r.id, actor, "approved"),
-                      "Manager approved — sent to Admin",
+                      "Manager approved — sent to Director",
                     )
                   }
                 >
@@ -298,11 +298,11 @@ export default function LeaveRequestsContent() {
                   onClick={() =>
                     act(
                       () => adminFinalizeLeave(r.id, actor, "approved"),
-                      "Leave approved by Admin",
+                      "Leave approved by Director",
                     )
                   }
                 >
-                  Admin approve
+                  Director approve
                 </Button>
                 <Button
                   size="small"
@@ -317,7 +317,7 @@ export default function LeaveRequestsContent() {
               </span>
             );
           }
-          return waiting("Waiting for Admin");
+          return waiting("Waiting for Director");
         }
 
         if (r.status === "PENDING_EMPLOYEE_CONSENT") {
@@ -491,7 +491,7 @@ export default function LeaveRequestsContent() {
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
           {personalOnly
             ? "Your leave and absence requests."
-            : "Open a name for the full record. Action column: supervisor verifies → shift in-charge covers → manager approves → Admin finalizes."}
+            : "Open a name for the full record. Action column: supervisor verifies → shift in-charge covers → manager approves → Director finalizes."}
         </p>
         <Button
           type="primary"
@@ -688,7 +688,7 @@ export default function LeaveRequestsContent() {
           }
           const role =
             rejectRow.status === "MANAGER_APPROVED"
-              ? "admin"
+              ? "director"
               : rejectRow.status === "SITE_APPROVED" ||
                   rejectRow.status === "SITE_VERIFIED"
                 ? "management"

@@ -50,6 +50,7 @@ import {
   visibleShiftNavKeys,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { hydrateAllStoresFromApi } from "@/lib/sync";
 
 const { Header, Sider, Content } = Layout;
 
@@ -251,6 +252,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [openKeys, collapsed]);
 
+  // Global live API hydration from MongoDB Atlas
+  useEffect(() => {
+    hydrateAllStoresFromApi().catch(() => {});
+  }, []);
 
   // GSAP: Smooth magnetic hover on sidebar menu items
   useEffect(() => {
@@ -773,7 +778,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Typography.Title>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {user?.employeeId ? (
               <button
                 type="button"

@@ -2,9 +2,9 @@ export const AUTH_STORAGE_KEY = "nectar-enviro-session";
 
 /**
  * Application roles
- * - admin: full system control (org-wide)
+ * - director: full system control (org-wide) — formerly "admin"
  * - manager: plant-scoped ops (demo: ETP / RO / MEE)
- * - hr: policy / leave (hidden from demo login)
+ * - hr: policy / leave / compliance (org-wide)
  * - site_incharge: site manpower (hidden from demo login)
  * - shift_incharge: shift rotation / coverage (plant-scoped)
  * - safety_incharge: safety training visibility (hidden from demo login)
@@ -13,7 +13,7 @@ export const AUTH_STORAGE_KEY = "nectar-enviro-session";
  * - management: legacy alias → manager
  */
 export type UserRole =
-  | "admin"
+  | "director"
   | "manager"
   | "management"
   | "hr"
@@ -24,10 +24,10 @@ export type UserRole =
   | "employee";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Admin",
+  director: "Director",
   manager: "Manager",
   management: "Management",
-  hr: "HR",
+  hr: "HR Manager",
   site_incharge: "Site In-Charge",
   shift_incharge: "Shift In-Charge",
   safety_incharge: "Safety In-Charge",
@@ -46,192 +46,199 @@ export type DemoUser = {
 
 const DEMO_PASSWORD = "nectar2026";
 
-/** Active demo logins — five roles across Admin + three plants */
+/** Active demo logins — Director + HR + three plants */
 export const DEMO_USERS: DemoUser[] = [
   {
-    email: "admin@nectarenviro.com",
+    email: "director@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "System Admin",
-    role: "admin",
+    name: "Prashant Rohidas Adsul",
+    role: "director",
+  },
+  {
+    email: "hr@nectarenviro.com",
+    password: DEMO_PASSWORD,
+    name: "Swati Ingle",
+    role: "hr",
+    employeeId: "emp0147",
   },
   // ETP
   {
     email: "etp.manager@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Rajesh Kulkarni",
+    name: "Anand Dakave",
     role: "manager",
     siteId: "s-etp",
-    employeeId: "e-etp-mgr",
+    employeeId: "emp0123",
   },
   {
     email: "etp.shift@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Sanjay Jadhav",
+    name: "Bidhichand Rajbhar",
     role: "shift_incharge",
     siteId: "s-etp",
-    employeeId: "e-etp-sic",
+    employeeId: "emp0124",
   },
   {
     email: "etp.supervisor@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Amit Supervisor",
+    name: "Neetesh Diwathe",
     role: "supervisor",
     siteId: "s-etp",
-    employeeId: "e-etp-sup",
+    employeeId: "emp0125",
   },
   {
-    email: "asha.patil@nectarenviro.com",
+    email: "shilpa.hotkar@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Asha Patil",
+    name: "Shilpa Hotkar",
     role: "employee",
     siteId: "s-etp",
-    employeeId: "e-etp-s1",
+    employeeId: "emp0126",
   },
   {
-    email: "rohan.deshmukh@nectarenviro.com",
+    email: "rohit.singh@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Rohan Deshmukh",
+    name: "Rohit Kumar Singh",
     role: "employee",
     siteId: "s-etp",
-    employeeId: "e-etp-s2",
+    employeeId: "emp0127",
   },
   {
-    email: "kavita.rao@nectarenviro.com",
+    email: "mohee.vinchu@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Kavita Rao",
+    name: "Mohee Vinchu",
     role: "employee",
     siteId: "s-etp",
-    employeeId: "e-etp-s3",
+    employeeId: "emp0128",
   },
   {
-    email: "deepak.more@nectarenviro.com",
+    email: "sanket.jagadale@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Deepak More",
+    name: "Sanket Jagadale",
     role: "employee",
     siteId: "s-etp",
-    employeeId: "e-etp-s4",
+    employeeId: "emp0129",
   },
   {
-    email: "nisha.salvi@nectarenviro.com",
+    email: "sandip.ohol@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Nisha Salvi",
+    name: "Sandip Ohol",
     role: "employee",
     siteId: "s-etp",
-    employeeId: "e-etp-g1",
+    employeeId: "emp0130",
   },
   // RO
   {
     email: "ro.manager@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Priya Iyer",
+    name: "Uday Patil",
     role: "manager",
     siteId: "s-ro",
-    employeeId: "e-ro-mgr",
+    employeeId: "emp0131",
   },
   {
     email: "ro.shift@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Vikram Shah",
+    name: "Pawan Jagdhane",
     role: "shift_incharge",
     siteId: "s-ro",
-    employeeId: "e-ro-sic",
+    employeeId: "emp0132",
   },
   {
     email: "ro.supervisor@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Neha Kamat",
+    name: "Vikas Dabade",
     role: "supervisor",
     siteId: "s-ro",
-    employeeId: "e-ro-sup",
+    employeeId: "emp0133",
   },
   {
-    email: "imran.shaikh@nectarenviro.com",
+    email: "rafik.shaikh@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Imran Shaikh",
+    name: "Rafik Shaikh",
     role: "employee",
     siteId: "s-ro",
-    employeeId: "e-ro-s1",
+    employeeId: "emp0134",
   },
   {
-    email: "arjun.mehta@nectarenviro.com",
+    email: "siddhant.marale@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Arjun Mehta",
+    name: "Siddhant Marale",
     role: "employee",
     siteId: "s-ro",
-    employeeId: "e-ro-s2",
+    employeeId: "emp0135",
   },
   {
-    email: "sneha.bhosale@nectarenviro.com",
+    email: "surekha.bhosale@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Sneha Bhosale",
+    name: "Surekha Sitaram Bhosale",
     role: "employee",
     siteId: "s-ro",
-    employeeId: "e-ro-s3",
+    employeeId: "emp0136",
   },
   {
-    email: "rahul.pawar@nectarenviro.com",
+    email: "akshay.bendkoli@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Rahul Pawar",
+    name: "Akshay Bendkoli",
     role: "employee",
     siteId: "s-ro",
-    employeeId: "e-ro-s4",
+    employeeId: "emp0137",
   },
   {
-    email: "meera.naik@nectarenviro.com",
+    email: "pravin.chormule@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Meera Naik",
+    name: "Pravin Chormule",
     role: "employee",
     siteId: "s-ro",
-    employeeId: "e-ro-g1",
+    employeeId: "emp0138",
   },
   // MEE
   {
     email: "mee.manager@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Anil Desai",
+    name: "Sanjay Waghaskar",
     role: "manager",
     siteId: "s-mee",
-    employeeId: "e-mee-mgr",
+    employeeId: "emp0139",
   },
   {
     email: "mee.shift@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Farhan Qureshi",
+    name: "Gaurav Khandagale",
     role: "shift_incharge",
     siteId: "s-mee",
-    employeeId: "e-mee-sic",
+    employeeId: "emp0140",
   },
   {
     email: "mee.supervisor@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Sunita Rane",
+    name: "Rushikesh Pawar",
     role: "supervisor",
     siteId: "s-mee",
-    employeeId: "e-mee-sup",
+    employeeId: "emp0141",
   },
   {
-    email: "vikram.nair@nectarenviro.com",
+    email: "abhinandan.pawane@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Vikram Nair",
+    name: "Abhinandan Sanjay Pawane",
     role: "employee",
     siteId: "s-mee",
-    employeeId: "e-mee-s1",
+    employeeId: "emp0142",
   },
   {
-    email: "pooja.ghate@nectarenviro.com",
+    email: "bhairavi.kadu@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Pooja Ghate",
+    name: "Bhairavi Kadu",
     role: "employee",
     siteId: "s-mee",
-    employeeId: "e-mee-s2",
+    employeeId: "emp0143",
   },
   {
-    email: "suresh.pawar@nectarenviro.com",
+    email: "meghal.salgaonkar@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "Suresh Pawar",
+    name: "Meghal Salgaonkar",
     role: "employee",
     siteId: "s-mee",
-    employeeId: "e-mee-s3",
+    employeeId: "emp0144",
   },
   {
     email: "anita.kadam@nectarenviro.com",
@@ -239,7 +246,7 @@ export const DEMO_USERS: DemoUser[] = [
     name: "Anita Kadam",
     role: "employee",
     siteId: "s-mee",
-    employeeId: "e-mee-s4",
+    employeeId: "emp0145",
   },
   {
     email: "ravi.thakur@nectarenviro.com",
@@ -247,7 +254,7 @@ export const DEMO_USERS: DemoUser[] = [
     name: "Ravi Thakur",
     role: "employee",
     siteId: "s-mee",
-    employeeId: "e-mee-g1",
+    employeeId: "emp0146",
   },
 ];
 
@@ -256,11 +263,21 @@ export const DEMO_USERS: DemoUser[] = [
  * Still authenticable if credentials are entered manually.
  */
 export const DEMO_USERS_HIDDEN: DemoUser[] = [
+  // Legacy aliases for backward compatibility
   {
-    email: "hr@nectarenviro.com",
+    email: "asha.patil@nectarenviro.com",
     password: DEMO_PASSWORD,
-    name: "HR Partner",
+    name: "Shilpa Hotkar",
+    role: "employee",
+    siteId: "s-etp",
+    employeeId: "emp0126",
+  },
+  {
+    email: "priyanka.sharma@nectarenviro.com",
+    password: DEMO_PASSWORD,
+    name: "Swati Ingle",
     role: "hr",
+    employeeId: "emp0147",
   },
   {
     email: "site@nectarenviro.com",
@@ -268,7 +285,7 @@ export const DEMO_USERS_HIDDEN: DemoUser[] = [
     name: "Legacy Site Lead",
     role: "site_incharge",
     siteId: "s-etp",
-    employeeId: "e-etp-mgr",
+    employeeId: "emp0123",
   },
   {
     email: "safety@nectarenviro.com",
@@ -284,7 +301,7 @@ export const DEMO_USERS_VISIBLE = DEMO_USERS;
 
 const ALL_LOGIN_USERS = [...DEMO_USERS, ...DEMO_USERS_HIDDEN];
 
-/** Default login hint — admin account */
+/** Default login hint — director account */
 export const DEMO_CREDENTIALS = {
   email: DEMO_USERS[0].email,
   password: DEMO_USERS[0].password,
@@ -305,10 +322,25 @@ export function getSession(): SessionUser | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SessionUser;
     if (!parsed.role) {
-      return { ...parsed, role: "manager" };
+      parsed.role = "manager";
     }
     if (parsed.role === "management") {
-      return { ...parsed, role: "manager" };
+      parsed.role = "manager";
+    }
+    // Auto-migrate legacy "admin" sessions to "director"
+    if ((parsed.role as string) === "admin") {
+      parsed.role = "director";
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+    }
+    // Auto-migrate legacy employeeIds (e.g. e-etp-* -> emp012*)
+    if (parsed.email) {
+      const match = ALL_LOGIN_USERS.find(
+        (u) => u.email.toLowerCase() === parsed.email.toLowerCase(),
+      );
+      if (match?.employeeId && parsed.employeeId !== match.employeeId) {
+        parsed.employeeId = match.employeeId;
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+      }
     }
     return parsed;
   } catch {

@@ -232,6 +232,26 @@ export default function CertificateModal({
             <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 4 }}>
               Issued On: {formattedDate}
             </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: (() => {
+                  const expTime = certificate.expiresAt
+                    ? new Date(certificate.expiresAt).getTime()
+                    : new Date(certificate.issuedAt).getTime() + 365 * 86400000;
+                  return new Date().getTime() > expTime ? "#DC2626" : "#166534";
+                })(),
+                marginTop: 2,
+                fontWeight: 600,
+              }}
+            >
+              Validity: 1 Year (Expires: {(() => {
+                const exp = certificate.expiresAt
+                  ? new Date(certificate.expiresAt)
+                  : new Date(new Date(certificate.issuedAt).setFullYear(new Date(certificate.issuedAt).getFullYear() + 1));
+                return exp.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+              })()})
+            </div>
           </div>
 
           <div style={{ textAlign: "center" }}>
@@ -265,7 +285,9 @@ export default function CertificateModal({
                 marginBottom: 2,
               }}
             >
-              R. Kulkarni
+              {certificate.managerSignatory
+                ? certificate.managerSignatory.split(" (")[0]
+                : "Authorized Manager"}
             </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: nectarColors.ink }}>
               {certificate.managerSignatory}

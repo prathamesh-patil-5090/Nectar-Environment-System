@@ -573,7 +573,7 @@ export default function LeaveDetailPage({
               onClick={() =>
                 run(() => {
                   managerDecideLeave(leave.id, actor, "approved");
-                }, "Manager approved — sent to Admin")
+                }, "Manager approved — sent to Director")
               }
             >
               Manager approve
@@ -587,10 +587,10 @@ export default function LeaveDetailPage({
                 run(() => {
                   adminFinalizeLeave(leave.id, actor, "approved");
                   notifyDecision(true);
-                }, "Leave approved by Admin")
+                }, "Leave approved by Director")
               }
             >
-              Admin approve
+              Director approve
             </Button>
           ) : null}
 
@@ -707,7 +707,7 @@ export default function LeaveDetailPage({
           }
           const role =
             leave.status === "MANAGER_APPROVED"
-              ? "admin"
+              ? "director"
               : leave.status === "SITE_APPROVED" || leave.status === "SITE_VERIFIED"
                 ? "management"
                 : leave.status === "SUPERVISOR_VERIFIED" ||

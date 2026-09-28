@@ -109,7 +109,7 @@ export default function ShiftsDashboardPage() {
                 render: (_, r) => {
                   const open =
                     r.status === "pending_manager" ||
-                    r.status === "pending_admin" ||
+                    r.status === "pending_director" ||
                     r.status === "draft";
                   if (!open) return null;
                   if (siteId && r.siteId !== siteId) return null;

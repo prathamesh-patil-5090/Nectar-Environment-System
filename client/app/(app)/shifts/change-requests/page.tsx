@@ -36,7 +36,7 @@ export default function ShiftChangeRequestsPage() {
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Supervisor or employee requests a shift change. Shift In-Charge, Manager,
-          or Admin approve it when the day is not on leave and rest rules hold.
+          or Director approve it when the day is not on leave and rest rules hold.
         </p>
       </div>
 

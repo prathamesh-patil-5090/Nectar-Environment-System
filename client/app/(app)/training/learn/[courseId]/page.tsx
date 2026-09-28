@@ -85,8 +85,8 @@ function CourseLearningInner() {
 
   const session = getSession();
   const userRole = normalizeRole(session?.role);
-  const isManager = userRole !== "employee";
-  const employeeId = scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "e-etp-op1";
+  const isManager = userRole === "manager" || userRole === "director";
+  const employeeId = scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "emp0126";
   const employee = getEmployeeById(employeeId);
 
   // ── Core data state ──────────────────────────────────────────────────────
@@ -3343,11 +3343,11 @@ function CourseLearningInner() {
       {evalScoringType && isManager && (
         <EvaluatorScoringModal
           enrollment={enrollment}
-          candidateName="Rajesh Kumar (Operator)"
+          candidateName={employee?.name ? `${employee.name} (${employee.designation})` : "Shilpa Hotkar (Process Operator)"}
           course={course}
           type={evalScoringType}
-          evaluatorName="Rajesh Kulkarni (Plant Operations Manager)"
-          evaluatorId="e-mgr-1"
+          evaluatorName={session?.name ? `${session.name} (Plant Manager)` : "Anand Dakave (ETP Plant Manager)"}
+          evaluatorId={session?.employeeId || "emp0123"}
           onClose={() => setEvalScoringType(null)}
           onSubmitted={() => {
             bumpEnrollment();
