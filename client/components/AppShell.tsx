@@ -21,6 +21,7 @@ import {
   TeamOutlined,
   EnvironmentOutlined,
   ReadOutlined,
+  BookOutlined,
   LogoutOutlined,
   UserOutlined,
   MenuFoldOutlined,
@@ -60,6 +61,7 @@ const FLYOUT_TITLES: Record<string, string> = {
   leave: "Leave",
   shifts: "Shifts",
   overtime: "OverTime",
+  academy: "Academy",
 };
 
 function readSiderCollapsed(): boolean {
@@ -329,6 +331,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/shifts") && canViewShiftsNav(user)) {
       extras.push("shifts");
     }
+    const role = normalizeRole(user?.role);
+    if (
+      role === "employee" &&
+      (pathname.startsWith("/training") || pathname.startsWith("/certifications"))
+    ) {
+      extras.push("academy");
+    }
     if (!extras.length) return;
     const id = requestAnimationFrame(() => {
       setOpenKeys((keys) => {
@@ -459,11 +468,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             { key: "/leave/requests", label: "My requests" },
           ],
         },
-        { key: "/training", icon: <ReadOutlined />, label: "Training" },
         {
-          key: "/certifications",
-          icon: <SafetyCertificateOutlined />,
-          label: "Certifications",
+          key: "academy",
+          icon: <BookOutlined />,
+          label: "Academy",
+          children: [
+            { key: "/training", icon: <ReadOutlined />, label: "Training" },
+            {
+              key: "/certifications",
+              icon: <SafetyCertificateOutlined />,
+              label: "Certifications",
+            },
+          ],
         },
         {
           key: "/salary",
@@ -724,7 +740,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (
               key === "overtime" ||
               key === "leave" ||
-              key === "shifts"
+              key === "shifts" ||
+              key === "academy"
             ) {
               return;
             }

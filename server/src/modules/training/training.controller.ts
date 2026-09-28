@@ -14,6 +14,26 @@ export class TrainingController {
     return this.trainingService.findAllCourses(section);
   }
 
+  @Get('recommendations')
+  @ApiOperation({ summary: 'Get 4-tier personalized course recommendations (100% DB-backed)' })
+  @ApiQuery({ name: 'employeeId', required: false })
+  getRecommendations(@Query('employeeId') employeeId?: string) {
+    return this.trainingService.getPersonalizedRecommendations(employeeId);
+  }
+
+  @Get('assignments')
+  @ApiOperation({ summary: 'Get manager directives & training assignments' })
+  @ApiQuery({ name: 'employeeId', required: false })
+  getAssignments(@Query('employeeId') employeeId?: string) {
+    return this.trainingService.findAssignments(employeeId);
+  }
+
+  @Post('assignments')
+  @ApiOperation({ summary: 'Create manager training directive/assignment for employee' })
+  createAssignment(@Body() body: any) {
+    return this.trainingService.createAssignment(body);
+  }
+
   @Get('courses/:id')
   @ApiOperation({ summary: 'Get course by ID' })
   findCourseById(@Param('id') id: string) {

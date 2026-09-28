@@ -261,7 +261,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Data queries
-  const allCourses = useMemo(() => getAllCourses(), []);
+  const allCourses = useMemo(() => getAllCourses(), [refreshTrigger]);
   const myEnrollments = useMemo(
     () => getEnrollmentsForEmployee(selfId),
     [selfId, refreshTrigger],
@@ -270,7 +270,10 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
     () => getCertificates(selfId),
     [selfId, refreshTrigger],
   );
-  const recommendations = useMemo(() => getRecommendedCourses(), []);
+  const recommendations = useMemo(
+    () => getRecommendedCourses(selfId),
+    [selfId, refreshTrigger],
+  );
   const mentors = useMemo(() => getMentorProfiles(), [refreshTrigger]);
   const masterclasses = useMemo(() => getLiveMasterclasses(), [refreshTrigger]);
   const myEnrolledMasterclasses = useMemo(
@@ -279,8 +282,8 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
   );
 
   useEffect(() => {
-    syncTrainingWithApi().then(() => setRefreshTrigger((t) => t + 1));
-  }, []);
+    syncTrainingWithApi(selfId).then(() => setRefreshTrigger((t) => t + 1));
+  }, [selfId]);
 
   // Coursera Search & Filter State
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -379,11 +382,21 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
     return true;
   };
 
-  // Filtered recommendations
+  // Filtered recommendations with robust category matcher
   const filteredRecs = useMemo(() => {
     let list = recommendations;
     if (recFilter !== "All") {
-      list = list.filter((r) => r.category === recFilter);
+      const f = recFilter.toLowerCase();
+      list = list.filter((r) => {
+        const cat = (r.category || "").toLowerCase();
+        if (f.includes("etp") || f.includes("effluent")) return cat.includes("etp") || cat.includes("effluent");
+        if (f.includes("wtp") || f.includes("ro") || f.includes("water")) return cat.includes("wtp") || cat.includes("ro") || cat.includes("water");
+        if (f.includes("stp") || f.includes("sewage")) return cat.includes("stp") || cat.includes("sewage");
+        if (f.includes("zld") || f.includes("zero") || f.includes("mee")) return cat.includes("zld") || cat.includes("zero") || cat.includes("mee");
+        if (f.includes("consult") || f.includes("env")) return cat.includes("consult") || cat.includes("env");
+        if (f.includes("o&m") || f.includes("maint")) return cat.includes("o&m") || cat.includes("maint");
+        return cat.includes(f) || f.includes(cat);
+      });
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -391,7 +404,8 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
         (r) =>
           r.title.toLowerCase().includes(q) ||
           r.code.toLowerCase().includes(q) ||
-          r.provider.toLowerCase().includes(q),
+          r.provider.toLowerCase().includes(q) ||
+          (r.category && r.category.toLowerCase().includes(q)),
       );
     }
     return list;
@@ -1702,36 +1716,36 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                 }}
               >
                 {[
-                  { key: "All", label: "Top Picks", count: recommendations.length },
+                  { key: "All", label: "Top Recommended", count: recommendations.length },
                   {
-                    key: "Effluent Treatment (ETP)",
-                    label: "ETP",
-                    count: recommendations.filter((r) => r.category === "Effluent Treatment (ETP)").length,
+                    key: "ETP",
+                    label: "ETP Operations",
+                    count: recommendations.filter((r) => (r.category || "").includes("ETP") || (r.category || "").includes("Effluent")).length,
                   },
                   {
-                    key: "Water Treatment (WTP)",
+                    key: "WTP",
                     label: "WTP & RO",
-                    count: recommendations.filter((r) => r.category === "Water Treatment (WTP)").length,
+                    count: recommendations.filter((r) => (r.category || "").includes("WTP") || (r.category || "").includes("Water") || (r.category || "").includes("RO")).length,
                   },
                   {
-                    key: "Sewage Treatment (STP)",
-                    label: "STP",
-                    count: recommendations.filter((r) => r.category === "Sewage Treatment (STP)").length,
+                    key: "STP",
+                    label: "STP Facilities",
+                    count: recommendations.filter((r) => (r.category || "").includes("STP") || (r.category || "").includes("Sewage")).length,
                   },
                   {
-                    key: "Zero Liquid Discharge (ZLD)",
-                    label: "ZLD",
-                    count: recommendations.filter((r) => r.category === "Zero Liquid Discharge (ZLD)").length,
+                    key: "ZLD",
+                    label: "ZLD & Thermal",
+                    count: recommendations.filter((r) => (r.category || "").includes("ZLD") || (r.category || "").includes("Zero") || (r.category || "").includes("MEE")).length,
                   },
                   {
-                    key: "Environmental Consulting",
-                    label: "Consulting",
-                    count: recommendations.filter((r) => r.category === "Environmental Consulting").length,
+                    key: "Consulting",
+                    label: "Environmental Consulting",
+                    count: recommendations.filter((r) => (r.category || "").includes("Consulting") || (r.category || "").includes("Environmental")).length,
                   },
                   {
-                    key: "Operation & Maintenance",
-                    label: "O&M",
-                    count: recommendations.filter((r) => r.category === "Operation & Maintenance").length,
+                    key: "O&M",
+                    label: "O&M Reliability",
+                    count: recommendations.filter((r) => (r.category || "").includes("O&M") || (r.category || "").includes("Maintenance")).length,
                   },
                 ].map((pill) => {
                   const isActive = recFilter === pill.key;
@@ -1740,7 +1754,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                       key={pill.key}
                       onClick={() => setRecFilter(pill.key)}
                       style={{
-                        padding: "6px 12px",
+                        padding: "6px 13px",
                         borderRadius: 10,
                         fontSize: 12,
                         fontWeight: isActive ? 600 : 500,
@@ -1760,7 +1774,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                         style={{
                           fontSize: 10.5,
                           fontWeight: 700,
-                          padding: "1px 5px",
+                          padding: "1px 6px",
                           borderRadius: 8,
                           background: isActive ? "rgba(255, 255, 255, 0.22)" : "#E2E8F0",
                           color: isActive ? "#FFFFFF" : "#64748B",
@@ -1774,22 +1788,28 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
               </div>
             </div>
 
-            {/* Recommendation Cards Grid */}
+            {/* Recommendation Cards Grid — Guaranteed 4 to 6 items per category view */}
             <Row gutter={[20, 20]}>
-              {(recsExpanded ? filteredRecs : filteredRecs.slice(0, 4)).map((rec) => {
+              {(recsExpanded ? filteredRecs : (filteredRecs.length <= 6 ? filteredRecs : filteredRecs.slice(0, 6))).map((rec) => {
                 const targetCourse =
-                  allCourses.find((c) => c.id === rec.courseId) || allCourses[0];
+                  allCourses.find((c) => c.id === rec.courseId || c.courseId === rec.courseId) ||
+                  allCourses.find((c) => c.code === rec.code) ||
+                  allCourses[0];
                 const meta = getDomainMeta(rec.category);
 
                 return (
-                  <Col xs={24} sm={12} md={12} lg={6} xl={6} key={rec.id}>
+                  <Col xs={24} sm={12} md={12} lg={8} xl={6} key={rec.id}>
                     <div
-                      onClick={() => router.push(`/training/learn/${targetCourse.id}`)}
+                      onClick={() => router.push(`/training/learn/${targetCourse?.id || rec.courseId}`)}
                       style={{
                         background: "#FFFFFF",
                         borderRadius: 16,
-                        border: "1px solid rgba(11, 26, 36, 0.08)",
-                        boxShadow: "0 2px 10px rgba(11, 26, 36, 0.03)",
+                        border: rec.isAssignedByManager
+                          ? "1.5px solid #F59E0B"
+                          : "1px solid rgba(11, 26, 36, 0.08)",
+                        boxShadow: rec.isAssignedByManager
+                          ? "0 4px 18px rgba(245, 158, 11, 0.12)"
+                          : "0 2px 10px rgba(11, 26, 36, 0.03)",
                         overflow: "hidden",
                         display: "flex",
                         flexDirection: "column",
@@ -1801,21 +1821,22 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "translateY(-4px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 18px 36px -8px rgba(28, 68, 99, 0.12), 0 2px 6px rgba(11, 26, 36, 0.04)";
-                        e.currentTarget.style.borderColor = "rgba(28, 68, 99, 0.28)";
+                        e.currentTarget.style.boxShadow = rec.isAssignedByManager
+                          ? "0 18px 36px -8px rgba(245, 158, 11, 0.25)"
+                          : "0 18px 36px -8px rgba(28, 68, 99, 0.12), 0 2px 6px rgba(11, 26, 36, 0.04)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 2px 10px rgba(11, 26, 36, 0.03)";
-                        e.currentTarget.style.borderColor = "rgba(11, 26, 36, 0.08)";
+                        e.currentTarget.style.boxShadow = rec.isAssignedByManager
+                          ? "0 4px 18px rgba(245, 158, 11, 0.12)"
+                          : "0 2px 10px rgba(11, 26, 36, 0.03)";
                       }}
                     >
                       {/* Top Image Banner with Technical HUD */}
                       <div
                         style={{
                           height: 155,
-                          backgroundImage: `url(${rec.thumbnailUrl})`,
+                          backgroundImage: `url(${rec.thumbnailUrl || "/courses/etp_plant.jpg"})`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                           position: "relative",
@@ -1827,7 +1848,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                             position: "absolute",
                             inset: 0,
                             background:
-                              "linear-gradient(to top, rgba(11,26,36,0.90) 0%, rgba(11,26,36,0.3) 55%, rgba(11,26,36,0.6) 100%)",
+                              "linear-gradient(to top, rgba(11,26,36,0.92) 0%, rgba(11,26,36,0.3) 55%, rgba(11,26,36,0.6) 100%)",
                           }}
                         />
 
@@ -1845,7 +1866,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                         >
                           <div
                             style={{
-                              background: "rgba(11, 26, 36, 0.82)",
+                              background: "rgba(11, 26, 36, 0.85)",
                               backdropFilter: "blur(6px)",
                               color: "#FFFFFF",
                               padding: "3px 8px",
@@ -1854,39 +1875,59 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                               fontFamily: "monospace",
                               fontWeight: 700,
                               letterSpacing: "0.05em",
-                              border: "1px solid rgba(255, 255, 255, 0.12)",
+                              border: "1px solid rgba(255, 255, 255, 0.15)",
                             }}
                           >
                             {rec.code}
                           </div>
 
-                          <div
-                            style={{
-                              background: "rgba(28, 68, 99, 0.88)",
-                              backdropFilter: "blur(6px)",
-                              color: "#FFFFFF",
-                              padding: "3px 9px",
-                              borderRadius: 14,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 5,
-                              border: "1px solid rgba(255, 255, 255, 0.18)",
-                            }}
-                          >
-                            <span
+                          {rec.isAssignedByManager ? (
+                            <div
                               style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                background: "#38BDF8",
-                                display: "inline-block",
-                                boxShadow: "0 0 6px #38BDF8",
+                                background: "linear-gradient(135deg, #EAB308 0%, #CA8A04 100%)",
+                                color: "#FFFFFF",
+                                padding: "3px 9px",
+                                borderRadius: 14,
+                                fontSize: 10.5,
+                                fontWeight: 800,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                border: "1px solid rgba(255, 255, 255, 0.4)",
+                                boxShadow: "0 2px 8px rgba(202, 138, 4, 0.45)",
                               }}
-                            />
-                            <span>{rec.matchScorePct}% Match</span>
-                          </div>
+                            >
+                              <span>★ Assigned by Plant Manager</span>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                background: "rgba(28, 68, 99, 0.88)",
+                                backdropFilter: "blur(6px)",
+                                color: "#FFFFFF",
+                                padding: "3px 9px",
+                                borderRadius: 14,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                border: "1px solid rgba(255, 255, 255, 0.18)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: "50%",
+                                  background: "#38BDF8",
+                                  display: "inline-block",
+                                  boxShadow: "0 0 6px #38BDF8",
+                                }}
+                              />
+                              <span>{rec.matchScorePct}% Match</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Bottom HUD: Division & Duration */}
@@ -1924,7 +1965,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                               color: "rgba(255,255,255,0.85)",
                               fontWeight: 600,
                               fontSize: 10.5,
-                              background: "rgba(0,0,0,0.3)",
+                              background: "rgba(0,0,0,0.35)",
                               padding: "2px 6px",
                               borderRadius: 4,
                             }}
@@ -1998,6 +2039,64 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                             {rec.title}
                           </h3>
 
+                          {/* Manager Directive Callout (If Assigned) */}
+                          {rec.isAssignedByManager && (
+                            <div
+                              style={{
+                                marginTop: 8,
+                                marginBottom: 6,
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                background: "#FEFCE8",
+                                border: "1px solid #FEF08A",
+                                fontSize: 11.5,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontWeight: 700,
+                                  color: "#854D0E",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span>Directive: {rec.assignedByName || "Plant Manager"}</span>
+                                {rec.priority && (
+                                  <span
+                                    style={{
+                                      textTransform: "uppercase",
+                                      fontSize: 9.5,
+                                      fontWeight: 800,
+                                      padding: "1px 5px",
+                                      borderRadius: 4,
+                                      background: rec.priority === "critical" ? "#FEE2E2" : "#FEF3C7",
+                                      color: rec.priority === "critical" ? "#DC2626" : "#D97706",
+                                    }}
+                                  >
+                                    {rec.priority}
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                style={{
+                                  color: "#713F12",
+                                  marginTop: 3,
+                                  fontStyle: "italic",
+                                  fontSize: 11,
+                                }}
+                              >
+                                "{rec.directiveReason}"
+                              </div>
+                              {rec.dueDate && (
+                                <div style={{ color: "#A16207", fontSize: 10, marginTop: 4, fontWeight: 600 }}>
+                                  Due by: {new Date(rec.dueDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {/* Real Plant Engineering Rationale */}
                           <p
                             style={{
@@ -2012,10 +2111,11 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                               overflow: "hidden",
                             }}
                           >
-                            {targetCourse.description || "Comprehensive hands-on operational protocols and standard operating procedures."}
+                            {targetCourse?.description ||
+                              "Comprehensive hands-on operational protocols and standard operating procedures."}
                           </p>
 
-                          {/* Engineering Competency Badge */}
+                          {/* Engineering Competency Hierarchy Badge (Modules + Video Count) */}
                           <div
                             style={{
                               marginTop: 10,
@@ -2027,16 +2127,29 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                           >
                             <span
                               style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "#334155",
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                color: "#1E293B",
                                 background: "#F1F5F9",
                                 padding: "2px 7px",
                                 borderRadius: 5,
                                 border: "1px solid #E2E8F0",
                               }}
                             >
-                              {targetCourse.abilities.length} Core Modules
+                              {rec.moduleCount || targetCourse?.modules?.length || 3} Modules
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 10.5,
+                                fontWeight: 600,
+                                color: "#475569",
+                                background: "#F8FAFC",
+                                padding: "2px 7px",
+                                borderRadius: 5,
+                                border: "1px solid #E2E8F0",
+                              }}
+                            >
+                              {rec.videoCount || targetCourse?.abilities?.length || 4} Video Lessons
                             </span>
                             <span
                               style={{
@@ -2045,12 +2158,12 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                                 color: "#64748B",
                               }}
                             >
-                              {meta.spec}
+                              ★ {rec.rating} ({rec.reviewCount} ops reviews)
                             </span>
                           </div>
                         </div>
 
-                        {/* Card Action Row: Button-in-Button */}
+                        {/* Card Action Row */}
                         <div
                           style={{
                             marginTop: 16,
@@ -2065,7 +2178,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                           <span
                             style={{
                               fontSize: 11,
-                              color: nectarColors.leaf,
+                              color: rec.isAssignedByManager ? "#CA8A04" : nectarColors.leaf,
                               fontWeight: 600,
                               display: "flex",
                               alignItems: "center",
@@ -2073,51 +2186,43 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                             }}
                           >
                             <SafetyCertificateOutlined style={{ fontSize: 12 }} />
-                            <span>Plant Certified</span>
+                            <span>{rec.isAssignedByManager ? "Direct Mandate" : "Plant Certified"}</span>
                           </span>
 
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`/training/learn/${targetCourse.id}`);
+                              router.push(`/training/learn/${targetCourse?.id || rec.courseId}`);
                             }}
                             style={{
-                              background: nectarColors.leaf,
+                              background: rec.isAssignedByManager
+                                ? "linear-gradient(135deg, #1C4463 0%, #0F2536 100%)"
+                                : nectarColors.leaf,
                               color: "#FFFFFF",
-                              border: "none",
+                              border: rec.isAssignedByManager ? "1.5px solid #F59E0B" : "none",
                               borderRadius: 20,
-                              padding: "5px 6px 5px 12px",
+                              padding: "6px 14px",
                               fontSize: 11.5,
-                              fontWeight: 600,
+                              fontWeight: 700,
                               display: "inline-flex",
                               alignItems: "center",
                               gap: 6,
                               cursor: "pointer",
                               transition: "all 0.18s ease",
+                              boxShadow: rec.isAssignedByManager
+                                ? "0 2px 10px rgba(245, 158, 11, 0.3)"
+                                : "none",
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = nectarColors.ink;
+                              e.currentTarget.style.transform = "scale(1.02)";
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.background = nectarColors.leaf;
+                              e.currentTarget.style.transform = "scale(1)";
                             }}
                           >
-                            <span>Start Course</span>
-                            <span
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: "50%",
-                                background: "rgba(255, 255, 255, 0.2)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 9.5,
-                              }}
-                            >
-                              <PlayCircleOutlined />
-                            </span>
+                            <span>{rec.isAssignedByManager ? "Execute Directive" : "Start Course"}</span>
+                            <PlayCircleOutlined />
                           </button>
                         </div>
                       </div>
@@ -2128,7 +2233,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
             </Row>
 
             {/* Architectural Footer Bar for Expand / Collapse */}
-            {filteredRecs.length > 4 && (
+            {filteredRecs.length > 6 && (
               <div
                 style={{
                   marginTop: 26,
@@ -2144,7 +2249,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                 <div style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>
                   Showing{" "}
                   <strong style={{ color: "#0F172A" }}>
-                    {recsExpanded ? filteredRecs.length : Math.min(4, filteredRecs.length)}
+                    {recsExpanded ? filteredRecs.length : Math.min(6, filteredRecs.length)}
                   </strong>{" "}
                   of <strong style={{ color: "#0F172A" }}>{filteredRecs.length}</strong> telemetry-matched courses
                 </div>
@@ -2164,7 +2269,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                     boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                   }}
                 >
-                  {recsExpanded ? "Collapse to Top 4" : `Show All ${filteredRecs.length} Courses`}
+                  {recsExpanded ? "Collapse to Top 6" : `Show All ${filteredRecs.length} Courses`}
                 </Button>
               </div>
             )}

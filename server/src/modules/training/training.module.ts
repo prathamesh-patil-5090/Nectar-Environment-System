@@ -13,7 +13,10 @@ import {
   TrainingSessionSchema,
   MentorLiveSession,
   MentorLiveSessionSchema,
+  TrainingAssignment,
+  TrainingAssignmentSchema,
 } from '../../../db/schemas/training';
+import { Employee, EmployeeSchema } from '../../../db/schemas/employee.schema';
 
 @Module({
   imports: [
@@ -23,6 +26,8 @@ import {
       { name: Certificate.name, schema: CertificateSchema },
       { name: TrainingSession.name, schema: TrainingSessionSchema },
       { name: MentorLiveSession.name, schema: MentorLiveSessionSchema },
+      { name: TrainingAssignment.name, schema: TrainingAssignmentSchema },
+      { name: Employee.name, schema: EmployeeSchema },
     ]),
   ],
   controllers: [TrainingController],

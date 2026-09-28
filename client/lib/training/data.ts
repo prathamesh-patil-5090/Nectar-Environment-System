@@ -65,241 +65,9 @@ export const mockCompetencyAreas: CompetencyArea[] = [
 // 2. Canonical Plant Courses (Synchronized with MongoDB Atlas `courses`)
 // ============================================================================
 
-export const mockCourses: Course[] = [
-  {
-    id: "course-etp-101",
-    title: "ETP Biological & Chemical Treatment Operations",
-    code: "ETP-101",
-    section: "Effluent Treatment Plants (ETP)",
-    jobCategoryId: "jc-etp-op",
-    description: "Industrial wastewater operations: equalization aeration, chemical coagulation, activated sludge settling, and clarifier return.",
-    thumbnailUrl: "/courses/etp_plant.jpg",
-    estimatedHours: 4.5,
-    passThreshold: 70,
-    abilities: [
-      {
-        id: "ab-1-1",
-        courseId: "course-etp-101",
-        order: 1,
-        code: "1.1",
-        title: "Process Flow & Design Hydraulic Retention Time (HRT)",
-        description: "Understanding plant inlet screening, equalization tank buffer volume, and peak flow shock load absorption.",
-        videoDurationMinutes: 12,
-        competencyAreaId: "ca-etp-bio",
-        readingContent: "The Equalization Tank absorbs diurnal volumetric fluctuations and dampens shock organic loads. Aeration grids prevent anaerobic septic odors and solids settling before chemical dosing.",
-        microQuiz: {
-          id: "mq-1-1",
-          abilityId: "ab-1-1",
-          passThreshold: 70,
-          questions: [
-            {
-              id: "q-1-1-1",
-              text: "What is the primary function of coarse air sparging grids in an ETP Equalization Tank?",
-              options: [
-                { id: "opt-a", text: "Prevent solids settling and maintain aerobic conditions to stop septic odor formation" },
-                { id: "opt-b", text: "Strip all heavy metals from wastewater" },
-                { id: "opt-c", text: "Cool down boiling wastewater" },
-                { id: "opt-d", text: "Disinfect pathogenic bacteria completely" },
-              ],
-              correctOptionId: "opt-a",
-            },
-          ],
-        },
-      },
-      {
-        id: "ab-1-2",
-        courseId: "course-etp-101",
-        order: 2,
-        code: "1.2",
-        title: "Flash Mixer Coagulation & Flocculant Dosing Chemistry",
-        description: "Calibrating alum and polyaluminum chloride (PAC) dosing pumps based on jar test turbidity titration.",
-        videoDurationMinutes: 14,
-        competencyAreaId: "ca-etp-chem",
-        readingContent: "Coagulation neutralizes electrical double-layer zeta potentials on negatively charged colloidal particles using trivalent cations (Al3+ / Fe3+). High-shear rapid mixing (100–300 RPM) must disperse coagulant within 30–60 seconds.",
-        microQuiz: {
-          id: "mq-1-2",
-          abilityId: "ab-1-2",
-          passThreshold: 70,
-          questions: [
-            {
-              id: "q-1-2-1",
-              text: "Why must primary coagulant (PAC / Alum) be flash-mixed in under 60 seconds?",
-              options: [
-                { id: "opt-a", text: "To disperse hydrolyzing poly-cations before micro-flocs begin bridge aggregation" },
-                { id: "opt-b", text: "To prevent mixer motor overheating" },
-                { id: "opt-c", text: "Because alum decomposes into flammable gas" },
-                { id: "opt-d", text: "To dissolve atmospheric nitrogen" },
-              ],
-              correctOptionId: "opt-a",
-            },
-          ],
-        },
-      },
-    ],
-    skillMappingQuestions: [
-      {
-        id: "smq-etp-1",
-        text: "What parameter must be monitored daily to prevent pinpoint floc carryover in an ETP Secondary Clarifier?",
-        options: [
-          { id: "opt-a", text: "Sludge Volume Index (SVI) and Mixed Liquor Suspended Solids (MLSS)" },
-          { id: "opt-b", text: "Ambient outdoor air temperature" },
-          { id: "opt-c", text: "Raw water incoming color" },
-          { id: "opt-d", text: "Equalization tank wall paint thickness" },
-        ],
-        correctOptionId: "opt-a",
-      },
-    ],
-    writtenTestQuestions: [
-      {
-        id: "wtq-etp-1",
-        text: "Which chemical is standardly dosed to de-chlorinate treated wastewater prior to biological or reverse osmosis stages?",
-        options: [
-          { id: "opt-a", text: "Sodium Metabisulfite (SMBS)" },
-          { id: "opt-b", text: "Sodium Hypochlorite" },
-          { id: "opt-c", text: "Hydrochloric Acid (33%)" },
-          { id: "opt-d", text: "Poly-DADMAC" },
-        ],
-        correctOptionId: "opt-a",
-      },
-    ],
-  },
-  {
-    id: "course-ops-301",
-    title: "Industrial RO Membrane Operations & CIP Descaling",
-    code: "RO-301",
-    section: "Water Treatment Plants (WTP)",
-    jobCategoryId: "jc-wtp-tech",
-    description: "Reverse Osmosis membrane normalization, recovery rates, SDI testing, anti-scalant dosing, and 2-stage Clean-In-Place.",
-    thumbnailUrl: "/courses/ro_plant.jpg",
-    estimatedHours: 4.0,
-    passThreshold: 75,
-    abilities: [
-      {
-        id: "ab-3-1",
-        courseId: "course-ops-301",
-        order: 1,
-        code: "3.1",
-        title: "RO Normalization & Silt Density Index (SDI15) Monitoring",
-        description: "Executing standard 0.45 micron filter paper SDI tests at 30 PSI to guard polyamide thin-film composite membranes.",
-        videoDurationMinutes: 10,
-        competencyAreaId: "ca-wtp-ro",
-        readingContent: "A raw feed SDI15 value below 3.0 ensures long membrane operational life. Values above 5.0 trigger immediate cartridge filter replacement and pre-filtration media backwashing.",
-        microQuiz: {
-          id: "mq-3-1",
-          abilityId: "ab-3-1",
-          passThreshold: 70,
-          questions: [
-            {
-              id: "q-3-1-1",
-              text: "What is the maximum recommended SDI15 value for spiral-wound polyamide RO membranes?",
-              options: [
-                { id: "opt-a", text: "SDI15 < 3.0 (and strictly < 5.0)" },
-                { id: "opt-b", text: "SDI15 < 25.0" },
-                { id: "opt-c", text: "SDI15 = 100.0" },
-                { id: "opt-d", text: "SDI is only measured on permeate" },
-              ],
-              correctOptionId: "opt-a",
-            },
-          ],
-        },
-      },
-    ],
-    skillMappingQuestions: [
-      {
-        id: "smq-ro-1",
-        text: "What causes normalized differential pressure (dP) to rise across Stage 1 RO vessels?",
-        options: [
-          { id: "opt-a", text: "Particulate or biological fouling on the lead membrane elements" },
-          { id: "opt-b", text: "Low ambient humidity" },
-          { id: "opt-c", text: "Excessive permeate backpressure" },
-          { id: "opt-d", text: "Pump motor speed reduction" },
-        ],
-        correctOptionId: "opt-a",
-      },
-    ],
-    writtenTestQuestions: [
-      {
-        id: "wtq-ro-1",
-        text: "During Clean-In-Place (CIP), which cleaning sequence is standard when both organic fouling and mineral scale exist?",
-        options: [
-          { id: "opt-a", text: "High-pH alkali clean first (pH 11) for organics, followed by Low-pH acid clean (pH 2) for scale" },
-          { id: "opt-b", text: "Acid clean first, alkali never used" },
-          { id: "opt-c", text: "Only freshwater flush with hot steam" },
-          { id: "opt-d", text: "High-pressure air jetting directly inside housings" },
-        ],
-        correctOptionId: "opt-a",
-      },
-    ],
-  },
-  {
-    id: "course-zld-302",
-    title: "Thermal Evaporation Systems: MEE & ATFD Operation",
-    code: "ZLD-302",
-    section: "Zero Liquid Discharge (ZLD)",
-    jobCategoryId: "jc-zld-eng",
-    description: "Falling film Multiple Effect Evaporator (MEE), steam economy, vacuum maintenance, barometric condensers, and salt harvesting.",
-    thumbnailUrl: "/courses/multiple_effect_evaporator.jpg",
-    estimatedHours: 5.0,
-    passThreshold: 75,
-    abilities: [
-      {
-        id: "ab-4-1",
-        courseId: "course-zld-302",
-        order: 1,
-        code: "4.1",
-        title: "Multiple Effect Evaporator Steam Economy & Vacuum Balance",
-        description: "Managing inter-effect pressure cascades, entrainment separators, and steam jet ejectors for optimum thermal transfer.",
-        videoDurationMinutes: 15,
-        competencyAreaId: "ca-zld-mee",
-        readingContent: "Steam economy represents kg of water evaporated per kg of live steam consumed. In a triple-effect MEE, economy typically achieves 2.4 to 2.8 with vacuum descending from -0.2 bar to -0.85 bar in the final effect.",
-        microQuiz: {
-          id: "mq-4-1",
-          abilityId: "ab-4-1",
-          passThreshold: 70,
-          questions: [
-            {
-              id: "q-4-1-1",
-              text: "Why is the highest vacuum maintained in the last effect of a Multiple Effect Evaporator?",
-              options: [
-                { id: "opt-a", text: "To reduce boiling point so concentrated liquor boils using low-temperature vapor from the preceding effect" },
-                { id: "opt-b", text: "To pull salt crystals out through the vacuum pump" },
-                { id: "opt-c", text: "To freeze the wastewater into dry blocks" },
-                { id: "opt-d", text: "To condense atmospheric air into steam" },
-              ],
-              correctOptionId: "opt-a",
-            },
-          ],
-        },
-      },
-    ],
-    skillMappingQuestions: [
-      {
-        id: "smq-zld-1",
-        text: "What operational sign indicates heat exchanger scaling inside an MEE calandria?",
-        options: [
-          { id: "opt-a", text: "Rising steam consumption, falling evaporation rate, and widening delta-T between vapor and boiling liquor" },
-          { id: "opt-b", text: "Cooling tower water changes color to green" },
-          { id: "opt-c", text: "Feed pump motor drawing zero current" },
-          { id: "opt-d", text: "Permeate conductivity dropping to zero" },
-        ],
-        correctOptionId: "opt-a",
-      },
-    ],
-    writtenTestQuestions: [
-      {
-        id: "wtq-zld-1",
-        text: "What safety requirement is vital before opening an Agitated Thin Film Dryer (ATFD) blade rotor for overhaul?",
-        options: [
-          { id: "opt-a", text: "Positive mechanical LOTO isolation of 415V drive, vacuum breaking to atmospheric, and cooling jacket depressurization" },
-          { id: "opt-b", text: "Running the motor at double speed to spin dry" },
-          { id: "opt-c", text: "Injecting high pressure compressed air into the hot shell" },
-          { id: "opt-d", text: "No isolation needed if the switch is in Off position" },
-        ],
-        correctOptionId: "opt-a",
-      },
-    ],
-  },
-];
+import { coursesCatalog } from "./courses-data";
+
+export const mockCourses: Course[] = coursesCatalog;
 
 // ============================================================================
 // 3. Active Student Enrollments (Synchronized with MongoDB Atlas `training_records`)
@@ -666,56 +434,32 @@ export const initialTrainingSessions: TrainingSession[] = [
 // 7. UI Constants & Career Tracks (Static Configuration)
 // ============================================================================
 
-export const mockRecommendations: CourseRecommendation[] = [
-  {
-    id: "rec-1",
-    courseId: "course-etp-101",
-    title: "ETP Biological & Chemical Treatment Operations",
-    code: "ETP-101",
-    category: "Industrial Wastewater (ETP)",
-    provider: "Nectar Industrial Wastewater Division",
-    thumbnailUrl: "/courses/etp_plant.jpg",
-    rating: 4.9,
-    reviewCount: 2450,
-    level: "Intermediate",
-    durationHours: 4.5,
-    matchScorePct: 98,
-    badge: "Core Mandatory",
-    badgeColor: "green",
-  },
-  {
-    id: "rec-2",
-    courseId: "course-ops-301",
-    title: "Industrial RO Membrane Operations & CIP Descaling",
-    code: "RO-301",
-    category: "Water Treatment (WTP)",
-    provider: "Nectar Membrane Engineering Group",
-    thumbnailUrl: "/courses/ro_plant.jpg",
-    rating: 4.8,
-    reviewCount: 1980,
-    level: "Advanced",
-    durationHours: 4.0,
-    matchScorePct: 95,
-    badge: "Plant Priority",
-    badgeColor: "blue",
-  },
-  {
-    id: "rec-3",
-    courseId: "course-zld-302",
-    title: "Thermal Evaporation Systems: MEE & ATFD Operation",
-    code: "ZLD-302",
-    category: "Zero Liquid Discharge (ZLD)",
-    provider: "Nectar Thermal Systems Group",
-    thumbnailUrl: "/courses/multiple_effect_evaporator.jpg",
-    rating: 5.0,
-    reviewCount: 1420,
-    level: "Advanced",
-    durationHours: 5.0,
-    matchScorePct: 97,
-    badge: "ZLD Thermal Priority",
-    badgeColor: "volcano",
-  },
-];
+export const mockRecommendations: CourseRecommendation[] = mockCourses.map((c, idx) => ({
+  id: `rec-${c.id}`,
+  courseId: c.courseId || c.id,
+  title: c.title,
+  code: c.code,
+  category: c.section || c.category || "Effluent Treatment Plants (ETP)",
+  provider: c.provider || "Nectar Technical Operations",
+  thumbnailUrl: c.thumbnailUrl || "/courses/etp_plant.jpg",
+  rating: c.rating || 4.8,
+  reviewCount: c.reviewCount || 30,
+  level: (c.level as any) || "Intermediate",
+  durationHours: c.estimatedHours || 4.0,
+  matchScorePct: idx === 0 ? 99 : idx === 1 ? 95 : 92,
+  badge: idx === 0 ? "★ Assigned by Plant Manager" : "Role Pathway",
+  badgeColor: idx === 0 ? "#eab308" : "#3b82f6",
+  isAssignedByManager: idx === 0,
+  assignedByName: idx === 0 ? "Anand Dakave (ETP Plant Manager)" : undefined,
+  directiveReason:
+    idx === 0
+      ? "High SVI and filamentous bulking risk observed in Aeration Basin B. Mandatory operational drill on return sludge pacing."
+      : undefined,
+  priority: idx === 0 ? "critical" : undefined,
+  dueDate: idx === 0 ? "2026-10-15T18:30:00.000Z" : undefined,
+  moduleCount: c.modules?.length || 3,
+  videoCount: c.modules?.reduce((acc, m) => acc + (m.videos?.length || 0), 0) || (c.abilities?.length || 3),
+}));
 
 export const initialMentorLiveSessions: MentorLiveSession[] = [
   {

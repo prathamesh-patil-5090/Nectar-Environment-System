@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Table, Tag, Input, Select, Button, Tooltip, Alert, Segmented } from "antd";
+import { Table, Tag, Input, Select, Button, Tooltip, Alert, Segmented, App } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   RobotOutlined,
@@ -16,7 +16,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import type { LearningNeedRecord, Course } from "@/lib/training/types";
-import { getLearningNeedRecords, getAllCourses } from "@/lib/training/store";
+import { getLearningNeedRecords, getAllCourses, createTrainingAssignment } from "@/lib/training/store";
 import { getEmployeeById, employees } from "@/lib/mock-data";
 import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/data";
 import { nectarColors } from "@/lib/theme";
@@ -27,6 +27,7 @@ interface LniMatrixViewProps {
 }
 
 export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixViewProps) {
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState<"legacy_sheet" | "synthesis_ledger">("legacy_sheet");
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
@@ -475,15 +476,30 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                       </Tag>
                     </td>
                     <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                      {item.recommendedCourseId && onOpenCourse ? (
+                      {item.recommendedCourseId ? (
                         <Button
                           size="small"
                           type="link"
-                          onClick={() => {
-                            const c = allCourses.find((x) => x.id === item.recommendedCourseId);
-                            if (c) onOpenCourse(c);
+                          onClick={async () => {
+                            if (item.recommendedCourseId) {
+                              await createTrainingAssignment({
+                                employeeId: selectedEmpId,
+                                courseId: item.recommendedCourseId,
+                                assignedByEmployeeId: "emp0125",
+                                assignedByName: "Anand Dakave (ETP Plant Manager)",
+                                reason: `Mandatory LNI skill gap directive: ${item.competencyArea}`,
+                                priority: "high",
+                                status: "assigned",
+                                dueDate: new Date(Date.now() + 14 * 86400000).toISOString(),
+                              });
+                              message.success(
+                                `Assigned ${item.competencyArea} to ${selectedEmp?.name || "employee"}! It now appears at Rank #1 in their personalized feed.`,
+                              );
+                              const c = allCourses.find((x) => x.id === item.recommendedCourseId);
+                              if (c && onOpenCourse) onOpenCourse(c);
+                            }
                           }}
-                          style={{ fontSize: 11, fontWeight: 600, color: "#1C4463" }}
+                          style={{ fontSize: 11, fontWeight: 700, color: "#1C4463" }}
                         >
                           Assign Module
                         </Button>

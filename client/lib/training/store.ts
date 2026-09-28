@@ -34,6 +34,7 @@ import type {
   RoleProgressionTrack,
   SpecializationTrack,
   MentorLiveSession,
+  TrainingAssignment,
 } from "./types";
 import { getEmployeeById } from "@/lib/mock-data";
 
@@ -47,6 +48,9 @@ const STORAGE_KEYS = {
   LNI_RECORDS: "neipl_training_lni_records_v3",
   SESSIONS: "neipl_training_sessions_v3",
   MENTOR_LIVE_SESSIONS: "neipl_mentor_live_sessions_v5",
+  COURSES: "neipl_training_courses_v3",
+  RECOMMENDATIONS: "neipl_training_recommendations_v2",
+  ASSIGNMENTS: "neipl_training_assignments_v2",
 };
 
 const STATIC_MENTOR_PHOTOS: Record<string, string> = {
@@ -128,11 +132,14 @@ function writeStorage<T>(key: string, value: T): void {
 // ----------------------------------------------------
 
 export function getAllCourses(): Course[] {
+  const cached = readStorage<Course[]>(STORAGE_KEYS.COURSES, []);
+  if (cached && cached.length) return cached;
   return mockCourses;
 }
 
 export function getCourseById(courseId: string): Course | undefined {
-  return mockCourses.find((c) => c.id === courseId);
+  const all = getAllCourses();
+  return all.find((c) => c.id === courseId || c.courseId === courseId || c.code === courseId);
 }
 
 export const COURSE_TITLE_TO_ID_MAP: Record<string, string> = {
@@ -995,8 +1002,99 @@ export function createTrainingSession(
   return newSession;
 }
 
-export function getRecommendedCourses(): CourseRecommendation[] {
-  return mockRecommendations;
+export function getRecommendedCourses(employeeId?: string): CourseRecommendation[] {
+  const cached = readStorage<CourseRecommendation[]>(STORAGE_KEYS.RECOMMENDATIONS, []);
+  if (cached && cached.length) {
+    if (employeeId) {
+      const assignments = getTrainingAssignments(employeeId);
+      const asgnMap = new Map(assignments.map((a) => [a.courseId, a]));
+      return cached.map((c) => {
+        const asgn = asgnMap.get(c.id) || asgnMap.get(c.courseId) || asgnMap.get(c.code);
+        if (asgn) {
+          return {
+            ...c,
+            matchScorePct: 99,
+            badge: "★ Assigned by Plant Manager",
+            badgeColor: "#eab308",
+            isAssignedByManager: true,
+            assignedByName: asgn.assignedByName,
+            directiveReason: asgn.reason,
+            priority: asgn.priority,
+            dueDate: asgn.dueDate,
+          };
+        }
+        return c;
+      });
+    }
+    return cached;
+  }
+
+  // Fallback generation from all courses
+  const courses = getAllCourses();
+  const assignments = getTrainingAssignments(employeeId);
+  const assignmentMap = new Map(assignments.map((a) => [a.courseId, a]));
+
+  return courses.map((c) => {
+    const asgn = assignmentMap.get(c.id) || assignmentMap.get(c.courseId || "") || assignmentMap.get(c.code);
+    return {
+      id: c.id,
+      courseId: c.courseId || c.id,
+      title: c.title,
+      code: c.code,
+      category: c.section || c.category,
+      provider: c.provider || "Nectar Technical Operations",
+      thumbnailUrl: c.thumbnailUrl || "/courses/etp_plant.jpg",
+      rating: c.rating || 4.8,
+      reviewCount: c.reviewCount || 30,
+      level: (c.level as any) || "Intermediate",
+      durationHours: c.estimatedHours || 4.0,
+      matchScorePct: asgn ? 99 : 92,
+      badge: asgn ? "★ Assigned by Plant Manager" : "Role Pathway",
+      badgeColor: asgn ? "#eab308" : "#3b82f6",
+      isAssignedByManager: !!asgn,
+      assignedByName: asgn?.assignedByName,
+      directiveReason: asgn?.reason,
+      priority: asgn?.priority,
+      dueDate: asgn?.dueDate,
+      moduleCount: c.modules?.length || 3,
+      videoCount: c.modules?.reduce((acc, m) => acc + (m.videos?.length || 0), 0) || (c.abilities?.length || 3),
+    };
+  });
+}
+
+export function getTrainingAssignments(employeeId?: string): TrainingAssignment[] {
+  const all = readStorage<TrainingAssignment[]>(STORAGE_KEYS.ASSIGNMENTS, []);
+  if (employeeId) {
+    return all.filter((a) => a.employeeId === employeeId);
+  }
+  return all;
+}
+
+export async function createTrainingAssignment(data: Partial<TrainingAssignment>): Promise<TrainingAssignment> {
+  const all = readStorage<TrainingAssignment[]>(STORAGE_KEYS.ASSIGNMENTS, []);
+  const newAssignment: TrainingAssignment = {
+    id: data.id || `asgn-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    employeeId: data.employeeId || "",
+    assignedByEmployeeId: data.assignedByEmployeeId || "",
+    assignedByName: data.assignedByName || "Plant Manager",
+    courseId: data.courseId || "",
+    moduleId: data.moduleId,
+    reason: data.reason || "Operational training requirement",
+    priority: data.priority || "high",
+    status: data.status || "assigned",
+    dueDate: data.dueDate,
+    createdAt: new Date().toISOString(),
+  };
+  all.unshift(newAssignment);
+  writeStorage(STORAGE_KEYS.ASSIGNMENTS, all);
+
+  // Sync to backend
+  try {
+    const { createTrainingAssignment: apiCreate } = await import("../api/training");
+    await apiCreate(newAssignment);
+  } catch {}
+
+  return newAssignment;
 }
 
 export function getMentorProfiles(): MentorProfile[] {
@@ -1209,7 +1307,7 @@ export async function submitLiveMasterclassQuestion(
 // ----------------------------------------------------
 // Live NestJS Backend Synchronization
 // ----------------------------------------------------
-export async function syncTrainingWithApi(): Promise<void> {
+export async function syncTrainingWithApi(employeeId?: string): Promise<void> {
   if (typeof window === "undefined") return;
   try {
     const {
@@ -1217,14 +1315,21 @@ export async function syncTrainingWithApi(): Promise<void> {
       getCertificates,
       getSessions,
       getMentorLiveSessions,
+      getRecommendedCourses,
+      getTrainingAssignments,
     } = await import("../api/training");
-    const [courses, certs, sessions, mentorSessions] = await Promise.all([
+    const [courses, certs, sessions, mentorSessions, recommendations, assignments] = await Promise.all([
       getCourses().catch(() => []),
       getCertificates().catch(() => []),
       getSessions().catch(() => []),
       getMentorLiveSessions().catch(() => []),
+      getRecommendedCourses(employeeId).catch(() => []),
+      getTrainingAssignments(employeeId).catch(() => []),
     ]);
 
+    if (courses && courses.length) {
+      writeStorage(STORAGE_KEYS.COURSES, courses);
+    }
     if (certs && certs.length) {
       writeStorage(STORAGE_KEYS.CERTIFICATES, certs);
     }
@@ -1233,6 +1338,12 @@ export async function syncTrainingWithApi(): Promise<void> {
     }
     if (mentorSessions && mentorSessions.length) {
       writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, mentorSessions);
+    }
+    if (recommendations && recommendations.length) {
+      writeStorage(STORAGE_KEYS.RECOMMENDATIONS, recommendations);
+    }
+    if (assignments && assignments.length) {
+      writeStorage(STORAGE_KEYS.ASSIGNMENTS, assignments);
     }
   } catch {
     // Graceful offline fallback

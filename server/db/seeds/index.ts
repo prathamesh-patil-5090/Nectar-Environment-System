@@ -14,6 +14,7 @@ import { trainingRecordsSeed } from './training/training-records.seed';
 import { certificatesSeed } from './training/certificates.seed';
 import { trainingSessionsSeed } from './training/training-sessions.seed';
 import { getMentorLiveSessionsSeed } from './training/mentor-sessions.seed';
+import { trainingAssignmentsSeed } from './training/assignments.seed';
 
 import { EmployeeSchema } from '../schemas/employee.schema';
 import { SiteSchema } from '../schemas/site.schema';
@@ -25,6 +26,7 @@ import {
   CertificateSchema,
   TrainingSessionSchema,
   MentorLiveSessionSchema,
+  TrainingAssignmentSchema,
 } from '../schemas/training';
 
 async function seed() {
@@ -53,6 +55,11 @@ async function seed() {
     MentorLiveSessionSchema,
     'mentor_live_sessions',
   );
+  const TrainingAssignmentModel = mongoose.model(
+    'TrainingAssignment',
+    TrainingAssignmentSchema,
+    'training_assignments',
+  );
 
   // Clear collections and drop stale indexes for fresh clean seed
   console.log('🧹 Purging outdated collections & indexes...');
@@ -65,55 +72,61 @@ async function seed() {
   await CertificateModel.collection.drop().catch(() => {});
   await TrainingSessionModel.collection.drop().catch(() => {});
   await MentorLiveSessionModel.collection.drop().catch(() => {});
+  await TrainingAssignmentModel.collection.drop().catch(() => {});
   console.log('✅ Cleared domain collections & indexes\n');
 
   // 1. Employees (25 real staff)
-  console.log('[1/8] Seeding Employees...');
+  console.log('[1/10] Seeding Employees...');
   await EmployeeModel.insertMany(employeesSeed);
   console.log(`  ✓ Inserted ${employeesSeed.length} employees (emp0123–emp0147)`);
 
   // 2. Sites (ETP, RO, MEE)
-  console.log('[2/8] Seeding Sites...');
+  console.log('[2/10] Seeding Sites...');
   await SiteModel.insertMany(sitesSeed);
   console.log(`  ✓ Inserted ${sitesSeed.length} sites with designated plant managers`);
 
   // 3. Relievers & Absences
-  console.log('[3/8] Seeding Reliever Pool & Coverage...');
+  console.log('[3/10] Seeding Reliever Pool & Coverage...');
   await RelieverModel.insertMany(relieversSeed);
   console.log(`  ✓ Inserted ${relieversSeed.length} cluster relievers with plant skills`);
 
   // 4. Shift Rosters & Change Requests
-  console.log('[4/8] Seeding Shift Rosters...');
+  console.log('[4/10] Seeding Shift Rosters...');
   await ShiftRosterModel.insertMany(shiftsSeed);
   console.log(`  ✓ Inserted ${shiftsSeed.length} monthly shift rosters with change requests`);
 
   // 5. Training Courses
-  console.log('[5/8] Seeding Courses Syllabus...');
+  console.log('[5/10] Seeding Courses Syllabus...');
   await CourseModel.insertMany(coursesSeed);
   console.log(`  ✓ Inserted ${coursesSeed.length} rich syllabus courses`);
 
   // 6. Unified Training Records (Progress + 4-Tier Assessments + LNI)
-  console.log('[6/8] Seeding Unified Training Records...');
+  console.log('[6/10] Seeding Unified Training Records...');
   await TrainingRecordModel.insertMany(trainingRecordsSeed);
   console.log(`  ✓ Inserted ${trainingRecordsSeed.length} student records (skillMap, written, practical, oral)`);
 
   // 7. Verifiable Certificates
-  console.log('[7/8] Seeding Certificates...');
+  console.log('[7/10] Seeding Certificates...');
   await CertificateModel.insertMany(certificatesSeed);
   console.log(`  ✓ Inserted ${certificatesSeed.length} certified credentials with SHA256 hashes`);
 
   // 8. Training Workshops & Drills
-  console.log('[8/9] Seeding Training Sessions...');
+  console.log('[8/10] Seeding Training Sessions...');
   await TrainingSessionModel.insertMany(trainingSessionsSeed);
   console.log(`  ✓ Inserted ${trainingSessionsSeed.length} scheduled classroom & on-site workshop drills`);
 
   // 9. Executive & Plant Lead Masterclasses (with Base64 Images)
-  console.log('[9/9] Seeding Executive & Plant Lead Masterclasses with Base64 Images...');
+  console.log('[9/10] Seeding Executive & Plant Lead Masterclasses...');
   const mentorLiveSessionsSeed = getMentorLiveSessionsSeed();
   await MentorLiveSessionModel.insertMany(mentorLiveSessionsSeed);
   console.log(
-    `  ✓ Inserted ${mentorLiveSessionsSeed.length} Masterclasses (Founder, ETP, RO, MEE) with Base64 images directly into MongoDB!`,
+    `  ✓ Inserted ${mentorLiveSessionsSeed.length} Masterclasses (Founder, ETP, RO, MEE) into MongoDB!`,
   );
+
+  // 10. Manager Training Directives & Assignments
+  console.log('[10/10] Seeding Manager Training Assignments...');
+  await TrainingAssignmentModel.insertMany(trainingAssignmentsSeed);
+  console.log(`  ✓ Inserted ${trainingAssignmentsSeed.length} active manager directives & assignments`);
 
   console.log('\n────────────────────────────────────────────────────────');
   console.log('🎉 Unified database seeding completed successfully!');

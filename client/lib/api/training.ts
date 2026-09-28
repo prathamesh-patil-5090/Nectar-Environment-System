@@ -4,6 +4,8 @@ import type {
   CourseEnrollment,
   Certificate,
   MentorLiveSession,
+  CourseRecommendation,
+  TrainingAssignment,
 } from '../training/types';
 
 export async function getCourses(section?: string): Promise<Course[]> {
@@ -99,4 +101,26 @@ export async function submitSessionQuestion(
       body: JSON.stringify({ employeeId, employeeName, question }),
     },
   );
+}
+
+// -------------------------------------------------------------------
+// 4-Tier Personalized Recommendation & Manager Assignments
+// -------------------------------------------------------------------
+export async function getRecommendedCourses(employeeId?: string): Promise<CourseRecommendation[]> {
+  const query = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
+  return apiClient<CourseRecommendation[]>(`/training/recommendations${query}`);
+}
+
+export async function getTrainingAssignments(employeeId?: string): Promise<TrainingAssignment[]> {
+  const query = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
+  return apiClient<TrainingAssignment[]>(`/training/assignments${query}`);
+}
+
+export async function createTrainingAssignment(
+  data: Partial<TrainingAssignment>,
+): Promise<TrainingAssignment> {
+  return apiClient<TrainingAssignment>('/training/assignments', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }

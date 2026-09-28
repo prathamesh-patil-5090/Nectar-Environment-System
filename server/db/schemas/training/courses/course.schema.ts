@@ -8,6 +8,9 @@ export class Course {
   @Prop({ required: true, unique: true, index: true })
   id: string;
 
+  @Prop({ index: true })
+  courseId: string;
+
   @Prop({ required: true, unique: true, index: true })
   code: string;
 
@@ -20,8 +23,29 @@ export class Course {
   @Prop({ index: true })
   category: string;
 
+  @Prop({ index: true })
+  section: string;
+
+  @Prop({ index: true })
+  jobCategoryId: string;
+
   @Prop()
   description: string;
+
+  @Prop({ default: '/courses/etp_plant.jpg' })
+  thumbnailUrl: string;
+
+  @Prop({ default: 'Nectar Technical Operations' })
+  provider: string;
+
+  @Prop({ default: 4.8 })
+  rating: number;
+
+  @Prop({ default: 24 })
+  reviewCount: number;
+
+  @Prop({ default: 'Intermediate' })
+  level: string;
 
   @Prop({ default: 40 })
   estimatedHours: number;
@@ -32,9 +56,19 @@ export class Course {
   @Prop({ type: Array, default: [] })
   modules: Array<{
     id: string;
+    moduleId: string;
     order: number;
     title: string;
     description?: string;
+    videos: Array<{
+      id: string;
+      videoId: string;
+      order: number;
+      title: string;
+      durationMinutes: number;
+      videoUrl?: string;
+      description?: string;
+    }>;
   }>;
 
   @Prop({ type: Array, default: [] })

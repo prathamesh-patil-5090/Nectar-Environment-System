@@ -95,6 +95,48 @@ export interface CourseRecommendation {
   matchScorePct: number;
   badge: string;
   badgeColor: string;
+  isAssignedByManager?: boolean;
+  assignedByName?: string;
+  directiveReason?: string;
+  priority?: "critical" | "high" | "normal";
+  dueDate?: string;
+  moduleCount?: number;
+  videoCount?: number;
+}
+
+export interface TrainingAssignment {
+  id: string;
+  employeeId: string;
+  assignedByEmployeeId: string;
+  assignedByName: string;
+  courseId: string;
+  moduleId?: string;
+  reason: string;
+  priority: "critical" | "high" | "normal";
+  status: "assigned" | "in_progress" | "completed";
+  dueDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CourseVideo {
+  id?: string;
+  videoId: string;
+  order: number;
+  title: string;
+  durationMinutes: number;
+  videoUrl?: string;
+  videoPosterUrl?: string;
+  description?: string;
+}
+
+export interface CourseModule {
+  id?: string;
+  moduleId: string;
+  order: number;
+  title: string;
+  description?: string;
+  videos: CourseVideo[];
 }
 
 export interface RoleCredential {
@@ -181,14 +223,22 @@ export interface Ability {
 
 export interface Course {
   id: string;
+  courseId?: string;
   title: string;
   code: string; // e.g. "ETP-101"
   section: PlantSection;
+  department?: string;
+  category?: string;
   jobCategoryId: string;
   description: string;
   thumbnailUrl: string;
+  provider?: string;
+  rating?: number;
+  reviewCount?: number;
+  level?: "Foundation" | "Intermediate" | "Advanced" | string;
   estimatedHours: number;
   passThreshold: number; // e.g. 70%
+  modules?: CourseModule[];
   abilities: Ability[];
   skillMappingQuestions: QuizQuestion[];
   writtenTestQuestions: QuizQuestion[];

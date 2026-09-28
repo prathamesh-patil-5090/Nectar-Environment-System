@@ -12,7 +12,10 @@ import {
   TrainingSessionDocument,
   MentorLiveSession,
   MentorLiveSessionDocument,
+  TrainingAssignment,
+  TrainingAssignmentDocument,
 } from '../../../db/schemas/training';
+import { Employee, EmployeeDocument } from '../../../db/schemas/employee.schema';
 
 @Injectable()
 export class TrainingService {
@@ -26,12 +29,179 @@ export class TrainingService {
     private sessionModel: Model<TrainingSessionDocument>,
     @InjectModel(MentorLiveSession.name)
     private mentorSessionModel: Model<MentorLiveSessionDocument>,
+    @InjectModel(TrainingAssignment.name)
+    private assignmentModel: Model<TrainingAssignmentDocument>,
+    @InjectModel(Employee.name)
+    private employeeModel: Model<EmployeeDocument>,
   ) {}
 
   async findAllCourses(section?: string): Promise<Course[]> {
     const filter = section ? { section } : {};
     return this.courseModel.find(filter).lean().exec();
   }
+
+  // -------------------------------------------------------------------
+  // Manager Training Directives & Assignments
+  // -------------------------------------------------------------------
+  async findAssignments(employeeId?: string): Promise<TrainingAssignment[]> {
+    const filter = employeeId ? { employeeId } : {};
+    return this.assignmentModel.find(filter).sort({ createdAt: -1 }).lean().exec();
+  }
+
+  async createAssignment(data: Partial<TrainingAssignment>): Promise<TrainingAssignment> {
+    const id = data.id || `asgn-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    return this.assignmentModel
+      .findOneAndUpdate({ id }, { ...data, id }, { upsert: true, new: true })
+      .lean()
+      .exec();
+  }
+
+  // -------------------------------------------------------------------
+  // 4-Tier Personalized Recommendation Engine (100% DB-backed)
+  // -------------------------------------------------------------------
+  async getPersonalizedRecommendations(employeeId?: string): Promise<any[]> {
+    // 1. Fetch all available courses from database
+    const allCourses = await this.courseModel.find().lean().exec();
+
+    // 2. Fetch employee profile if employeeId provided
+    let emp: Employee | null = null;
+    let assignments: TrainingAssignment[] = [];
+    let records: TrainingRecord[] = [];
+
+    if (employeeId) {
+      emp = await this.employeeModel
+        .findOne({ $or: [{ id: employeeId }, { employeeId }] })
+        .lean()
+        .exec();
+
+      assignments = await this.assignmentModel
+        .find({ employeeId, status: { $ne: 'completed' } })
+        .lean()
+        .exec();
+
+      records = await this.recordModel.find({ employeeId }).lean().exec();
+    }
+
+    const assignmentMap = new Map<string, TrainingAssignment>();
+    assignments.forEach((a) => {
+      assignmentMap.set(a.courseId, a);
+    });
+
+    const recordsMap = new Map<string, TrainingRecord>();
+    records.forEach((r) => {
+      recordsMap.set(r.courseId, r);
+    });
+
+    // 3. Determine employee's primary plant specialization
+    let primaryCategory = 'Effluent Treatment Plants (ETP)';
+    if (emp) {
+      const dept = (emp.department || '').toLowerCase();
+      const site = (emp.siteId || '').toLowerCase();
+      const role = (emp.role || '').toLowerCase();
+
+      if (dept.includes('wtp') || dept.includes('ro') || site.includes('ro')) {
+        primaryCategory = 'Water Treatment Plants (WTP)';
+      } else if (dept.includes('stp') || site.includes('stp')) {
+        primaryCategory = 'Sewage Treatment Plants (STP)';
+      } else if (dept.includes('zld') || dept.includes('mee') || site.includes('mee')) {
+        primaryCategory = 'Zero Liquid Discharge (ZLD)';
+      } else if (dept.includes('consult') || dept.includes('audit') || role.includes('auditor')) {
+        primaryCategory = 'Environmental Consulting Services';
+      } else if (dept.includes('maint') || dept.includes('elect') || dept.includes('mech')) {
+        primaryCategory = 'Operation and Maintenance (O&M)';
+      }
+    }
+
+    // 4. Score and map courses into 4 tiers
+    const scoredCourses = allCourses.map((c) => {
+      const assignment = assignmentMap.get(c.id) || assignmentMap.get(c.courseId) || assignmentMap.get(c.code);
+      const record = recordsMap.get(c.id) || recordsMap.get(c.courseId) || recordsMap.get(c.code);
+
+      const moduleCount = c.modules?.length || 3;
+      const videoCount =
+        c.modules?.reduce((acc, m) => acc + (m.videos?.length || 0), 0) ||
+        c.abilities?.length ||
+        3;
+
+      let tierRank = 4;
+      let matchScorePct = 85 + Math.floor(((c.rating || 4.7) - 4.5) * 10);
+      let badge = 'Industrial Elective';
+      let badgeColor = '#10b981'; // Emerald Green
+      let isAssignedByManager = false;
+      let assignedByName: string | undefined;
+      let directiveReason: string | undefined;
+      let priority: string | undefined;
+      let dueDate: string | undefined;
+
+      // Tier 1: Explicit Manager Directive
+      if (assignment) {
+        tierRank = 1;
+        matchScorePct = 99;
+        badge = '★ Assigned by Plant Manager';
+        badgeColor = '#eab308'; // Premium Amber Gold
+        isAssignedByManager = true;
+        assignedByName = assignment.assignedByName;
+        directiveReason = assignment.reason;
+        priority = assignment.priority;
+        dueDate = assignment.dueDate;
+      }
+      // Tier 2: Competency Assessment Gap (< 70% or uncompleted)
+      else if (record && (record.status !== 'certified' || (record.overallScorePct && record.overallScorePct < 70))) {
+        tierRank = 2;
+        matchScorePct = 97;
+        badge = 'Skill Gap Focus';
+        badgeColor = '#f97316'; // Orange / Volcano
+      }
+      // Tier 3: Role & Plant Domain Alignment
+      else if (c.category === primaryCategory || c.section === primaryCategory) {
+        tierRank = 3;
+        matchScorePct = 93 + (c.rating && c.rating >= 4.9 ? 2 : 0);
+        badge = 'Role Pathway';
+        badgeColor = '#3b82f6'; // Industrial Blue
+      }
+
+      return {
+        id: c.id,
+        courseId: c.courseId || c.id,
+        title: c.title,
+        code: c.code,
+        category: c.category || c.section,
+        section: c.section || c.category,
+        department: c.department,
+        provider: c.provider || 'Nectar Technical Operations',
+        thumbnailUrl: c.thumbnailUrl || '/courses/etp_plant.jpg',
+        rating: c.rating || 4.8,
+        reviewCount: c.reviewCount || 30,
+        level: c.level || 'Intermediate',
+        durationHours: c.estimatedHours || 4.0,
+        estimatedHours: c.estimatedHours || 4.0,
+        passThreshold: c.passThreshold || 70,
+        matchScorePct,
+        tierRank,
+        badge,
+        badgeColor,
+        isAssignedByManager,
+        assignedByName,
+        directiveReason,
+        priority,
+        dueDate,
+        moduleCount,
+        videoCount,
+        modules: c.modules || [],
+        abilities: c.abilities || [],
+      };
+    });
+
+    // 5. Sort by Tier Rank (1 -> 2 -> 3 -> 4) and then highest Match Score
+    scoredCourses.sort((a, b) => {
+      if (a.tierRank !== b.tierRank) return a.tierRank - b.tierRank;
+      if (b.matchScorePct !== a.matchScorePct) return b.matchScorePct - a.matchScorePct;
+      return (b.rating || 0) - (a.rating || 0);
+    });
+
+    return scoredCourses;
+  }
+
 
   async findCourseById(id: string): Promise<Course> {
     const course = await this.courseModel
