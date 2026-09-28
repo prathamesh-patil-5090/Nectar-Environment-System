@@ -107,7 +107,7 @@ export default function PendingEvaluationsQueue({
       render: (_, r) => {
         if (r.hasPractical) {
           return (
-            <span style={{ color: "#166534", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ color: nectarColors.leaf, fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <CheckCircleFilled /> Evaluated
             </span>
           );
@@ -126,7 +126,7 @@ export default function PendingEvaluationsQueue({
             icon={<FileProtectOutlined />}
             onClick={() => onScorePractical(r.enrollment, r.employeeName, r.course)}
             style={{
-              background: "#166534",
+              background: nectarColors.leaf,
               borderRadius: 6,
               fontWeight: 600,
               fontSize: 12,
@@ -144,7 +144,7 @@ export default function PendingEvaluationsQueue({
       render: (_, r) => {
         if (r.hasOral) {
           return (
-            <span style={{ color: "#166534", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ color: nectarColors.leaf, fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <CheckCircleFilled /> Evaluated
             </span>
           );

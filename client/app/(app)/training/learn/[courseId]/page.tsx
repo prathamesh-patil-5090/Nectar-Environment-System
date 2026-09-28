@@ -71,6 +71,7 @@ import { getEmployeeById } from "@/lib/mock-data";
 import { CourseraRecommendationsGrid } from "@/components/training/CourseraRecommendationsGrid";
 import EvaluatorScoringModal from "@/components/training/EvaluatorScoringModal";
 import { VideoPlayerEngine } from "@/lib/training/VideoPlayerEngine";
+import { nectarColors } from "@/lib/theme";
 import type {
   Course,
   CourseEnrollment,
@@ -802,14 +803,14 @@ function CourseLearningInner() {
                       padding: "10px 12px",
                       borderRadius: 8,
                       background: assessmentResults.practical
-                        ? "#F0FDF4"
+                        ? "#EAF1F6"
                         : canTakeSkillMapping(enrollment, course)
-                        ? "#F0FDF4"
+                        ? "#F4F7FA"
                         : "#F8FAFC",
                       border: assessmentResults.practical
-                        ? "1px solid #BBF7D0"
+                        ? "1px solid rgba(28, 68, 99, 0.25)"
                         : canTakeSkillMapping(enrollment, course)
-                        ? "1.5px solid #22C55E"
+                        ? `1.5px solid ${nectarColors.leaf}`
                         : "1px solid #E2E8F0",
                       cursor: canTakeSkillMapping(enrollment, course) ? "pointer" : "not-allowed",
                       opacity: canTakeSkillMapping(enrollment, course) ? 1 : 0.6,
@@ -826,9 +827,9 @@ function CourseLearningInner() {
                         style={{
                           fontSize: 11,
                           color: assessmentResults.practical
-                            ? "#16A34A"
+                            ? nectarColors.leaf
                             : canTakeSkillMapping(enrollment, course)
-                            ? "#15803D"
+                            ? nectarColors.leaf
                             : "#64748B",
                         }}
                       >
@@ -840,9 +841,9 @@ function CourseLearningInner() {
                       </div>
                     </div>
                     {assessmentResults.practical ? (
-                      <CheckCircleFilled style={{ color: "#16A34A" }} />
+                      <CheckCircleFilled style={{ color: nectarColors.leaf }} />
                     ) : canTakeSkillMapping(enrollment, course) ? (
-                      <Tag color="green" style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10 }}>
+                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
                         Ready
                       </Tag>
                     ) : (
@@ -863,14 +864,14 @@ function CourseLearningInner() {
                       padding: "10px 12px",
                       borderRadius: 8,
                       background: assessmentResults.written
-                        ? "#F0FDF4"
+                        ? "#EAF1F6"
                         : assessmentResults.practical
-                        ? "#F0FDF4"
+                        ? "#F4F7FA"
                         : "#F8FAFC",
                       border: assessmentResults.written
-                        ? "1px solid #BBF7D0"
+                        ? "1px solid rgba(28, 68, 99, 0.25)"
                         : assessmentResults.practical
-                        ? "1.5px solid #22C55E"
+                        ? `1.5px solid ${nectarColors.leaf}`
                         : "1px solid #E2E8F0",
                       cursor: assessmentResults.practical ? "pointer" : "not-allowed",
                       opacity: assessmentResults.practical ? 1 : 0.6,
@@ -887,9 +888,9 @@ function CourseLearningInner() {
                         style={{
                           fontSize: 11,
                           color: assessmentResults.written
-                            ? "#16A34A"
+                            ? nectarColors.leaf
                             : assessmentResults.practical
-                            ? "#15803D"
+                            ? nectarColors.leaf
                             : "#64748B",
                         }}
                       >
@@ -901,9 +902,9 @@ function CourseLearningInner() {
                       </div>
                     </div>
                     {assessmentResults.written ? (
-                      <CheckCircleFilled style={{ color: "#16A34A" }} />
+                      <CheckCircleFilled style={{ color: nectarColors.leaf }} />
                     ) : assessmentResults.practical ? (
-                      <Tag color="green" style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10 }}>
+                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
                         Ready
                       </Tag>
                     ) : (
@@ -924,14 +925,14 @@ function CourseLearningInner() {
                       padding: "10px 12px",
                       borderRadius: 8,
                       background: assessmentResults.oral
-                        ? "#F0FDF4"
+                        ? "#EAF1F6"
                         : assessmentResults.written?.passed
-                        ? "#F0FDF4"
+                        ? "#F4F7FA"
                         : "#F8FAFC",
                       border: assessmentResults.oral
-                        ? "1px solid #BBF7D0"
+                        ? "1px solid rgba(28, 68, 99, 0.25)"
                         : assessmentResults.written?.passed
-                        ? "1.5px solid #22C55E"
+                        ? `1.5px solid ${nectarColors.leaf}`
                         : "1px solid #E2E8F0",
                       cursor: assessmentResults.written?.passed ? "pointer" : "not-allowed",
                       opacity: assessmentResults.written?.passed ? 1 : 0.6,
@@ -948,9 +949,9 @@ function CourseLearningInner() {
                         style={{
                           fontSize: 11,
                           color: assessmentResults.oral
-                            ? "#16A34A"
+                            ? nectarColors.leaf
                             : assessmentResults.written?.passed
-                            ? "#15803D"
+                            ? nectarColors.leaf
                             : "#64748B",
                         }}
                       >
@@ -962,9 +963,9 @@ function CourseLearningInner() {
                       </div>
                     </div>
                     {assessmentResults.oral ? (
-                      <CheckCircleFilled style={{ color: "#16A34A" }} />
+                      <CheckCircleFilled style={{ color: nectarColors.leaf }} />
                     ) : assessmentResults.written?.passed ? (
-                      <Tag color="green" style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10 }}>
+                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
                         Ready
                       </Tag>
                     ) : (
@@ -1025,8 +1026,8 @@ function CourseLearningInner() {
                     style={{
                       padding: "10px 12px",
                       borderRadius: 8,
-                      background: certificate ? "#F0FDF4" : "#F8FAFC",
-                      border: certificate ? "1.5px solid #16A34A" : "1px solid #E2E8F0",
+                      background: certificate ? "#EAF1F6" : "#F8FAFC",
+                      border: certificate ? `1.5px solid ${nectarColors.leaf}` : "1px solid #E2E8F0",
                       cursor: certificate || assessmentResults.oral ? "pointer" : "not-allowed",
                       opacity: certificate || assessmentResults.oral ? 1 : 0.6,
                       display: "flex",
@@ -1038,12 +1039,12 @@ function CourseLearningInner() {
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>
                         5. Plant Qualification Certificate
                       </div>
-                      <div style={{ fontSize: 11, color: certificate ? "#15803D" : "#64748B" }}>
+                      <div style={{ fontSize: 11, color: certificate ? nectarColors.leaf : "#64748B" }}>
                         {certificate ? "✓ Issued & Verifiable" : "Awaiting qualification report"}
                       </div>
                     </div>
                     {certificate ? (
-                      <SafetyCertificateOutlined style={{ color: "#16A34A", fontSize: 15 }} />
+                      <SafetyCertificateOutlined style={{ color: nectarColors.leaf, fontSize: 15 }} />
                     ) : (
                       <LockOutlined style={{ color: "#94A3B8" }} />
                     )}

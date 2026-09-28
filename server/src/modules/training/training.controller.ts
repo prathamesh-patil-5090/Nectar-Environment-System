@@ -60,4 +60,56 @@ export class TrainingController {
   findSessions(@Query('employeeId') employeeId?: string) {
     return this.trainingService.findSessions(employeeId);
   }
+
+  // -------------------------------------------------------------------
+  // Executive & Plant Lead Masterclasses (Mentor Live Sessions)
+  // -------------------------------------------------------------------
+  @Get('mentor-sessions')
+  @ApiOperation({ summary: 'Get all Executive & Plant Lead Masterclasses' })
+  findAllMentorSessions() {
+    return this.trainingService.findAllMentorLiveSessions();
+  }
+
+  @Get('mentor-sessions/:id')
+  @ApiOperation({ summary: 'Get Masterclass by ID' })
+  findMentorSessionById(@Param('id') id: string) {
+    return this.trainingService.findMentorLiveSessionById(id);
+  }
+
+  @Post('mentor-sessions/:id/enroll')
+  @ApiOperation({ summary: 'Enroll employee in Masterclass (capped at 30-35 slots) with optional doubt/question' })
+  enrollInMentorSession(
+    @Param('id') id: string,
+    @Body() body: { employeeId: string; employeeName: string; question?: string },
+  ) {
+    return this.trainingService.enrollInMentorLiveSession(
+      id,
+      body.employeeId,
+      body.employeeName,
+      body.question,
+    );
+  }
+
+  @Post('mentor-sessions/:id/cancel')
+  @ApiOperation({ summary: 'Cancel Masterclass enrollment' })
+  cancelMentorSession(
+    @Param('id') id: string,
+    @Body() body: { employeeId: string },
+  ) {
+    return this.trainingService.cancelMentorLiveSession(id, body.employeeId);
+  }
+
+  @Post('mentor-sessions/:id/questions')
+  @ApiOperation({ summary: 'Submit doubt/question to Masterclass mentor' })
+  addQuestionToMentorSession(
+    @Param('id') id: string,
+    @Body() body: { employeeId: string; employeeName: string; question: string },
+  ) {
+    return this.trainingService.addQuestionToMentorSession(
+      id,
+      body.employeeId,
+      body.employeeName,
+      body.question,
+    );
+  }
 }

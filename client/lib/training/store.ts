@@ -14,6 +14,7 @@ import {
   mockMentors,
   mockRoleTracks,
   mockSpecializationTracks,
+  initialMentorLiveSessions,
 } from "./data";
 import type {
   Course,
@@ -32,6 +33,7 @@ import type {
   MentorProfile,
   RoleProgressionTrack,
   SpecializationTrack,
+  MentorLiveSession,
 } from "./types";
 import { getEmployeeById } from "@/lib/mock-data";
 
@@ -44,17 +46,61 @@ const STORAGE_KEYS = {
   CERTIFICATES: "neipl_training_certificates_v3",
   LNI_RECORDS: "neipl_training_lni_records_v3",
   SESSIONS: "neipl_training_sessions_v3",
+  MENTOR_LIVE_SESSIONS: "neipl_mentor_live_sessions_v5",
 };
+
+const STATIC_MENTOR_PHOTOS: Record<string, string> = {
+  "session-director-adsul": "/mentors/director_prashant.jpg",
+  "session-etp-dakave": "/mentors/mentor_sanjay.jpg",
+  "session-ro-patil": "/mentors/mentor_rajesh.jpg",
+  "session-mee-waghaskar": "/mentors/mentor_vikram.jpg",
+};
+
+function cleanOldStorageKeys(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("neipl_mentor_live_sessions_") && k !== STORAGE_KEYS.MENTOR_LIVE_SESSIONS) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // Graceful fallback
+  }
+}
+
+function sanitizeStorageValue<T>(key: string, value: T): T {
+  if (key === STORAGE_KEYS.MENTOR_LIVE_SESSIONS && Array.isArray(value)) {
+    return value.map((item: any) => {
+      if (item && typeof item === "object") {
+        const photo = item.photoDataUrl;
+        if (typeof photo === "string" && (photo.startsWith("data:") || photo.length > 500)) {
+          return {
+            ...item,
+            photoDataUrl: STATIC_MENTOR_PHOTOS[item.id] || "/mentors/director_prashant.jpg",
+          };
+        }
+      }
+      return item;
+    }) as unknown as T;
+  }
+  return value;
+}
 
 function readStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === "undefined") return defaultValue;
   try {
+    cleanOldStorageKeys();
     const raw = localStorage.getItem(key);
     if (!raw) {
-      localStorage.setItem(key, JSON.stringify(defaultValue));
+      writeStorage(key, defaultValue);
       return defaultValue;
     }
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as T;
+    return sanitizeStorageValue(key, parsed);
   } catch {
     return defaultValue;
   }
@@ -62,10 +108,18 @@ function readStorage<T>(key: string, defaultValue: T): T {
 
 function writeStorage<T>(key: string, value: T): void {
   if (typeof window === "undefined") return;
+  const sanitized = sanitizeStorageValue(key, value);
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.error("Error writing to localStorage", err);
+    localStorage.setItem(key, JSON.stringify(sanitized));
+  } catch (err: any) {
+    if (err?.name === "QuotaExceededError" || err?.code === 22 || err?.number === -2147024882) {
+      cleanOldStorageKeys();
+      try {
+        localStorage.setItem(key, JSON.stringify(sanitized));
+      } catch {
+        // Graceful non-blocking quota absorption
+      }
+    }
   }
 }
 
@@ -1008,16 +1062,167 @@ export function getSpecializationTrackById(id: string): SpecializationTrack | un
 }
 
 // ----------------------------------------------------
+// Executive & Plant Lead Masterclasses (Mentor Live Sessions)
+// ----------------------------------------------------
+export function getLiveMasterclasses(): MentorLiveSession[] {
+  return readStorage<MentorLiveSession[]>(
+    STORAGE_KEYS.MENTOR_LIVE_SESSIONS,
+    initialMentorLiveSessions,
+  );
+}
+
+export async function enrollInLiveMasterclass(
+  sessionId: string,
+  employeeId: string,
+  employeeName: string,
+  question?: string,
+  slotId?: string,
+  agenda?: string,
+): Promise<{ success: boolean; message: string; session?: MentorLiveSession }> {
+  const sessions = getLiveMasterclasses();
+  const session = sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    return { success: false, message: "1:1 Session not found" };
+  }
+
+  if (!session.selectedSlotMap) session.selectedSlotMap = {};
+  if (!session.selectedAgendaMap) session.selectedAgendaMap = {};
+
+  if (slotId) session.selectedSlotMap[employeeId] = slotId;
+  if (agenda) session.selectedAgendaMap[employeeId] = agenda;
+
+  if (session.enrolledEmployeeIds.includes(employeeId)) {
+    if (question?.trim()) {
+      session.questions.push({
+        id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        employeeId,
+        employeeName: employeeName || "Employee",
+        question: question.trim(),
+        submittedAt: new Date().toISOString(),
+      });
+    }
+    writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
+    return {
+      success: true,
+      message: `Your 1:1 slot & topic with ${session.mentorName} have been updated!`,
+      session,
+    };
+  }
+
+  if (session.registeredCount >= session.maxCapacity) {
+    return {
+      success: false,
+      message: `This session is fully booked (${session.maxCapacity} seats max).`,
+    };
+  }
+
+  session.enrolledEmployeeIds.push(employeeId);
+  session.registeredCount = session.enrolledEmployeeIds.length;
+
+  if (question?.trim()) {
+    session.questions.push({
+      id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      employeeId,
+      employeeName: employeeName || "Employee",
+      question: question.trim(),
+      submittedAt: new Date().toISOString(),
+    });
+  }
+
+  writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
+
+  // Sync with MongoDB backend in background
+  try {
+    const { enrollInLiveSession } = await import("../api/training");
+    enrollInLiveSession(sessionId, employeeId, employeeName, question).catch(() => {});
+  } catch {}
+
+  return {
+    success: true,
+    message: `1:1 Session confirmed with ${session.mentorName}! Google Meet link is active.`,
+    session,
+  };
+}
+
+export async function cancelLiveMasterclassEnrollment(
+  sessionId: string,
+  employeeId: string,
+): Promise<{ success: boolean; message: string }> {
+  const sessions = getLiveMasterclasses();
+  const session = sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    return { success: false, message: "1:1 Session not found" };
+  }
+
+  session.enrolledEmployeeIds = session.enrolledEmployeeIds.filter((id) => id !== employeeId);
+  session.registeredCount = session.enrolledEmployeeIds.length;
+  if (session.selectedSlotMap) delete session.selectedSlotMap[employeeId];
+  if (session.selectedAgendaMap) delete session.selectedAgendaMap[employeeId];
+  writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
+
+  // Sync with MongoDB backend in background
+  try {
+    const { cancelLiveSessionEnrollment } = await import("../api/training");
+    cancelLiveSessionEnrollment(sessionId, employeeId).catch(() => {});
+  } catch {}
+
+  return {
+    success: true,
+    message: `1:1 Meeting with ${session.mentorName} has been cancelled.`,
+  };
+}
+
+export async function submitLiveMasterclassQuestion(
+  sessionId: string,
+  employeeId: string,
+  employeeName: string,
+  question: string,
+): Promise<{ success: boolean; message: string }> {
+  const sessions = getLiveMasterclasses();
+  const session = sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    return { success: false, message: "Masterclass not found" };
+  }
+
+  session.questions.push({
+    id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    employeeId,
+    employeeName: employeeName || "Employee",
+    question: question.trim(),
+    submittedAt: new Date().toISOString(),
+  });
+
+  writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
+
+  // Sync with MongoDB backend in background
+  try {
+    const { submitSessionQuestion } = await import("../api/training");
+    submitSessionQuestion(sessionId, employeeId, employeeName, question).catch(() => {});
+  } catch {}
+
+  return {
+    success: true,
+    message: `Your question has been submitted to ${session.mentorName}!`,
+  };
+}
+
+// ----------------------------------------------------
 // Live NestJS Backend Synchronization
 // ----------------------------------------------------
 export async function syncTrainingWithApi(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    const { getCourses, getCertificates, getSessions } = await import('../api/training');
-    const [courses, certs, sessions] = await Promise.all([
+    const {
+      getCourses,
+      getCertificates,
+      getSessions,
+      getMentorLiveSessions,
+    } = await import("../api/training");
+    const [courses, certs, sessions, mentorSessions] = await Promise.all([
       getCourses().catch(() => []),
       getCertificates().catch(() => []),
       getSessions().catch(() => []),
+      getMentorLiveSessions().catch(() => []),
     ]);
 
     if (certs && certs.length) {
@@ -1025,6 +1230,9 @@ export async function syncTrainingWithApi(): Promise<void> {
     }
     if (sessions && sessions.length) {
       writeStorage(STORAGE_KEYS.SESSIONS, sessions);
+    }
+    if (mentorSessions && mentorSessions.length) {
+      writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, mentorSessions);
     }
   } catch {
     // Graceful offline fallback

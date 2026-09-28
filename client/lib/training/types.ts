@@ -17,6 +17,55 @@ export interface ClinicTimeSlot {
   registeredCount: number;
 }
 
+export interface SessionDoubt {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  question: string;
+  submittedAt: string;
+}
+
+export interface MeetingSlot {
+  id: string;
+  timeRange: string;
+  dayLabel: string;
+  dateStr: string;
+  isBooked?: boolean;
+}
+
+export interface MentorLiveSession {
+  id: string;
+  mentorName: string;
+  mentorRole: string;
+  mentorDepartment: string;
+  isFounder: boolean;
+  badgeText: string;
+  photoDataUrl: string;
+  mentorRating: number;
+  topic: string;
+  description: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  maxCapacity: number; // 30 - 35 max slots
+  registeredCount: number;
+  enrolledEmployeeIds: string[];
+  questions: SessionDoubt[];
+  meetingPlatform: "google_meet" | string;
+  platformStatus: "coming_soon" | "live" | "completed" | string;
+  meetingLink?: string;
+  slots?: MeetingSlot[];
+  selectedSlotMap?: Record<string, string>; // employeeId -> slotId
+  selectedAgendaMap?: Record<string, string>; // employeeId -> agenda
+}
+
+export interface EnrollMentorSessionPayload {
+  employeeId: string;
+  employeeName: string;
+  question?: string;
+  slotId?: string;
+  agenda?: string;
+}
+
 export interface MentorProfile {
   id: string;
   name: string;

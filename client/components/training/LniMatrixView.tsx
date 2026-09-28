@@ -537,7 +537,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
           >
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <RobotOutlined style={{ fontSize: 20, color: "#86EFAC" }} />
+                <RobotOutlined style={{ fontSize: 20, color: "#38BDF8" }} />
                 <h2
                   style={{
                     margin: 0,
@@ -557,7 +557,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
 
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#86EFAC" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#38BDF8" }}>
                   {filtered.filter((r) => r.currentLevel === "HIGH").length}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Autonomous</div>

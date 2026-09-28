@@ -352,8 +352,8 @@ export default function CoursePlayerModal({
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,
-                  background: allAbilitiesDone ? "#F0FDF4" : "rgba(11, 26, 36, 0.03)",
-                  border: `1px solid ${allAbilitiesDone ? "#DCFCE7" : "rgba(28, 68, 99, 0.06)"}`,
+                  background: allAbilitiesDone ? "#EAF1F6" : "rgba(11, 26, 36, 0.03)",
+                  border: `1px solid ${allAbilitiesDone ? "rgba(28, 68, 99, 0.2)" : "rgba(28, 68, 99, 0.06)"}`,
                   cursor: allAbilitiesDone ? "pointer" : "not-allowed",
                   opacity: allAbilitiesDone ? 1 : 0.6,
                   display: "flex",
@@ -362,9 +362,9 @@ export default function CoursePlayerModal({
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <TrophyOutlined style={{ color: allAbilitiesDone ? "#166534" : nectarColors.muted, fontSize: 16 }} />
+                  <TrophyOutlined style={{ color: allAbilitiesDone ? nectarColors.leaf : nectarColors.muted, fontSize: 16 }} />
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: allAbilitiesDone ? "#166534" : nectarColors.ink }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: allAbilitiesDone ? nectarColors.leaf : nectarColors.ink }}>
                       1. Skill Mapping Test
                     </div>
                     <div style={{ fontSize: 10, color: nectarColors.muted }}>
@@ -573,7 +573,7 @@ export default function CoursePlayerModal({
                     size="small"
                     icon={<FastForwardOutlined />}
                     onClick={handleSimulateFullWatch}
-                    style={{ background: "#22C55E", border: "none", color: "#FFFFFF", fontWeight: 600 }}
+                    style={{ background: nectarColors.leaf, border: "none", color: "#FFFFFF", fontWeight: 600 }}
                   >
                     Simulate Complete (100%)
                   </Button>
@@ -585,13 +585,13 @@ export default function CoursePlayerModal({
             <div
               style={{
                 background: activeProgress.quizPassed
-                  ? "#F0FDF4"
+                  ? "#EAF1F6"
                   : activeProgress.videoWatchedPct >= 90
                     ? "#EFF6FF"
                     : "#FFFFFF",
                 border: `1px solid ${
                   activeProgress.quizPassed
-                    ? "#DCFCE7"
+                    ? "rgba(28, 68, 99, 0.2)"
                     : activeProgress.videoWatchedPct >= 90
                       ? "#BFDBFE"
                       : "rgba(28, 68, 99, 0.08)"
@@ -610,8 +610,8 @@ export default function CoursePlayerModal({
                     width: 40,
                     height: 40,
                     borderRadius: 10,
-                    background: activeProgress.quizPassed ? "#DCFCE7" : "#DBEAFE",
-                    color: activeProgress.quizPassed ? "#166534" : "#1E40AF",
+                    background: activeProgress.quizPassed ? "#EAF1F6" : "#DBEAFE",
+                    color: activeProgress.quizPassed ? nectarColors.leaf : "#1E40AF",
                     display: "grid",
                     placeItems: "center",
                     fontSize: 18,
@@ -745,18 +745,18 @@ export default function CoursePlayerModal({
                   marginTop: 18,
                   padding: "12px 16px",
                   borderRadius: 8,
-                  background: quizResult.passed ? "#F0FDF4" : "#FEF2F2",
-                  border: `1px solid ${quizResult.passed ? "#DCFCE7" : "#FEE2E2"}`,
+                  background: quizResult.passed ? "#EAF1F6" : "#FEF2F2",
+                  border: `1px solid ${quizResult.passed ? "rgba(28, 68, 99, 0.2)" : "#FEE2E2"}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 700, color: quizResult.passed ? "#166534" : "#991B1B" }}>
+                  <div style={{ fontWeight: 700, color: quizResult.passed ? nectarColors.leaf : "#991B1B" }}>
                     Score: {quizResult.scorePct}% · {quizResult.passed ? "PASSED" : "NEEDS RETRY"}
                   </div>
-                  <div style={{ fontSize: 12, color: quizResult.passed ? "#15803D" : "#B91C1C" }}>
+                  <div style={{ fontSize: 12, color: quizResult.passed ? nectarColors.muted : "#B91C1C" }}>
                     {quizResult.passed ? "Next module is now accessible." : "Pass mark is 70%. Please retry."}
                   </div>
                 </div>

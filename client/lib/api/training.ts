@@ -1,5 +1,10 @@
 import { apiClient } from './client';
-import type { Course, CourseEnrollment, Certificate } from '../training/types';
+import type {
+  Course,
+  CourseEnrollment,
+  Certificate,
+  MentorLiveSession,
+} from '../training/types';
 
 export async function getCourses(section?: string): Promise<Course[]> {
   const query = section ? `?section=${encodeURIComponent(section)}` : '';
@@ -44,4 +49,54 @@ export async function getCertificates(employeeId?: string): Promise<Certificate[
 export async function getSessions(employeeId?: string): Promise<any[]> {
   const query = employeeId ? `?employeeId=${encodeURIComponent(employeeId)}` : '';
   return apiClient<any[]>(`/training/sessions${query}`);
+}
+
+// -------------------------------------------------------------------
+// Executive & Plant Lead Masterclasses (Mentor Live Sessions)
+// -------------------------------------------------------------------
+export async function getMentorLiveSessions(): Promise<MentorLiveSession[]> {
+  return apiClient<MentorLiveSession[]>('/training/mentor-sessions');
+}
+
+export async function enrollInLiveSession(
+  sessionId: string,
+  employeeId: string,
+  employeeName: string,
+  question?: string,
+): Promise<MentorLiveSession> {
+  return apiClient<MentorLiveSession>(
+    `/training/mentor-sessions/${encodeURIComponent(sessionId)}/enroll`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, employeeName, question }),
+    },
+  );
+}
+
+export async function cancelLiveSessionEnrollment(
+  sessionId: string,
+  employeeId: string,
+): Promise<MentorLiveSession> {
+  return apiClient<MentorLiveSession>(
+    `/training/mentor-sessions/${encodeURIComponent(sessionId)}/cancel`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ employeeId }),
+    },
+  );
+}
+
+export async function submitSessionQuestion(
+  sessionId: string,
+  employeeId: string,
+  employeeName: string,
+  question: string,
+): Promise<MentorLiveSession> {
+  return apiClient<MentorLiveSession>(
+    `/training/mentor-sessions/${encodeURIComponent(sessionId)}/questions`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, employeeName, question }),
+    },
+  );
 }

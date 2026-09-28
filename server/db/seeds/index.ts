@@ -13,15 +13,19 @@ import { coursesSeed } from './training/courses.seed';
 import { trainingRecordsSeed } from './training/training-records.seed';
 import { certificatesSeed } from './training/certificates.seed';
 import { trainingSessionsSeed } from './training/training-sessions.seed';
+import { getMentorLiveSessionsSeed } from './training/mentor-sessions.seed';
 
 import { EmployeeSchema } from '../schemas/employee.schema';
 import { SiteSchema } from '../schemas/site.schema';
 import { RelieverSchema } from '../schemas/reliever.schema';
 import { ShiftRosterSchema } from '../schemas/shift-roster.schema';
-import { CourseSchema } from '../schemas/training/course.schema';
-import { TrainingRecordSchema } from '../schemas/training/training-record.schema';
-import { CertificateSchema } from '../schemas/training/certificate.schema';
-import { TrainingSessionSchema } from '../schemas/training/training-session.schema';
+import {
+  CourseSchema,
+  TrainingRecordSchema,
+  CertificateSchema,
+  TrainingSessionSchema,
+  MentorLiveSessionSchema,
+} from '../schemas/training';
 
 async function seed() {
   const uri =
@@ -44,6 +48,11 @@ async function seed() {
   const TrainingRecordModel = mongoose.model('TrainingRecord', TrainingRecordSchema, 'training_records');
   const CertificateModel = mongoose.model('Certificate', CertificateSchema, 'certificates');
   const TrainingSessionModel = mongoose.model('TrainingSession', TrainingSessionSchema, 'training_sessions');
+  const MentorLiveSessionModel = mongoose.model(
+    'MentorLiveSession',
+    MentorLiveSessionSchema,
+    'mentor_live_sessions',
+  );
 
   // Clear collections and drop stale indexes for fresh clean seed
   console.log('🧹 Purging outdated collections & indexes...');
@@ -55,6 +64,7 @@ async function seed() {
   await TrainingRecordModel.collection.drop().catch(() => {});
   await CertificateModel.collection.drop().catch(() => {});
   await TrainingSessionModel.collection.drop().catch(() => {});
+  await MentorLiveSessionModel.collection.drop().catch(() => {});
   console.log('✅ Cleared domain collections & indexes\n');
 
   // 1. Employees (25 real staff)
@@ -93,9 +103,17 @@ async function seed() {
   console.log(`  ✓ Inserted ${certificatesSeed.length} certified credentials with SHA256 hashes`);
 
   // 8. Training Workshops & Drills
-  console.log('[8/8] Seeding Training Sessions...');
+  console.log('[8/9] Seeding Training Sessions...');
   await TrainingSessionModel.insertMany(trainingSessionsSeed);
   console.log(`  ✓ Inserted ${trainingSessionsSeed.length} scheduled classroom & on-site workshop drills`);
+
+  // 9. Executive & Plant Lead Masterclasses (with Base64 Images)
+  console.log('[9/9] Seeding Executive & Plant Lead Masterclasses with Base64 Images...');
+  const mentorLiveSessionsSeed = getMentorLiveSessionsSeed();
+  await MentorLiveSessionModel.insertMany(mentorLiveSessionsSeed);
+  console.log(
+    `  ✓ Inserted ${mentorLiveSessionsSeed.length} Masterclasses (Founder, ETP, RO, MEE) with Base64 images directly into MongoDB!`,
+  );
 
   console.log('\n────────────────────────────────────────────────────────');
   console.log('🎉 Unified database seeding completed successfully!');

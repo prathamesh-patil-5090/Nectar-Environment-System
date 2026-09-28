@@ -105,8 +105,8 @@ export default function TrainingPage() {
               width: 34,
               height: 34,
               borderRadius: 8,
-              background: "#F0FDF4",
-              border: "1px solid #BBF7D0",
+              background: "#EAF1F6",
+              border: "1px solid rgba(28, 68, 99, 0.18)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -311,7 +311,7 @@ function NonEmployeeTrainingView({
             {due}
           </div>
           {record.completedAt && (
-            <div style={{ fontSize: 11, color: "#166534" }}>
+            <div style={{ fontSize: 11, color: nectarColors.leaf, fontWeight: 500 }}>
               Completed: {record.completedAt}
             </div>
           )}
@@ -412,10 +412,10 @@ function NonEmployeeTrainingView({
           {/* Manager Field & Viva Evaluation Directive Banner */}
           <div
             style={{
-              background: "linear-gradient(135deg, #F0F9FF 0%, #EFF6FF 100%)",
+              background: "linear-gradient(135deg, #F4F7FA 0%, #EAF1F6 100%)",
               borderRadius: 12,
               padding: "16px 20px",
-              border: "1px solid #BAE6FD",
+              border: "1px solid rgba(28, 68, 99, 0.18)",
               marginBottom: 18,
               display: "flex",
               justifyContent: "space-between",
@@ -425,7 +425,7 @@ function NonEmployeeTrainingView({
             }}
           >
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#0369A1" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: nectarColors.leaf }}>
                 In-Person Plant Practical & Oral Viva Evaluation Console
               </div>
               <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>

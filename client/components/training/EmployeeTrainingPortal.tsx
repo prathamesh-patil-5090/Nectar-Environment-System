@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Tabs,
@@ -10,7 +10,7 @@ import {
   Row,
   Col,
   Modal,
-  message,
+  App,
   Input,
   Radio,
 } from "antd";
@@ -33,6 +33,11 @@ import {
   UpOutlined,
   RiseOutlined,
   EnvironmentOutlined,
+  VideoCameraOutlined,
+  MessageOutlined,
+  CheckCircleOutlined,
+  CopyOutlined,
+  LinkOutlined,
 } from "@ant-design/icons";
 import { getSession } from "@/lib/auth";
 import { scopedEmployeeId, selfEmployeeId } from "@/lib/rbac";
@@ -41,6 +46,7 @@ import { nectarColors } from "@/lib/theme";
 import type {
   Course,
   Certificate,
+  MentorLiveSession,
 } from "@/lib/training/types";
 import {
   getAllCourses,
@@ -49,6 +55,11 @@ import {
   getRecommendedCourses,
   getMentorProfiles,
   registerForDropInClinic,
+  getLiveMasterclasses,
+  enrollInLiveMasterclass,
+  cancelLiveMasterclassEnrollment,
+  submitLiveMasterclassQuestion,
+  syncTrainingWithApi,
 } from "@/lib/training/store";
 
 // Components
@@ -220,9 +231,19 @@ interface EmployeeTrainingPortalProps {
 }
 
 export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingPortalProps) {
+  const { message } = App.useApp();
   const session = getSession();
   const selfId = employeeId ?? scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "emp0126";
   const currentUser = getEmployeeById(selfId);
+
+  const learnerInitials = useMemo(() => {
+    const name = currentUser?.name ?? "Shilpa Hotkar";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase() || "SH";
+  }, [currentUser?.name]);
 
   const router = useRouter();
   const mentorToTrackMap: Record<string, string> = {
@@ -251,6 +272,15 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
   );
   const recommendations = useMemo(() => getRecommendedCourses(), []);
   const mentors = useMemo(() => getMentorProfiles(), [refreshTrigger]);
+  const masterclasses = useMemo(() => getLiveMasterclasses(), [refreshTrigger]);
+  const myEnrolledMasterclasses = useMemo(
+    () => masterclasses.filter((s) => s.enrolledEmployeeIds?.includes(selfId)),
+    [masterclasses, selfId],
+  );
+
+  useEffect(() => {
+    syncTrainingWithApi().then(() => setRefreshTrigger((t) => t + 1));
+  }, []);
 
   // Coursera Search & Filter State
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -266,7 +296,14 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
   // Recommendation category filter
   const [recFilter, setRecFilter] = useState<string>("All");
 
-  // Mentor Drop-In Registration State
+  // 1:1 Live Online Session Enrollment State
+  const [selectedMasterclass, setSelectedMasterclass] = useState<MentorLiveSession | null>(null);
+  const [doubtQuestion, setDoubtQuestion] = useState<string>("");
+  const [selectedSlotId, setSelectedSlotId] = useState<string>("");
+  const [selectedAgenda, setSelectedAgenda] = useState<string>("Plant Troubleshooting & Shock Load");
+  const [isEnrollingSession, setIsEnrollingSession] = useState<boolean>(false);
+
+  // Mentor Drop-In Registration State (Legacy Fallback)
   const [bookingMentor, setBookingMentor] = useState<any | null>(null);
   const [selectedClinicId, setSelectedClinicId] = useState<string>("");
   const [clinicNotes, setClinicNotes] = useState<string>("");
@@ -422,7 +459,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
             left: "-10%",
             width: "50%",
             height: "160%",
-            background: "radial-gradient(circle, rgba(22, 163, 74, 0.16) 0%, transparent 65%)",
+            background: "radial-gradient(circle, rgba(28, 68, 99, 0.45) 0%, transparent 65%)",
             pointerEvents: "none",
           }}
         />
@@ -447,12 +484,12 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                 alignItems: "center",
                 gap: 6,
                 padding: "3px 10px",
-                background: "rgba(22, 163, 74, 0.18)",
-                border: "1px solid rgba(74, 222, 128, 0.35)",
+                background: "rgba(28, 68, 99, 0.4)",
+                border: "1px solid rgba(56, 189, 248, 0.35)",
                 borderRadius: 20,
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#86EFAC",
+                color: "#38BDF8",
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}
@@ -462,9 +499,9 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                   width: 6,
                   height: 6,
                   borderRadius: "50%",
-                  background: "#4ADE80",
+                  background: "#38BDF8",
                   display: "inline-block",
-                  boxShadow: "0 0 8px #4ADE80",
+                  boxShadow: "0 0 8px #38BDF8",
                 }}
               />
               NEIPL Process Academy
@@ -504,48 +541,385 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
           </p>
         </div>
 
-        {/* Right Side: Active Learner Badge */}
+        {/* Right Side: High-End Active Learner Identity Card */}
         <div style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{
-              background: "rgba(0, 0, 0, 0.38)",
-              backdropFilter: "blur(14px)",
+              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 100%)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
               border: "1px solid rgba(255, 255, 255, 0.14)",
               borderRadius: 14,
-              padding: "10px 18px",
+              padding: "10px 16px",
               display: "flex",
               alignItems: "center",
               gap: 12,
-              boxShadow: "inset 0 1px 3px rgba(0, 0, 0, 0.4)",
+              boxShadow: "0 10px 28px -6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18)",
             }}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                background: nectarColors.leaf,
-                color: "#FFFFFF",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 16,
-                flexShrink: 0,
-              }}
-            >
-              <UserOutlined />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>
-                {currentUser?.name ?? "Learner Portal"}
+            {/* Operator Monogram Avatar with Live Status Indicator */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #1C4463 0%, #0F2033 100%)",
+                  border: "1.5px solid rgba(56, 189, 248, 0.45)",
+                  color: "#FFFFFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: "0.5px",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+                }}
+              >
+                {learnerInitials}
               </div>
-              <div style={{ fontSize: 11, color: "#86EFAC", fontWeight: 600 }}>
-                ● Active Shift Learner ({currentUser?.designation ?? "Plant Operator"})
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: -1,
+                  right: -1,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: "#10B981",
+                  border: "2px solid #0B1A24",
+                  boxShadow: "0 0 8px #10B981",
+                }}
+              />
+            </div>
+
+            {/* Operator Details & Visual Hierarchy */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    color: "#FFFFFF",
+                    letterSpacing: "-0.01em",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {currentUser?.name ?? "Shilpa Hotkar"}
+                </span>
+                <span
+                  style={{
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    padding: "1.5px 6px",
+                    borderRadius: 4,
+                    background: "rgba(56, 189, 248, 0.14)",
+                    border: "1px solid rgba(56, 189, 248, 0.3)",
+                    color: "#7DD3FC",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {currentUser?.designation ?? "Plant Operator"}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "rgba(255, 255, 255, 0.75)",
+                    fontWeight: 500,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: "#38BDF8",
+                      display: "inline-block",
+                      boxShadow: "0 0 6px #38BDF8",
+                    }}
+                  />
+                  Active Shift Learner
+                </span>
+                <span style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.3)" }}>•</span>
+                <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.6)", fontWeight: 500 }}>
+                  {myCertificates.length > 0 ? `${myCertificates.length} Certified SOPs` : "ETP Plant Ops"}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* UPCOMING ENROLLED SESSIONS */}
+      {myEnrolledMasterclasses.length > 0 && (
+        <div
+          style={{
+            background: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            borderRadius: 14,
+            padding: "16px 20px",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
+          }}
+        >
+          {/* Header Bar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingBottom: 12,
+              marginBottom: 12,
+              borderBottom: "1px solid #F1F5F9",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: nectarColors.leaf,
+                  display: "inline-block",
+                }}
+              />
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", letterSpacing: "-0.01em" }}>
+                My Enrolled Sessions
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: nectarColors.leaf,
+                  background: "#EAF1F6",
+                  border: "1px solid rgba(28, 68, 99, 0.2)",
+                  padding: "1px 8px",
+                  borderRadius: 10,
+                }}
+              >
+                {myEnrolledMasterclasses.length} Upcoming
+              </span>
+            </div>
+
+            <span style={{ fontSize: 11.5, color: "#94A3B8" }}>
+              Live streams open 10 minutes prior to session
+            </span>
+          </div>
+
+          {/* Session Cards Grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+              gap: 14,
+            }}
+          >
+            {myEnrolledMasterclasses.map((session) => {
+              const myDoubt = session.questions?.filter((q) => q.employeeId === selfId).slice(-1)[0];
+
+              const dateMatch = session.scheduledAt.match(/([A-Za-z]+),\s*([A-Za-z]+)\s*(\d+)\s*·\s*([\d:]+)/);
+              const dayName = dateMatch ? dateMatch[1].slice(0, 3).toUpperCase() : "LIVE";
+              const dateText = dateMatch ? `${dateMatch[3]} ${dateMatch[2].slice(0, 3).toUpperCase()}` : "UPCOMING";
+              const timeText = dateMatch ? dateMatch[4] : "15:00";
+
+              return (
+                <div
+                  key={`enrolled-${session.id}`}
+                  style={{
+                    background: "#F8FAFC",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 12,
+                    padding: "16px 18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    transition: "box-shadow 0.15s ease, border-color 0.15s ease",
+                  }}
+                >
+                  {/* Card Top: Mentor & Schedule */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: "50%",
+                            backgroundImage: `url(${session.photoDataUrl})`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center 20%",
+                            border: "1.5px solid #CBD5E1",
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {session.mentorName}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#64748B", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {session.mentorRole}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Schedule Badge */}
+                      <div
+                        style={{
+                          background: "#FFFFFF",
+                          border: "1px solid #E2E8F0",
+                          borderRadius: 8,
+                          padding: "4px 8px",
+                          textAlign: "right",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", lineHeight: 1 }}>
+                          {dayName} · {dateText}
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf, lineHeight: 1, marginTop: 3 }}>
+                          {timeText} IST
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Topic */}
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0F172A", marginTop: 12, lineHeight: 1.35 }}>
+                      {session.topic}
+                    </div>
+
+                    <div style={{ fontSize: 11.5, color: "#64748B", marginTop: 4 }}>
+                      Live Interactive Cohort · {session.durationMinutes} mins
+                    </div>
+
+                    {/* Question / Note if present */}
+                    {myDoubt ? (
+                      <div
+                        style={{
+                          background: "#FFFFFF",
+                          border: "1px solid #E2E8F0",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          marginTop: 10,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#64748B" }}>Your Question:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedMasterclass(session);
+                              setDoubtQuestion(myDoubt.question);
+                            }}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              color: nectarColors.leaf,
+                              cursor: "pointer",
+                              textDecoration: "underline",
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "#334155", fontStyle: "italic", marginTop: 2, lineHeight: 1.3 }}>
+                          "{myDoubt.question}"
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMasterclass(session);
+                          setDoubtQuestion("");
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          marginTop: 8,
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          color: nectarColors.leaf,
+                          cursor: "pointer",
+                          display: "inline-block",
+                        }}
+                      >
+                        + Add a question for mentor
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Card Footer: Actions */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      borderTop: "1px solid #E2E8F0",
+                      paddingTop: 12,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Button
+                      type="primary"
+                      onClick={() => {
+                        message.info(`Session opens at ${timeText} on ${dateText}. Link will activate 10 minutes prior.`);
+                      }}
+                      style={{
+                        background: nectarColors.leaf,
+                        borderColor: nectarColors.leaf,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        borderRadius: 6,
+                        height: 32,
+                        padding: "0 14px",
+                      }}
+                    >
+                      Join Session
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await cancelLiveMasterclassEnrollment(session.id, selfId);
+                        message.info(res.message);
+                        setRefreshTrigger((t) => t + 1);
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: "4px 8px",
+                        fontSize: 11.5,
+                        color: "#94A3B8",
+                        cursor: "pointer",
+                        borderRadius: 4,
+                        transition: "color 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "#94A3B8")}
+                    >
+                      Unenroll
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 2. UNIFIED NAVIGATION & DISCOVERY DECK */}
       <div
@@ -811,45 +1185,67 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
       {activeTab === "catalog" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
 
-          {/* B. "GROW IN YOUR ROLES" (Senior Plant Mentors & Drop-In Clinics) */}
+          {/* B. EXECUTIVE & PLANT LEAD MASTERCLASSES */}
           <div style={{ marginTop: 8 }}>
-            <div style={{ marginBottom: 20 }}>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 24,
-                  fontWeight: 700,
-                  color: "#1F1F1F",
-                  letterSpacing: "-0.015em",
-                  fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                }}
-              >
-                Grow in your roles
-              </h2>
-              <div style={{ fontSize: 13.5, color: "#64748B", marginTop: 4 }}>
-                Senior process leads publish scheduled clinic availability windows for shift questions, operational troubleshooting, and viva preparation.
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                flexWrap: "wrap",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: "#0F172A",
+                      letterSpacing: "-0.015em",
+                      fontFamily:
+                        "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                    }}
+                  >
+                    Live Online Mentorship & Group Masterclasses
+                  </h2>
+                </div>
+                <div style={{ fontSize: 13.5, color: nectarColors.muted, marginTop: 5, maxWidth: 880, lineHeight: 1.5 }}>
+                  Interactive live group masterclasses conducted online by our Managing Director and Senior Plant Managers.
+                  Mentors schedule and lead cohort sessions on operational challenges, plant troubleshooting, and SOP best practices via Google Meet.
+                </div>
               </div>
             </div>
 
-            {/* 4 Mentor Drop-In Cards Grid (Coursera Radiating Aesthetic + Full Mentor Functionality) */}
-            <Row gutter={[24, 24]}>
-              {mentors.map((mentor) => {
-                const nextClinic = mentor.publishedClinics[0];
-                const availableSeats = nextClinic
-                  ? Math.max(0, nextClinic.capacity - nextClinic.registeredCount)
-                  : 0;
+            {/* 4 Executive & Plant Lead Masterclass Cards Grid */}
+            <Row gutter={[20, 20]}>
+              {masterclasses.map((session) => {
+                const isEnrolled = session.enrolledEmployeeIds?.includes(selfId);
+                const availableSeats = Math.max(0, session.maxCapacity - session.registeredCount);
+                const isFull = availableSeats <= 0;
+                const percentFull = Math.min(
+                  100,
+                  Math.round((session.registeredCount / session.maxCapacity) * 100),
+                );
 
                 return (
-                  <Col xs={24} sm={12} md={12} lg={6} xl={6} key={mentor.id}>
+                  <Col xs={24} sm={12} md={12} lg={6} xl={6} key={session.id}>
                     <div
                       onClick={() => {
-                        const trackId = mentorToTrackMap[mentor.id] || "track-etp-specialist";
-                        router.push(`/training/track/${trackId}`);
+                        setSelectedMasterclass(session);
+                        setDoubtQuestion("");
+                        setSelectedSlotId(session.selectedSlotMap?.[selfId] || session.slots?.[0]?.id || "");
+                        setSelectedAgenda(session.selectedAgendaMap?.[selfId] || "Plant Troubleshooting & Shock Load");
                       }}
                       style={{
                         background: "#FFFFFF",
                         borderRadius: 16,
-                        border: "1px solid #E5E7EB",
+                        border: session.isFounder
+                          ? "1.5px solid rgba(217, 119, 6, 0.4)"
+                          : "1px solid #E2E8F0",
                         overflow: "hidden",
                         display: "flex",
                         flexDirection: "column",
@@ -857,41 +1253,92 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                         height: "100%",
                         cursor: "pointer",
                         transition: "all 0.28s cubic-bezier(0.32, 0.72, 0, 1)",
-                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
+                        boxShadow: session.isFounder
+                          ? "0 4px 20px -2px rgba(217, 119, 6, 0.14), 0 2px 6px rgba(0, 0, 0, 0.04)"
+                          : "0 1px 3px rgba(0, 0, 0, 0.04)",
+                        position: "relative",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "translateY(-6px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 20px 36px -6px rgba(28, 68, 99, 0.18), 0 6px 16px -3px rgba(0, 0, 0, 0.04)";
-                        e.currentTarget.style.borderColor = nectarColors.leaf;
-                        const titleEl = e.currentTarget.querySelector(".mentor-card-title") as HTMLElement;
-                        if (titleEl) titleEl.style.color = nectarColors.leaf;
+                        e.currentTarget.style.boxShadow = session.isFounder
+                          ? "0 20px 36px -6px rgba(217, 119, 6, 0.28), 0 6px 16px -3px rgba(0, 0, 0, 0.08)"
+                          : "0 20px 36px -6px rgba(28, 68, 99, 0.18), 0 6px 16px -3px rgba(0, 0, 0, 0.04)";
+                        e.currentTarget.style.borderColor = session.isFounder
+                          ? "#D97706"
+                          : nectarColors.leaf;
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.04)";
-                        e.currentTarget.style.borderColor = "#E5E7EB";
-                        const titleEl = e.currentTarget.querySelector(".mentor-card-title") as HTMLElement;
-                        if (titleEl) titleEl.style.color = nectarColors.ink;
+                        e.currentTarget.style.boxShadow = session.isFounder
+                          ? "0 4px 20px -2px rgba(217, 119, 6, 0.14), 0 2px 6px rgba(0, 0, 0, 0.04)"
+                          : "0 1px 3px rgba(0, 0, 0, 0.04)";
+                        e.currentTarget.style.borderColor = session.isFounder
+                          ? "rgba(217, 119, 6, 0.4)"
+                          : "#E2E8F0";
                       }}
                     >
-                      {/* Top Hero: Pure Coursera Signature Radiating Card Fan Graphic */}
+                      {/* Top Hero Frame */}
                       <div
                         style={{
                           height: 195,
-                          background: "#FFFFFF",
+                          background: session.isFounder
+                            ? "linear-gradient(180deg, #FEF3C7 0%, #FFFFFF 100%)"
+                            : "linear-gradient(180deg, #EAF1F6 0%, #FFFFFF 100%)",
                           position: "relative",
                           overflow: "hidden",
                           display: "flex",
                           alignItems: "flex-end",
                           justifyContent: "center",
+                          borderBottom: "1px solid #F1F5F9",
                         }}
                       >
-                        {/* Slots indicator badge in top-right */}
+                        {/* Domain / Executive Badge (Top-Left) */}
+                        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 3 }}>
+                          {session.isFounder ? (
+                            <Tag
+                              color="gold"
+                              style={{
+                                margin: 0,
+                                fontWeight: 700,
+                                borderRadius: 10,
+                                fontSize: 10.5,
+                                padding: "3px 8px",
+                                border: "1px solid rgba(217, 119, 6, 0.35)",
+                                boxShadow: "0 2px 6px rgba(217, 119, 6, 0.15)",
+                              }}
+                            >
+                              👑 {session.badgeText}
+                            </Tag>
+                          ) : (
+                            <Tag
+                              color={
+                                session.id.includes("etp")
+                                  ? "cyan"
+                                  : session.id.includes("ro")
+                                    ? "blue"
+                                    : "volcano"
+                              }
+                              style={{
+                                margin: 0,
+                                fontWeight: 600,
+                                borderRadius: 10,
+                                fontSize: 10,
+                                padding: "2px 8px",
+                              }}
+                            >
+                              {session.badgeText}
+                            </Tag>
+                          )}
+                        </div>
+
+                        {/* Slots indicator badge (Top-Right) */}
                         <div style={{ position: "absolute", top: 12, right: 12, zIndex: 3 }}>
                           <span
                             style={{
-                              background: availableSeats > 0 ? "rgba(22, 163, 74, 0.92)" : "rgba(220, 38, 38, 0.92)",
+                              background:
+                                availableSeats > 0
+                                  ? "rgba(22, 163, 74, 0.95)"
+                                  : "rgba(220, 38, 38, 0.95)",
                               backdropFilter: "blur(4px)",
                               color: "#FFFFFF",
                               padding: "3px 8px",
@@ -901,122 +1348,36 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                               boxShadow: "0 2px 6px rgba(0, 0, 0, 0.12)",
                             }}
                           >
-                            {availableSeats > 0 ? `● ${availableSeats} Slots Available` : "● Fully Booked"}
+                            {availableSeats > 0
+                              ? `● ${availableSeats} Seats Left`
+                              : "● Fully Booked"}
                           </span>
                         </div>
 
-                        {/* SVG Fan of 3 Radiating Certificate Cards */}
-                        <svg
-                          viewBox="0 0 280 195"
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            width: "100%",
-                            height: "100%",
-                            pointerEvents: "none",
-                          }}
-                        >
-                          <defs>
-                            <filter id={`fan-shadow-${mentor.id}`} x="-15%" y="-15%" width="130%" height="130%">
-                              <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#0F172A" floodOpacity="0.12" />
-                            </filter>
-                          </defs>
-
-                          {/* Card 1: Left Card (Tilted -22deg) */}
-                          <g transform="translate(140, 205) rotate(-22) translate(-140, -205)" filter={`url(#fan-shadow-${mentor.id})`}>
-                            <rect
-                              x="52"
-                              y="42"
-                              width="84"
-                              height="136"
-                              rx="8"
-                              fill="#0B1A24"
-                              stroke="#FFFFFF"
-                              strokeWidth="2.5"
-                            />
-                            <line x1="66" y1="60" x2="118" y2="60" stroke="#7EA6C4" strokeWidth="2.2" strokeLinecap="round" opacity="0.8" />
-                            <line x1="66" y1="70" x2="102" y2="70" stroke="#7EA6C4" strokeWidth="2.2" strokeLinecap="round" opacity="0.8" />
-                          </g>
-
-                          {/* Card 2: Center Card (Nearly vertical, -2deg) */}
-                          <g transform="translate(140, 205) rotate(-2) translate(-140, -205)" filter={`url(#fan-shadow-${mentor.id})`}>
-                            <rect
-                              x="92"
-                              y="28"
-                              width="96"
-                              height="150"
-                              rx="8"
-                              fill={nectarColors.leaf}
-                              stroke="#FFFFFF"
-                              strokeWidth="2.5"
-                            />
-                            <line x1="108" y1="48" x2="168" y2="48" stroke="#C8DBEA" strokeWidth="2.2" strokeLinecap="round" />
-                            <line x1="108" y1="58" x2="148" y2="58" stroke="#C8DBEA" strokeWidth="2.2" strokeLinecap="round" />
-                          </g>
-
-                          {/* Card 3: Right Card with Icon Badge (Tilted +22deg) */}
-                          <g transform="translate(140, 205) rotate(22) translate(-140, -205)" filter={`url(#fan-shadow-${mentor.id})`}>
-                            <rect
-                              x="144"
-                              y="42"
-                              width="84"
-                              height="136"
-                              rx="8"
-                              fill="#285F8A"
-                              stroke="#FFFFFF"
-                              strokeWidth="2.5"
-                            />
-                            {/* Department / Specialty specific white outline badge in top-right */}
-                            {mentor.id === "mentor-sanjay" && (
-                              <g transform="translate(190, 56)">
-                                <rect x="0" y="0" width="22" height="15" rx="3" fill="#FFFFFF" fillOpacity="0.22" stroke="#FFFFFF" strokeWidth="1.2" />
-                                <line x1="4" y1="5" x2="18" y2="5" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" />
-                                <line x1="4" y1="9" x2="13" y2="9" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" />
-                                <circle cx="16" cy="10" r="1.5" fill="#FFFFFF" />
-                              </g>
-                            )}
-                            {mentor.id === "mentor-rajesh" && (
-                              <g transform="translate(192, 54)">
-                                <path d="M 9 0 C 5 7 2 11 2 14 C 2 18 5.2 21 9 21 C 12.8 21 16 18 16 14 C 16 11 13 7 9 0 Z" fill="#FFFFFF" fillOpacity="0.22" stroke="#FFFFFF" strokeWidth="1.2" />
-                              </g>
-                            )}
-                            {mentor.id === "mentor-vikram" && (
-                              <g transform="translate(192, 54)">
-                                <path d="M 9 0 L 1 3.5 V 10.5 C 1 15.5 4.5 19 9 20.5 C 13.5 19 17 15.5 17 10.5 V 3.5 Z" fill="#FFFFFF" fillOpacity="0.22" stroke="#FFFFFF" strokeWidth="1.2" />
-                                <path d="M 9 5 V 14 M 4.5 9.5 H 13.5" stroke="#FFFFFF" strokeWidth="1.2" strokeLinecap="round" />
-                              </g>
-                            )}
-                            {mentor.id === "mentor-meera" && (
-                              <g transform="translate(192, 54)">
-                                <path d="M 6 1 H 12 V 6 L 17 16 C 17.8 17.8 16.5 20 14.5 20 H 3.5 C 1.5 20 0.2 17.8 1 16 L 6 6 Z" fill="#FFFFFF" fillOpacity="0.22" stroke="#FFFFFF" strokeWidth="1.2" />
-                                <line x1="4" y1="14" x2="14" y2="14" stroke="#FFFFFF" strokeWidth="1" strokeDasharray="1.5,1.5" />
-                              </g>
-                            )}
-                          </g>
-                        </svg>
-
-                        {/* Centered Cameo Portrait Frame */}
+                        {/* Center Cameo Portrait with Arch Frame */}
                         <div
                           style={{
                             position: "relative",
                             zIndex: 2,
-                            width: 116,
-                            height: 148,
-                            borderRadius: "58px 58px 0 0",
-                            backgroundImage: `url(${mentor.photoUrl})`,
+                            width: 124,
+                            height: 154,
+                            borderRadius: "62px 62px 0 0",
+                            backgroundImage: `url(${session.photoDataUrl})`,
                             backgroundSize: "cover",
                             backgroundPosition: "center 12%",
                             boxShadow: "0 -4px 18px rgba(0, 0, 0, 0.14)",
-                            border: "3.5px solid #FFFFFF",
+                            border: session.isFounder
+                              ? "3.5px solid #F59E0B"
+                              : "3.5px solid #FFFFFF",
                             borderBottom: "none",
                           }}
                         />
                       </div>
 
-                      {/* Card Content with Full Mentor Functionality */}
+                      {/* Card Content */}
                       <div
                         style={{
-                          padding: "16px 18px 20px",
+                          padding: "16px 18px 18px",
                           flex: 1,
                           display: "flex",
                           flexDirection: "column",
@@ -1024,21 +1385,25 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                         }}
                       >
                         <div>
-                          {/* Mentor Name and Rating */}
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                          {/* Mentor Name & Rating */}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "baseline",
+                            }}
+                          >
                             <h3
-                              className="mentor-card-title"
                               style={{
                                 margin: 0,
                                 fontSize: 16.5,
                                 fontWeight: 700,
-                                color: nectarColors.ink,
+                                color: "#0F172A",
                                 lineHeight: 1.3,
                                 letterSpacing: "-0.015em",
-                                transition: "color 0.2s ease",
                               }}
                             >
-                              {mentor.name}
+                              {session.mentorName}
                             </h3>
                             <span
                               style={{
@@ -1050,21 +1415,46 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                                 gap: 3,
                               }}
                             >
-                              <StarFilled style={{ fontSize: 11 }} /> {mentor.rating}
+                              <StarFilled style={{ fontSize: 11 }} /> {session.mentorRating}
                             </span>
                           </div>
 
                           {/* Role & Department */}
-                          <div style={{ fontSize: 11.5, color: nectarColors.leaf, fontWeight: 600, marginTop: 3 }}>
-                            {mentor.role} · {mentor.department}
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              color: session.isFounder ? "#B45309" : nectarColors.leaf,
+                              fontWeight: 600,
+                              marginTop: 2,
+                            }}
+                          >
+                            {session.mentorRole} · {session.mentorDepartment}
                           </div>
 
-                          {/* Specialty / Description */}
+                          {/* Specific Session Topic */}
+                          <div
+                            style={{
+                              marginTop: 10,
+                              fontWeight: 700,
+                              fontSize: 13.5,
+                              color: "#0F172A",
+                              lineHeight: 1.35,
+                              minHeight: 36,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {session.topic}
+                          </div>
+
+                          {/* Description */}
                           <p
                             style={{
-                              margin: "8px 0 0",
-                              fontSize: 12,
-                              color: "#475569",
+                              margin: "6px 0 0",
+                              fontSize: 11.5,
+                              color: "#64748B",
                               lineHeight: 1.45,
                               minHeight: 34,
                               display: "-webkit-box",
@@ -1073,107 +1463,156 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                               overflow: "hidden",
                             }}
                           >
-                            {mentor.specialty}
+                            {session.description}
                           </p>
                         </div>
 
-                        {/* Upcoming Published Clinic Box & Action */}
-                        <div style={{ marginTop: 12 }}>
-                          {nextClinic ? (
-                            <div
-                              style={{
-                                background: "#F8FAFC",
-                                border: "1px solid #E2E8F0",
-                                padding: "9px 11px",
-                                borderRadius: 8,
-                                fontSize: 11,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontWeight: 600,
-                                  color: "#0F172A",
-                                  marginBottom: 3,
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {nextClinic.topic || mentor.specialty}
-                              </div>
-                              <div style={{ color: "#64748B", fontSize: 10.5, display: "flex", alignItems: "center", gap: 5 }}>
-                                <ClockCircleOutlined style={{ color: nectarColors.leaf }} />
-                                {nextClinic.dayTime}
-                              </div>
-                              <div
-                                style={{
-                                  color: "#64748B",
-                                  fontSize: 10.5,
-                                  marginTop: 2,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 5,
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                <EnvironmentOutlined style={{ color: nectarColors.leaf }} />
-                                {nextClinic.location}
-                              </div>
-                              <div
-                                style={{
-                                  marginTop: 6,
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  borderTop: "1px solid #EEF2F6",
-                                  paddingTop: 5,
-                                }}
-                              >
-                                <span style={{ fontSize: 10, color: availableSeats > 0 ? "#166534" : "#B91C1C", fontWeight: 600 }}>
-                                  {availableSeats} of {nextClinic.capacity} seats open
-                                </span>
-                                <span style={{ fontSize: 10, color: "#94A3B8" }}>
-                                  {mentor.sessionCount} sessions held
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div
-                              style={{
-                                background: "#F8FAFC",
-                                border: "1px solid #E2E8F0",
-                                padding: "9px 11px",
-                                borderRadius: 8,
-                                fontSize: 11,
-                                color: "#64748B",
-                              }}
-                            >
-                              No open clinics right now. Check back next shift.
-                            </div>
-                          )}
-
-                          <Button
-                            type="primary"
-                            block
-                            icon={<ArrowRightOutlined />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const trackId = mentorToTrackMap[mentor.id] || "track-etp-specialist";
-                              router.push(`/training/track/${trackId}`);
-                            }}
+                        {/* Session Metadata & Action Box */}
+                        <div style={{ marginTop: 14 }}>
+                          <div
                             style={{
-                              marginTop: 10,
-                              borderRadius: 8,
-                              background: nectarColors.leaf,
-                              fontWeight: 600,
-                              fontSize: 12,
-                              height: 36,
+                              background: "#F8FAFC",
+                              border: "1px solid #E2E8F0",
+                              padding: "10px 12px",
+                              borderRadius: 10,
+                              fontSize: 11,
                             }}
                           >
-                            Explore Specialization & Clinics →
-                          </Button>
+                            {/* Scheduled Live Group Session Time */}
+                            <div
+                              style={{
+                                color: "#334155",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <ClockCircleOutlined style={{ color: nectarColors.leaf }} />
+                              <span>{session.scheduledAt}</span>
+                            </div>
+
+                            {/* Live Group Session Format Badge */}
+                            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <Tag
+                                style={{
+                                  fontSize: 10,
+                                  borderRadius: 6,
+                                  fontWeight: 700,
+                                  padding: "2px 7px",
+                                  margin: 0,
+                                  background: "#EAF1F6",
+                                  border: "1px solid rgba(28, 68, 99, 0.25)",
+                                  color: nectarColors.leaf,
+                                }}
+                              >
+                                <VideoCameraOutlined style={{ marginRight: 4 }} />
+                                Google Meet Live Stream · {session.durationMinutes} mins
+                              </Tag>
+                              <Tag
+                                style={{
+                                  fontSize: 10,
+                                  borderRadius: 6,
+                                  fontWeight: 600,
+                                  padding: "2px 7px",
+                                  margin: 0,
+                                  background: "#F1F5F9",
+                                  border: "1px solid #CBD5E1",
+                                  color: "#334155",
+                                }}
+                              >
+                                Group Masterclass
+                              </Tag>
+                            </div>
+
+                            {/* Q&A / Enrolled Count */}
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginTop: 8,
+                                color: "#64748B",
+                                fontSize: 10.5,
+                              }}
+                            >
+                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <MessageOutlined style={{ color: nectarColors.leaf }} />
+                                {session.questions.length} question(s) submitted
+                              </span>
+                              <span style={{ fontWeight: 600, color: "#475569" }}>
+                                {session.registeredCount}/{session.maxCapacity} Enrolled
+                              </span>
+                            </div>
+
+                            {/* Capacity Progress Bar */}
+                            <Progress
+                              percent={percentFull}
+                              size="small"
+                              showInfo={false}
+                              strokeColor={
+                                percentFull >= 90
+                                  ? "#EF4444"
+                                  : session.isFounder
+                                    ? "#F59E0B"
+                                    : nectarColors.leaf
+                              }
+                              style={{ margin: "4px 0 0" }}
+                            />
+                          </div>
+
+                          {/* Action Button */}
+                          {isEnrolled ? (
+                            <Button
+                              type="primary"
+                              block
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMasterclass(session);
+                                setDoubtQuestion("");
+                                setSelectedSlotId(session.selectedSlotMap?.[selfId] || session.slots?.[0]?.id || "");
+                                setSelectedAgenda(session.selectedAgendaMap?.[selfId] || "Plant Troubleshooting & Shock Load");
+                              }}
+                              style={{
+                                marginTop: 10,
+                                borderRadius: 8,
+                                background: "#64748B",
+                                borderColor: "#64748B",
+                                color: "#FFFFFF",
+                                fontWeight: 600,
+                                fontSize: 13,
+                                height: 38,
+                              }}
+                            >
+                              Enrolled
+                            </Button>
+                          ) : (
+                            <Button
+                              type="primary"
+                              block
+                              disabled={isFull}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMasterclass(session);
+                                setDoubtQuestion("");
+                                setSelectedSlotId(session.slots?.[0]?.id || "");
+                                setSelectedAgenda("Plant Troubleshooting & Shock Load");
+                              }}
+                              style={{
+                                marginTop: 10,
+                                borderRadius: 8,
+                                background: nectarColors.leaf,
+                                borderColor: nectarColors.leaf,
+                                color: "#FFFFFF",
+                                fontWeight: 600,
+                                fontSize: 13,
+                                height: 38,
+                              }}
+                            >
+                              {isFull ? "Full" : "Enroll"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1212,8 +1651,8 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                     gap: 7,
                     padding: "4px 11px",
                     borderRadius: 20,
-                    background: "rgba(28, 68, 99, 0.07)",
-                    border: "1px solid rgba(28, 68, 99, 0.15)",
+                    background: "#EAF1F6",
+                    border: "1px solid rgba(28, 68, 99, 0.2)",
                     color: nectarColors.leaf,
                     fontSize: 11,
                     fontWeight: 700,
@@ -1227,9 +1666,9 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                       width: 7,
                       height: 7,
                       borderRadius: "50%",
-                      background: "#16A34A",
+                      background: nectarColors.leaf,
                       display: "inline-block",
-                      boxShadow: "0 0 6px #16A34A",
+                      boxShadow: "0 0 6px rgba(28, 68, 99, 0.4)",
                     }}
                   />
                   <span>Adaptive Station Telemetry · Shift Accelerators</span>
@@ -1441,9 +1880,9 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                                 width: 6,
                                 height: 6,
                                 borderRadius: "50%",
-                                background: "#4ADE80",
+                                background: "#38BDF8",
                                 display: "inline-block",
-                                boxShadow: "0 0 6px #4ADE80",
+                                boxShadow: "0 0 6px #38BDF8",
                               }}
                             />
                             <span>{rec.matchScorePct}% Match</span>
@@ -2327,8 +2766,9 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                                         style={{
                                           fontSize: 11,
                                           fontWeight: 700,
-                                          color: "#166534",
-                                          background: "#DCFCE7",
+                                          color: nectarColors.leaf,
+                                          background: "#EAF1F6",
+                                          border: "1px solid rgba(28, 68, 99, 0.15)",
                                           padding: "3px 8px",
                                           borderRadius: 6,
                                           display: "inline-flex",
@@ -2336,7 +2776,7 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                                           gap: 4,
                                         }}
                                       >
-                                        <CheckCircleFilled style={{ fontSize: 11 }} /> Certified
+                                        <CheckCircleFilled style={{ fontSize: 11, color: nectarColors.leaf }} /> Certified
                                       </span>
                                     ) : enr?.status === "SKILL_MAP_DONE" ? (
                                       <span
@@ -2532,19 +2972,19 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
                       >
                         <div>
                           <div style={{ color: nectarColors.muted }}>Skill Map</div>
-                          <div style={{ fontWeight: 700, color: "#166534" }}>{cert.skillMapPct}%</div>
+                          <div style={{ fontWeight: 700, color: nectarColors.leaf }}>{cert.skillMapPct}%</div>
                         </div>
                         <div>
                           <div style={{ color: nectarColors.muted }}>Written</div>
-                          <div style={{ fontWeight: 700, color: "#166534" }}>{cert.writtenPct}%</div>
+                          <div style={{ fontWeight: 700, color: nectarColors.leaf }}>{cert.writtenPct}%</div>
                         </div>
                         <div>
                           <div style={{ color: nectarColors.muted }}>Practical</div>
-                          <div style={{ fontWeight: 700, color: "#166534" }}>{cert.practicalPct}%</div>
+                          <div style={{ fontWeight: 700, color: nectarColors.leaf }}>{cert.practicalPct}%</div>
                         </div>
                         <div>
                           <div style={{ color: nectarColors.muted }}>Oral Viva</div>
-                          <div style={{ fontWeight: 700, color: "#166534" }}>{cert.oralPct}%</div>
+                          <div style={{ fontWeight: 700, color: nectarColors.leaf }}>{cert.oralPct}%</div>
                         </div>
                       </div>
                     </div>
@@ -2587,6 +3027,266 @@ export default function EmployeeTrainingPortal({ employeeId }: EmployeeTrainingP
         certificate={activeCert}
         onClose={() => setActiveCert(null)}
       />
+
+      {/* Executive & Plant Lead Masterclasses Enrollment & Doubt Submission Modal */}
+      <Modal
+        open={Boolean(selectedMasterclass)}
+        onCancel={() => setSelectedMasterclass(null)}
+        footer={null}
+        width={640}
+        destroyOnHidden
+        centered
+      >
+        {selectedMasterclass && (() => {
+          const isEnrolled = selectedMasterclass.enrolledEmployeeIds?.includes(selfId);
+          const availableSeats = Math.max(0, selectedMasterclass.maxCapacity - selectedMasterclass.registeredCount);
+          const isFull = availableSeats <= 0;
+          const slots = selectedMasterclass.slots || [];
+          const activeSlotId = selectedSlotId || selectedMasterclass.selectedSlotMap?.[selfId] || slots[0]?.id || "";
+          const activeAgenda = selectedAgenda || selectedMasterclass.selectedAgendaMap?.[selfId] || "Plant Troubleshooting & Shock Load";
+          const meetingLink = selectedMasterclass.meetingLink || "https://meet.google.com/nec-lead-ops";
+
+          return (
+            <div style={{ padding: "6px 2px" }}>
+              {/* Speaker / Mentor Header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    backgroundImage: `url(${selectedMasterclass.photoDataUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center 20%",
+                    border: selectedMasterclass.isFounder ? "2.5px solid #F59E0B" : `2.5px solid ${nectarColors.leaf}`,
+                    flexShrink: 0,
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                    position: "relative",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: "#16A34A",
+                      border: "2px solid #FFFFFF",
+                    }}
+                  />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0, fontSize: 17.5, fontWeight: 700, color: "#0F172A" }}>
+                      {selectedMasterclass.mentorName}
+                    </h3>
+                    {selectedMasterclass.isFounder ? (
+                      <Tag color="gold" style={{ margin: 0, borderRadius: 10, fontWeight: 700 }}>
+                        👑 {selectedMasterclass.badgeText}
+                      </Tag>
+                    ) : (
+                      <Tag style={{ margin: 0, borderRadius: 10, fontWeight: 600, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
+                        {selectedMasterclass.badgeText}
+                      </Tag>
+                    )}
+                    <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}>
+                      <StarFilled style={{ fontSize: 11 }} /> {selectedMasterclass.mentorRating}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: selectedMasterclass.isFounder ? "#B45309" : nectarColors.leaf, fontWeight: 600, marginTop: 2 }}>
+                    {selectedMasterclass.mentorRole} · {selectedMasterclass.mentorDepartment}
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Group Session Schedule & Telemetry Banner */}
+              <div
+                style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  marginBottom: 16,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                    <CalendarOutlined style={{ color: nectarColors.leaf }} /> Scheduled Live Session
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: nectarColors.ink, marginTop: 3 }}>
+                    {selectedMasterclass.scheduledAt}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                    <TeamOutlined style={{ color: nectarColors.leaf }} /> Format & Duration
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: nectarColors.ink, marginTop: 3 }}>
+                    Live Group Masterclass · {selectedMasterclass.durationMinutes} mins
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                    <UserOutlined style={{ color: nectarColors.leaf }} /> Batch Cohort
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: nectarColors.leaf, marginTop: 3 }}>
+                    {selectedMasterclass.registeredCount} / {selectedMasterclass.maxCapacity} Operators Enrolled
+                  </div>
+                </div>
+              </div>
+
+              {/* Topic & Description Card */}
+              <div
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Masterclass Focus Topic
+                </div>
+                <div style={{ fontSize: 14.5, fontWeight: 700, color: nectarColors.ink, marginTop: 4, lineHeight: 1.35 }}>
+                  {selectedMasterclass.topic}
+                </div>
+                <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#64748B", lineHeight: 1.5 }}>
+                  {selectedMasterclass.description}
+                </p>
+              </div>
+
+              {/* Pre-Session Question for Mentor */}
+              <div style={{ marginBottom: 18 }}>
+                <label
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: nectarColors.ink,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span>
+                    <MessageOutlined style={{ color: nectarColors.leaf, marginRight: 6 }} />
+                    Ask a Question or Plant Challenge for {selectedMasterclass.mentorName.split(" ")[0]} (Optional)
+                  </span>
+                  <span style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 400 }}>
+                    Discussed live with the group
+                  </span>
+                </label>
+                <Input.TextArea
+                  rows={3}
+                  placeholder="e.g. During shock organic loads, what specific polymer dosing ratio and RAS cycle adjustments do you recommend?"
+                  value={doubtQuestion}
+                  onChange={(e) => setDoubtQuestion(e.target.value)}
+                  style={{ borderRadius: 8 }}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTop: "1px solid #E2E8F0" }}>
+                {isEnrolled ? (
+                  <Button
+                    danger
+                    onClick={async () => {
+                      const res = await cancelLiveMasterclassEnrollment(selectedMasterclass.id, selfId);
+                      message.info(res.message);
+                      setRefreshTrigger((t) => t + 1);
+                      setSelectedMasterclass(null);
+                    }}
+                  >
+                    Unenroll from Session
+                  </Button>
+                ) : <div />}
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <Button onClick={() => setSelectedMasterclass(null)}>Close</Button>
+                  
+                  {isEnrolled && (
+                    <Button
+                      type="default"
+                      icon={<VideoCameraOutlined />}
+                      onClick={() => message.info("Join Session feature coming soon! Live stream room will activate at the scheduled time.")}
+                      style={{
+                        borderColor: "rgba(28, 68, 99, 0.3)",
+                        color: nectarColors.leaf,
+                        fontWeight: 700,
+                        borderRadius: 8,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <span>Join Session</span>
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          background: "#FEF3C7",
+                          color: "#B45309",
+                          padding: "1.5px 5px",
+                          borderRadius: 4,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Coming Soon
+                      </span>
+                    </Button>
+                  )}
+
+                  <Button
+                    type="primary"
+                    loading={isEnrollingSession}
+                    disabled={!isEnrolled && isFull}
+                    onClick={async () => {
+                      setIsEnrollingSession(true);
+                      const res = await enrollInLiveMasterclass(
+                        selectedMasterclass.id,
+                        selfId,
+                        currentUser?.name || "Employee",
+                        doubtQuestion,
+                        activeSlotId,
+                        activeAgenda,
+                      );
+                      setIsEnrollingSession(false);
+                      if (res.success) {
+                        message.success(res.message);
+                        setDoubtQuestion("");
+                        setRefreshTrigger((t) => t + 1);
+                        setSelectedMasterclass(null);
+                      } else {
+                        message.error(res.message);
+                      }
+                    }}
+                    style={{
+                      background: selectedMasterclass.isFounder ? "#D97706" : nectarColors.leaf,
+                      borderColor: selectedMasterclass.isFounder ? "#D97706" : nectarColors.leaf,
+                      fontWeight: 700,
+                      borderRadius: 8,
+                    }}
+                  >
+                    {isEnrolled
+                      ? "Save Question Changes"
+                      : isFull
+                        ? "Batch Full"
+                        : "Enroll in Live Session"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
       {/* Mentor Drop-In Registration Modal */}
       <Modal

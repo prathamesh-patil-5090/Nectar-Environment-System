@@ -172,19 +172,19 @@ export default function CertificateModal({
           >
             <div style={{ background: "#FFFFFF", padding: "10px 6px", borderRadius: 8, border: "1px solid rgba(28, 68, 99, 0.08)" }}>
               <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600 }}>1. Skill Map (25%)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#166534", marginTop: 2 }}>{certificate.skillMapPct}%</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: nectarColors.leaf, marginTop: 2 }}>{certificate.skillMapPct}%</div>
             </div>
             <div style={{ background: "#FFFFFF", padding: "10px 6px", borderRadius: 8, border: "1px solid rgba(28, 68, 99, 0.08)" }}>
               <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600 }}>2. Written (25%)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#166534", marginTop: 2 }}>{certificate.writtenPct}%</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: nectarColors.leaf, marginTop: 2 }}>{certificate.writtenPct}%</div>
             </div>
             <div style={{ background: "#FFFFFF", padding: "10px 6px", borderRadius: 8, border: "1px solid rgba(28, 68, 99, 0.08)" }}>
               <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600 }}>3. Practical (30%)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#166534", marginTop: 2 }}>{certificate.practicalPct}%</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: nectarColors.leaf, marginTop: 2 }}>{certificate.practicalPct}%</div>
             </div>
             <div style={{ background: "#FFFFFF", padding: "10px 6px", borderRadius: 8, border: "1px solid rgba(28, 68, 99, 0.08)" }}>
               <div style={{ fontSize: 11, color: nectarColors.muted, fontWeight: 600 }}>4. Oral Viva (20%)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#166534", marginTop: 2 }}>{certificate.oralPct}%</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: nectarColors.leaf, marginTop: 2 }}>{certificate.oralPct}%</div>
             </div>
           </div>
           <div
@@ -239,7 +239,7 @@ export default function CertificateModal({
                   const expTime = certificate.expiresAt
                     ? new Date(certificate.expiresAt).getTime()
                     : new Date(certificate.issuedAt).getTime() + 365 * 86400000;
-                  return new Date().getTime() > expTime ? "#DC2626" : "#166534";
+                  return new Date().getTime() > expTime ? "#DC2626" : nectarColors.leaf;
                 })(),
                 marginTop: 2,
                 fontWeight: 600,

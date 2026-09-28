@@ -4,7 +4,7 @@
   "private": true,
   "description": "Nectar Enviro Ops Console — full-stack monorepo (Next.js client + NestJS API)",
   "scripts": {
-    "dev": "concurrently --names \"CLIENT,SERVER\" --prefix-colors \"bgGreen.bold,bgCyan.bold\" --kill-others-on-fail \"npm run dev --prefix client\" \"npm run start:dev --prefix server\"",
+    "dev": "concurrently --names \"CLIENT,SERVER\" --prefix-colors \"bgGreen.bold,bgCyan.bold\" \"npm run dev --prefix client\" \"npm run start:dev --prefix server\"",
     "client": "npm run dev --prefix client",
     "server": "npm run start:dev --prefix server",
     "install:all": "npm install && npm install --prefix client && npm install --prefix server",

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Table, Tag, Button, Modal, Form, Input, Select, DatePicker, message } from "antd";
+import { Table, Tag, Button, Modal, Form, Input, Select, DatePicker, App } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   CalendarOutlined,
@@ -24,6 +24,7 @@ export default function TrainingScheduleView({
   isManager = false,
   employeeId,
 }: TrainingScheduleViewProps) {
+  const { message } = App.useApp();
   const [sessions, setSessions] = useState<TrainingSession[]>(() =>
     getTrainingSessions(isManager ? undefined : employeeId),
   );

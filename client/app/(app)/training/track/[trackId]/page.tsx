@@ -43,6 +43,7 @@ import { getSession } from "@/lib/auth";
 import { scopedEmployeeId, selfEmployeeId } from "@/lib/rbac";
 import { getEmployeeById } from "@/lib/mock-data";
 import { CourseraRecommendationsGrid } from "@/components/training/CourseraRecommendationsGrid";
+import { nectarColors } from "@/lib/theme";
 import type { SpecializationTrack, Course, MentorProfile } from "@/lib/training/types";
 
 export default function SpecializationTrackPage() {
@@ -364,7 +365,7 @@ export default function SpecializationTrackPage() {
                 </div>
                 <span style={{ color: "rgba(255, 255, 255, 0.2)" }}>|</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <SafetyCertificateOutlined style={{ color: "#4ADE80" }} />
+                  <SafetyCertificateOutlined style={{ color: "#38BDF8" }} />
                   <span style={{ fontWeight: 600 }}>{track.heroBadge}</span>
                 </div>
               </div>
@@ -382,7 +383,7 @@ export default function SpecializationTrackPage() {
                     fontWeight: 700,
                     borderRadius: 10,
                     background: isEnrolled
-                      ? "#16A34A"
+                      ? nectarColors.leaf
                       : "linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)",
                     borderColor: "transparent",
                     boxShadow: "0 10px 24px rgba(14, 165, 233, 0.35)",
@@ -476,7 +477,7 @@ export default function SpecializationTrackPage() {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                    <SafetyCertificateOutlined style={{ fontSize: 18, color: "#4ADE80", marginTop: 2 }} />
+                    <SafetyCertificateOutlined style={{ fontSize: 18, color: "#38BDF8", marginTop: 2 }} />
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>
                         Verifiable Plant Credential

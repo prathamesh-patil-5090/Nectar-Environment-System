@@ -1,22 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
   Course,
   CourseDocument,
-} from '../../../db/schemas/training/course.schema';
-import {
   TrainingRecord,
   TrainingRecordDocument,
-} from '../../../db/schemas/training/training-record.schema';
-import {
   Certificate,
   CertificateDocument,
-} from '../../../db/schemas/training/certificate.schema';
-import {
   TrainingSession,
   TrainingSessionDocument,
-} from '../../../db/schemas/training/training-session.schema';
+  MentorLiveSession,
+  MentorLiveSessionDocument,
+} from '../../../db/schemas/training';
 
 @Injectable()
 export class TrainingService {
@@ -28,6 +24,8 @@ export class TrainingService {
     private certModel: Model<CertificateDocument>,
     @InjectModel(TrainingSession.name)
     private sessionModel: Model<TrainingSessionDocument>,
+    @InjectModel(MentorLiveSession.name)
+    private mentorSessionModel: Model<MentorLiveSessionDocument>,
   ) {}
 
   async findAllCourses(section?: string): Promise<Course[]> {
@@ -73,5 +71,98 @@ export class TrainingService {
   async findSessions(employeeId?: string): Promise<TrainingSession[]> {
     const filter = employeeId ? { employeeIds: employeeId } : {};
     return this.sessionModel.find(filter).lean().exec();
+  }
+
+  // -------------------------------------------------------------------
+  // Executive & Plant Lead Masterclasses (Mentor Live Sessions)
+  // -------------------------------------------------------------------
+  async findAllMentorLiveSessions(): Promise<MentorLiveSession[]> {
+    return this.mentorSessionModel.find().lean().exec();
+  }
+
+  async findMentorLiveSessionById(id: string): Promise<MentorLiveSession> {
+    const session = await this.mentorSessionModel.findOne({ id }).lean().exec();
+    if (!session) throw new NotFoundException(`Masterclass ${id} not found`);
+    return session;
+  }
+
+  async enrollInMentorLiveSession(
+    sessionId: string,
+    employeeId: string,
+    employeeName: string,
+    question?: string,
+  ): Promise<MentorLiveSession> {
+    const session = await this.mentorSessionModel.findOne({ id: sessionId }).exec();
+    if (!session) throw new NotFoundException(`Masterclass ${sessionId} not found`);
+
+    if (session.enrolledEmployeeIds.includes(employeeId)) {
+      if (question?.trim()) {
+        session.questions.push({
+          id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          employeeId,
+          employeeName: employeeName || 'Employee',
+          question: question.trim(),
+          submittedAt: new Date().toISOString(),
+        });
+        await session.save();
+      }
+      return session.toObject();
+    }
+
+    if (session.registeredCount >= session.maxCapacity) {
+      throw new BadRequestException(
+        `This masterclass is at maximum capacity (${session.maxCapacity} seats). No more slots available.`,
+      );
+    }
+
+    session.enrolledEmployeeIds.push(employeeId);
+    session.registeredCount = session.enrolledEmployeeIds.length;
+
+    if (question?.trim()) {
+      session.questions.push({
+        id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        employeeId,
+        employeeName: employeeName || 'Employee',
+        question: question.trim(),
+        submittedAt: new Date().toISOString(),
+      });
+    }
+
+    await session.save();
+    return session.toObject();
+  }
+
+  async cancelMentorLiveSession(
+    sessionId: string,
+    employeeId: string,
+  ): Promise<MentorLiveSession> {
+    const session = await this.mentorSessionModel.findOne({ id: sessionId }).exec();
+    if (!session) throw new NotFoundException(`Masterclass ${sessionId} not found`);
+
+    session.enrolledEmployeeIds = session.enrolledEmployeeIds.filter((e) => e !== employeeId);
+    session.registeredCount = session.enrolledEmployeeIds.length;
+    await session.save();
+    return session.toObject();
+  }
+
+  async addQuestionToMentorSession(
+    sessionId: string,
+    employeeId: string,
+    employeeName: string,
+    question: string,
+  ): Promise<MentorLiveSession> {
+    const session = await this.mentorSessionModel.findOne({ id: sessionId }).exec();
+    if (!session) throw new NotFoundException(`Masterclass ${sessionId} not found`);
+
+    session.questions.push({
+      id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      employeeId,
+      employeeName: employeeName || 'Employee',
+      question: question.trim(),
+      submittedAt: new Date().toISOString(),
+    });
+
+    await session.save();
+    return session.toObject();
   }
 }
