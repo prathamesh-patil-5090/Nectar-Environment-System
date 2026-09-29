@@ -302,6 +302,41 @@ function persistRelieverPool() {
   }
 }
 
+function pushRelieverAssign(
+  relieverId: string,
+  siteId: string,
+  absenceId?: string,
+) {
+  if (typeof window === "undefined") return;
+  void import("../api/relievers")
+    .then(({ assignReliever }) =>
+      assignReliever(relieverId, siteId, absenceId),
+    )
+    .catch(() => {});
+}
+
+function pushRelieverRelease(opts: {
+  relieverId?: string;
+  absenceId?: string;
+}) {
+  if (typeof window === "undefined") return;
+  void import("../api/relievers")
+    .then(({ releaseReliever }) => releaseReliever(opts))
+    .catch(() => {});
+}
+
+function pushRelieverAvailability(
+  relieverId: string,
+  availability: RelieverAvailability,
+) {
+  if (typeof window === "undefined") return;
+  void import("../api/relievers")
+    .then(({ updateRelieverAvailability }) =>
+      updateRelieverAvailability(relieverId, availability),
+    )
+    .catch(() => {});
+}
+
 function ensureRelieverHydrated() {
   if (relieverHydrated || typeof window === "undefined") return;
   relieverHydrated = true;
@@ -559,6 +594,7 @@ export function runReplacementFlow(absenceId: string): {
   );
 
   persistRelieverPool();
+  pushRelieverAssign(pick.id, absence.siteId, absence.id);
   return { absence: { ...absence }, events: getEvents(absenceId), outcome };
 }
 
@@ -661,6 +697,7 @@ export function assignChosenRelieverForLeave(
     a.id === absence.id ? { ...absence } : a,
   );
   persistRelieverPool();
+  pushRelieverAssign(picked.relieverId, input.siteId, input.leaveId);
   const where = outcome === "local_assigned" ? "local" : "cluster";
   return {
     outcome,
@@ -687,6 +724,7 @@ export function releaseRelieverForLeave(leaveId: string) {
       : a,
   );
   persistRelieverPool();
+  pushRelieverRelease({ absenceId: leaveId });
 }
 
 export function resetRelieverPool() {
@@ -718,6 +756,11 @@ export function setRelieverAvailability(
     return { ...r, availability };
   });
   persistRelieverPool();
+  if (availability === "available") {
+    pushRelieverRelease({ relieverId });
+  } else {
+    pushRelieverAvailability(relieverId, availability);
+  }
 }
 
 export function getPoolKpis() {
@@ -776,22 +819,90 @@ export function getSiteManpowerRequirement(siteId: string) {
 export async function syncRelieversWithApi(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    const { getRelievers } = await import('../api/relievers');
-    const live = await getRelievers().catch(() => []);
+    const { getRelievers, updateRelieverAvailability, assignReliever } =
+      await import("../api/relievers");
+    let live = await getRelievers().catch(() => [] as Awaited<
+      ReturnType<typeof getRelievers>
+    >);
+
+    // Bootstrap: if Mongo pool empty, push local seed availability snapshot
+    if (!live?.length) {
+      ensureRelieverHydrated();
+      for (const r of relieverStore) {
+        try {
+          if (r.availability === "assigned" && r.assignedSiteId) {
+            await assignReliever(
+              r.id,
+              r.assignedSiteId,
+              r.assignedAbsenceId,
+            ).catch(() =>
+              updateRelieverAvailability(r.id, r.availability).catch(() => null),
+            );
+          } else {
+            await updateRelieverAvailability(r.id, r.availability).catch(
+              () => null,
+            );
+          }
+        } catch {
+          /* seed may not exist on server until npm run seed */
+        }
+      }
+      live = await getRelievers().catch(() => []);
+    }
+
     if (live && live.length) {
-      relieverStore = live.map((r: any) => ({
-        id: r.id,
-        employeeId: r.employeeId,
-        name: r.name,
-        phone: r.phone || '',
-        clusterId: r.clusterId || 'c-demo',
-        homeSiteId: r.homeSiteId,
-        skills: r.skills || r.skillTags || [],
-        plantTypes: r.plantTypes || [],
-        availability: r.availability || 'available',
-        assignedSiteId: r.assignedSiteId,
-        assignedAbsenceId: r.assignedAbsenceId,
-      }));
+      const byId = new Map(live.map((r) => [r.id, r]));
+      // Merge API availability onto known pool members; keep local skill metadata
+      ensureRelieverHydrated();
+      relieverStore = relieverStore.map((local) => {
+        const remote = byId.get(local.id);
+        if (!remote) return local;
+        return {
+          ...local,
+          name: remote.name || local.name,
+          phone: remote.phone || local.phone,
+          clusterId: remote.clusterId || local.clusterId,
+          homeSiteId: remote.homeSiteId ?? local.homeSiteId,
+          skills: (remote.skills ||
+            remote.skillTags ||
+            local.skills) as Reliever["skills"],
+          availability: (remote.availability === "deployed"
+            ? "assigned"
+            : remote.availability === "on_leave" ||
+                remote.availability === "inactive"
+              ? "unavailable"
+              : remote.availability) as RelieverAvailability,
+          assignedSiteId: (remote as { assignedSiteId?: string })
+            .assignedSiteId,
+          assignedAbsenceId: (remote as { assignedAbsenceId?: string })
+            .assignedAbsenceId,
+        };
+      });
+      // Append any API-only relievers not in local seed
+      for (const remote of live) {
+        if (relieverStore.some((r) => r.id === remote.id)) continue;
+        relieverStore.push({
+          id: remote.id,
+          employeeId: remote.employeeId,
+          name: remote.name,
+          phone: remote.phone || "",
+          clusterId: remote.clusterId || "c-demo",
+          homeSiteId: remote.homeSiteId,
+          skills: (remote.skills || remote.skillTags || []) as Reliever["skills"],
+          plantTypes: [],
+          availability: (remote.availability === "deployed"
+            ? "assigned"
+            : remote.availability === "on_leave" ||
+                remote.availability === "inactive"
+              ? "unavailable"
+              : remote.availability) as RelieverAvailability,
+          assignedSiteId: (remote as { assignedSiteId?: string })
+            .assignedSiteId,
+          assignedAbsenceId: (remote as { assignedAbsenceId?: string })
+            .assignedAbsenceId,
+        });
+      }
+      relieverHydrated = true;
       persistRelieverPool();
     }
   } catch {

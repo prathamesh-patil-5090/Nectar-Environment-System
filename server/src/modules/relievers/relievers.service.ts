@@ -43,7 +43,11 @@ export class RelieversService {
     return updated;
   }
 
-  async assign(data: { relieverId: string; siteId: string; absenceId?: string }): Promise<Reliever> {
+  async assign(data: {
+    relieverId: string;
+    siteId: string;
+    absenceId?: string;
+  }): Promise<Reliever> {
     const updated = await this.relieverModel
       .findOneAndUpdate(
         { $or: [{ id: data.relieverId }, { employeeId: data.relieverId }] },
@@ -58,6 +62,37 @@ export class RelieversService {
       .exec();
     if (!updated) {
       throw new NotFoundException(`Reliever with ID ${data.relieverId} not found`);
+    }
+    return updated;
+  }
+
+  async releaseByAbsence(absenceId: string): Promise<{ released: number }> {
+    const result = await this.relieverModel
+      .updateMany(
+        { assignedAbsenceId: absenceId },
+        {
+          $set: { availability: 'available' },
+          $unset: { assignedSiteId: '', assignedAbsenceId: '' },
+        },
+      )
+      .exec();
+    return { released: result.modifiedCount ?? 0 };
+  }
+
+  async release(relieverId: string): Promise<Reliever> {
+    const updated = await this.relieverModel
+      .findOneAndUpdate(
+        { $or: [{ id: relieverId }, { employeeId: relieverId }] },
+        {
+          $set: { availability: 'available' },
+          $unset: { assignedSiteId: '', assignedAbsenceId: '' },
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
+    if (!updated) {
+      throw new NotFoundException(`Reliever with ID ${relieverId} not found`);
     }
     return updated;
   }

@@ -432,6 +432,23 @@ function persistLeaveStore() {
   }
 }
 
+/** Fire-and-forget create on Nest — keeps UI snappy offline. */
+function pushLeaveCreate(leave: LeaveRequest) {
+  if (typeof window === "undefined") return;
+  void import("../api/leaves")
+    .then(({ createLeave }) => createLeave(leave))
+    .catch(() => {});
+}
+
+/** Fire-and-forget status/meta sync on Nest. */
+function pushLeaveUpdate(leave: LeaveRequest) {
+  if (typeof window === "undefined") return;
+  const { id, status, ...meta } = leave;
+  void import("../api/leaves")
+    .then(({ updateLeaveStatus }) => updateLeaveStatus(id, status, meta))
+    .catch(() => {});
+}
+
 function ensureLeaveHydrated() {
   if (leaveHydrated || typeof window === "undefined") return;
   leaveHydrated = true;
@@ -651,6 +668,7 @@ export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
 
   leaveStore = [row, ...leaveStore];
   persistLeaveStore();
+  pushLeaveCreate(row);
   return row;
 }
 
@@ -723,7 +741,9 @@ function updateLeave(id: string, patch: Partial<LeaveRequest>, ev: LeaveTimeline
     };
   });
   persistLeaveStore();
-  return getLeaveById(id)!;
+  const updated = getLeaveById(id)!;
+  pushLeaveUpdate(updated);
+  return updated;
 }
 
 export function supervisorVerify(id: string, actor: string) {
@@ -1053,10 +1073,24 @@ export function cancelLeave(id: string, actor: string, note?: string) {
 export async function syncLeavesWithApi(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    const { getLeaves } = await import('../api/leaves');
-    const live = await getLeaves().catch(() => []);
+    const { getLeaves, createLeave } = await import("../api/leaves");
+    let live = await getLeaves().catch(() => [] as LeaveRequest[]);
+
+    // First-time bootstrap: push demo seed if Mongo has no leaves yet
+    if (!live?.length) {
+      ensureLeaveHydrated();
+      await Promise.all(
+        seedSnapshot.map((row) => createLeave(row).catch(() => null)),
+      );
+      live = await getLeaves().catch(() => [] as LeaveRequest[]);
+    }
+
     if (live && live.length) {
-      leaveStore = live;
+      leaveStore = live.map((l) => ({
+        ...l,
+        timeline: Array.isArray(l.timeline) ? l.timeline : [],
+      }));
+      leaveHydrated = true;
       persistLeaveStore();
     }
   } catch {

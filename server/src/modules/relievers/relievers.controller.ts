@@ -31,7 +31,25 @@ export class RelieversController {
 
   @Post('assign')
   @ApiOperation({ summary: 'Assign a reliever to a site/absence' })
-  assign(@Body() data: { relieverId: string; siteId: string; absenceId?: string }) {
+  assign(
+    @Body() data: { relieverId: string; siteId: string; absenceId?: string },
+  ) {
     return this.relieversService.assign(data);
+  }
+
+  @Post('release')
+  @ApiOperation({
+    summary: 'Release a reliever (by id) or all covering an absence/leave id',
+  })
+  release(
+    @Body() data: { relieverId?: string; absenceId?: string },
+  ) {
+    if (data.absenceId) {
+      return this.relieversService.releaseByAbsence(data.absenceId);
+    }
+    if (data.relieverId) {
+      return this.relieversService.release(data.relieverId);
+    }
+    return { released: 0 };
   }
 }

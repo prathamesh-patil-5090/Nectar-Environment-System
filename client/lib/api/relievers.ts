@@ -44,3 +44,13 @@ export async function assignReliever(
     body: JSON.stringify({ relieverId, siteId, absenceId }),
   });
 }
+
+export async function releaseReliever(opts: {
+  relieverId?: string;
+  absenceId?: string;
+}): Promise<{ released?: number } | RelieverData> {
+  return apiClient('/relievers/release', {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  });
+}

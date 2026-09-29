@@ -5,6 +5,8 @@
  * with automatic fallback to local browser cache if backend is unreachable or offline.
  */
 
+import { syncLeavesWithApi } from "@/lib/leave/store";
+import { syncRelieversWithApi } from "@/lib/reliever/pool";
 import { syncTrainingWithApi } from "@/lib/training/store";
 
 let isHydrating = false;
@@ -16,6 +18,8 @@ export async function hydrateAllStoresFromApi(): Promise<void> {
   try {
     await Promise.allSettled([
       syncTrainingWithApi(),
+      syncLeavesWithApi(),
+      syncRelieversWithApi(),
     ]);
   } catch (err) {
     console.debug("Hydration: offline fallback active", err);
