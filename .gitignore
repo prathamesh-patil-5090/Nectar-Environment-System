@@ -10,5 +10,4 @@ DOC/
 
 # Environment variables
 .env
-.env.*
 .env.local
