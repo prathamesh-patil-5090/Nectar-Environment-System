@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import gsap from "gsap";
 import {
   Avatar,
@@ -191,6 +191,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (next) setOpenKeys([]);
   };
 
+  // Restore before paint so a hard refresh keeps the last collapse choice
+  useLayoutEffect(() => {
+    setCollapsed(readSiderCollapsed());
+  }, []);
+
   // GSAP: Animate logo swap on collapse/expand
   useEffect(() => {
     if (collapsed && logoShortRef.current) {
@@ -317,7 +322,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     const id = requestAnimationFrame(() => {
       setUser(session);
-      setCollapsed(readSiderCollapsed());
       setReady(true);
     });
     return () => cancelAnimationFrame(id);
@@ -624,8 +628,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sider
         collapsible
         collapsed={collapsed}
-        onCollapse={(next) => setCollapsedPersisted(next)}
-        breakpoint="lg"
+        onCollapse={(next, type) => {
+          // Only persist user toggles — ignore Ant Design responsive auto-collapse
+          if (type === "responsive") return;
+          setCollapsedPersisted(next);
+        }}
         width={232}
         collapsedWidth={72}
         trigger={null}
