@@ -276,7 +276,7 @@ describe("leave approval chain", () => {
     );
   });
 
-  it("releases the reliever when the leave is cancelled", () => {
+  it("blocks soft-withdraw after site approval", () => {
     const created = fileLeave({
       employeeId: "emp0126",
       entrySource: "employee",
@@ -284,10 +284,38 @@ describe("leave approval chain", () => {
     });
     supervisorVerify(created.id, "Amit Supervisor");
     siteApprove(created.id, "Sanjay Jadhav", { arrangeReplacement: true });
-    const cancelled = cancelLeave(created.id, "Rajesh Kulkarni", "Plans changed");
+    expect(() =>
+      cancelLeave(created.id, "Rajesh Kulkarni", "Plans changed"),
+    ).toThrow(/Cannot move leave/);
+  });
+
+  it("soft-withdraws leave with reason before site approval and keeps audit fields", () => {
+    const created = fileLeave({
+      employeeId: "emp0126",
+      entrySource: "employee",
+      enteredByRole: "employee",
+    });
+    supervisorVerify(created.id, "Amit Supervisor");
+    const cancelled = cancelLeave(
+      created.id,
+      "Rajesh Kulkarni",
+      "Plans changed",
+      "employee",
+    );
     expect(cancelled.status).toBe("CANCELLED");
-    expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
-      "available",
+    expect(cancelled.cancellationReason).toBe("Plans changed");
+    expect(cancelled.cancelledByName).toBe("Rajesh Kulkarni");
+    expect(() => cancelLeave(created.id, "X", "again")).toThrow();
+  });
+
+  it("requires a withdrawal reason", () => {
+    const created = fileLeave({
+      employeeId: "emp0126",
+      entrySource: "employee",
+      enteredByRole: "employee",
+    });
+    expect(() => cancelLeave(created.id, "Rajesh Kulkarni", "  ")).toThrow(
+      /reason/i,
     );
   });
 });

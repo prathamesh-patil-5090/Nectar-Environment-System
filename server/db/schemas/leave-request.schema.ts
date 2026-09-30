@@ -77,6 +77,18 @@ export class LeaveRequest {
   @Prop()
   rejectionReason: string;
 
+  @Prop()
+  cancellationReason: string;
+
+  @Prop()
+  cancelledByName: string;
+
+  @Prop()
+  cancelledByRole: string;
+
+  @Prop()
+  cancelledAt: string;
+
   @Prop({ default: false })
   replacementRequired: boolean;
 
@@ -97,6 +109,25 @@ export class LeaveRequest {
 
   @Prop({ default: 1 })
   daysRequested: number;
+
+  @Prop({ default: false })
+  isHalfDay: boolean;
+
+  @Prop({ enum: ['morning', 'afternoon'] })
+  halfDaySlot?: string;
+
+  @Prop({ enum: ['PASS', 'WARN', 'BLOCK'] })
+  policyVerdict?: string;
+
+  @Prop({ type: Array, default: [] })
+  policyFlags?: Array<{
+    code: string;
+    severity: string;
+    message: string;
+  }>;
+
+  @Prop({ type: Array, default: [] })
+  policySuggestions?: string[];
 
   @Prop({ type: Array, default: [] })
   timeline: any[];

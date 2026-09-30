@@ -1,13 +1,12 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   App,
   Button,
   DatePicker,
-  Descriptions,
   Empty,
   Input,
   Modal,
@@ -16,17 +15,19 @@ import {
   Tag,
   Timeline,
 } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, WarningOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import LeaveImpactPanel from "@/components/leave/LeaveImpactPanel";
 import { getSession } from "@/lib/auth";
-import { getSiteName } from "@/lib/mock-data";
+import { getEmployeeById, getSiteName } from "@/lib/mock-data";
 import {
+  cancelLeave,
   computeLeaveImpact,
   confirmReturn,
   employeeConsentLeave,
   escalateLeave,
   getLeaveById,
+  getPlantOverlappingLeaves,
   LEAVE_STATUS_LABELS,
   LEAVE_TYPE_LABELS,
   managerDecideLeave,
@@ -42,12 +43,60 @@ import {
   canAdminFinalizeLeave,
   canSiteApproveLeave,
   canSupervisorVerifyLeave,
+  canWithdrawLeaveRequest,
+  leaveActorRole,
   normalizeRole,
   scopedEmployeeId,
   scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { getRelievers, listReplacementOptions } from "@/lib/reliever/pool";
+
+function InfoTile({
+  label,
+  children,
+  wide,
+}: {
+  label: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        gridColumn: wide ? "1 / -1" : undefined,
+        padding: "12px 14px",
+        borderRadius: 8,
+        background: nectarColors.sand,
+        border: "1px solid rgba(11, 26, 36, 0.06)",
+        minHeight: 64,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.04em",
+          color: nectarColors.muted,
+          marginBottom: 4,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 14,
+          color: nectarColors.ink,
+          fontWeight: 500,
+          lineHeight: 1.45,
+          wordBreak: "break-word",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function LeaveDetailPage({
   params,
@@ -62,6 +111,8 @@ export default function LeaveDetailPage({
   const [returnDate, setReturnDate] = useState(dayjs());
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawNote, setWithdrawNote] = useState("");
   const [coverChoice, setCoverChoice] = useState<string>();
 
   const leave = useMemo(() => {
@@ -79,6 +130,12 @@ export default function LeaveDetailPage({
     void tick;
     if (!leave) return { local: [], cluster: [] };
     return listReplacementOptions(leave.siteId);
+  }, [leave, tick]);
+
+  const plantOverlaps = useMemo(() => {
+    void tick;
+    if (!leave) return [];
+    return getPlantOverlappingLeaves(leave.id);
   }, [leave, tick]);
 
   if (!leave || !impact) {
@@ -119,6 +176,8 @@ export default function LeaveDetailPage({
   const canManager = canManagerDecideLeave(session);
   const canAdmin = canAdminFinalizeLeave(session);
   const canReturn = canConfirmLeaveReturn(session);
+  const canWithdraw = canWithdrawLeaveRequest(session, leave);
+  const actorLeaveRole = leaveActorRole(session);
   /** Only the employee role who owns the leave may consent */
   const canGiveConsent =
     role === "employee" &&
@@ -191,7 +250,9 @@ export default function LeaveDetailPage({
             <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>
               {leave.mode}
             </Tag>
-            <Tag>{LEAVE_STATUS_LABELS[leave.status]}</Tag>
+            <Tag color={leave.status === "CANCELLED" ? "default" : undefined}>
+              {LEAVE_STATUS_LABELS[leave.status]}
+            </Tag>
             <Tag>
               {leave.entrySource === "supervisor_on_behalf"
                 ? "Entered by supervisor"
@@ -200,68 +261,261 @@ export default function LeaveDetailPage({
           </Space>
         </div>
 
-        <Descriptions style={{ marginTop: 20 }} column={1} size="small">
-          <Descriptions.Item label="Leave type">
-            {LEAVE_TYPE_LABELS[leave.leaveType]}
-          </Descriptions.Item>
-          <Descriptions.Item label="Dates">
-            {leave.startDate} → {leave.endDate} ({leave.daysRequested}d)
-          </Descriptions.Item>
-          <Descriptions.Item label="Expected return">
-            {leave.expectedReturnDate}
-          </Descriptions.Item>
-          <Descriptions.Item label="Actual return">
-            {leave.actualReturnDate ?? "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Leave balance">
-            {leave.leaveBalanceDays} days
-          </Descriptions.Item>
-          <Descriptions.Item label="Supervisor">
-            {leave.supervisorName}
-          </Descriptions.Item>
-          <Descriptions.Item label="Shift In-Charge">
-            {leave.siteInChargeName}
-          </Descriptions.Item>
-          <Descriptions.Item label="Manager">
-            {leave.managerName ?? "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Entered by">
-            {leave.enteredByName} ({leave.enteredByRole})
-          </Descriptions.Item>
-          {leave.employeeConsent ? (
-            <Descriptions.Item label="Employee consent">
-              {leave.employeeConsent}
-              {leave.employeeConsentAt
-                ? ` · ${leave.employeeConsentAt.slice(0, 16).replace("T", " ")}`
+        {leave.status === "CANCELLED" ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "14px 16px",
+              borderRadius: 8,
+              background: "rgba(74, 99, 117, 0.08)",
+              border: "1px solid rgba(74, 99, 117, 0.25)",
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              Withdrawn
+              {leave.cancelledByName ? ` by ${leave.cancelledByName}` : ""}
+              {leave.cancelledByRole ? ` (${leave.cancelledByRole})` : ""}
+            </div>
+            <div style={{ fontSize: 13, color: nectarColors.ink }}>
+              {leave.cancellationReason ?? "No reason recorded"}
+            </div>
+            {leave.cancelledAt ? (
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 12,
+                  color: nectarColors.muted,
+                }}
+              >
+                {leave.cancelledAt.slice(0, 16).replace("T", " ")}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {leave.policyVerdict === "WARN" && leave.policyFlags?.length ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 12,
+              borderRadius: 8,
+              background: "rgba(217, 119, 6, 0.1)",
+              border: "1px solid #D97706",
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>
+              Policy warnings
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+              {leave.policyFlags
+                .filter((f) => f.severity === "warn")
+                .map((f) => (
+                  <li key={f.code + f.message}>{f.message}</li>
+                ))}
+            </ul>
+            {leave.policySuggestions?.length ? (
+              <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>
+                {leave.policySuggestions.join(" · ")}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 22 }}>
+          <div
+            style={{
+              fontFamily: "var(--font-fraunces), Georgia, serif",
+              fontSize: 18,
+              color: nectarColors.ink,
+              marginBottom: 12,
+            }}
+          >
+            Leave details
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: 10,
+            }}
+          >
+            <InfoTile label="Leave type">
+              {LEAVE_TYPE_LABELS[leave.leaveType]}
+              {leave.isHalfDay
+                ? ` · Half-day (${leave.halfDaySlot ?? "—"})`
                 : ""}
-            </Descriptions.Item>
-          ) : null}
-          {leave.managerDecision ? (
-            <Descriptions.Item label="Manager decision">
-              {leave.managerDecision}
-              {leave.managerDecisionAt
-                ? ` · ${leave.managerDecisionAt.slice(0, 16).replace("T", " ")}`
-                : ""}
-            </Descriptions.Item>
-          ) : null}
-          {leave.rejectionReason ? (
-            <Descriptions.Item label="Rejection reason">
-              {leave.rejectionReason}
-            </Descriptions.Item>
-          ) : null}
-          <Descriptions.Item label="Reason">{leave.reason}</Descriptions.Item>
-          {leave.lastCommunication ? (
-            <Descriptions.Item label="Last communication">
-              {leave.lastCommunication}
-            </Descriptions.Item>
-          ) : null}
-          {leave.replacementPlan ? (
-            <Descriptions.Item label="Replacement plan">
-              {leave.replacementPlan}
-            </Descriptions.Item>
-          ) : null}
-        </Descriptions>
+            </InfoTile>
+            <InfoTile label="Dates">
+              {leave.startDate} → {leave.endDate}
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  color: nectarColors.muted,
+                  fontWeight: 400,
+                  marginTop: 2,
+                }}
+              >
+                {leave.daysRequested} day{leave.daysRequested === 1 ? "" : "s"}
+              </span>
+            </InfoTile>
+            <InfoTile label="Expected return">
+              {leave.expectedReturnDate}
+            </InfoTile>
+            <InfoTile label="Actual return">
+              {leave.actualReturnDate ?? "—"}
+            </InfoTile>
+            <InfoTile label="Leave balance">
+              {leave.leaveBalanceDays} days
+            </InfoTile>
+            <InfoTile label="Supervisor">{leave.supervisorName}</InfoTile>
+            <InfoTile label="Shift In-Charge">
+              {leave.siteInChargeName}
+            </InfoTile>
+            <InfoTile label="Manager">{leave.managerName ?? "—"}</InfoTile>
+            <InfoTile label="Entered by">
+              {leave.enteredByName}
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  color: nectarColors.muted,
+                  fontWeight: 400,
+                  marginTop: 2,
+                }}
+              >
+                {leave.enteredByRole}
+              </span>
+            </InfoTile>
+            {leave.employeeConsent ? (
+              <InfoTile label="Employee consent">
+                {leave.employeeConsent}
+                {leave.employeeConsentAt
+                  ? ` · ${leave.employeeConsentAt.slice(0, 16).replace("T", " ")}`
+                  : ""}
+              </InfoTile>
+            ) : null}
+            {leave.managerDecision ? (
+              <InfoTile label="Manager decision">
+                {leave.managerDecision}
+                {leave.managerDecisionAt
+                  ? ` · ${leave.managerDecisionAt.slice(0, 16).replace("T", " ")}`
+                  : ""}
+              </InfoTile>
+            ) : null}
+            {leave.rejectionReason ? (
+              <InfoTile label="Rejection reason" wide>
+                {leave.rejectionReason}
+              </InfoTile>
+            ) : null}
+            <InfoTile label="Reason" wide>
+              {leave.reason}
+            </InfoTile>
+            {leave.lastCommunication ? (
+              <InfoTile label="Last communication" wide>
+                {leave.lastCommunication}
+              </InfoTile>
+            ) : null}
+            {leave.replacementPlan ? (
+              <InfoTile label="Replacement plan" wide>
+                {leave.replacementPlan}
+              </InfoTile>
+            ) : null}
+          </div>
+        </div>
       </div>
+
+      {plantOverlaps.length > 0 ? (
+        <div
+          style={{
+            background: nectarColors.white,
+            padding: 20,
+            borderRadius: 10,
+            border: "1px solid rgba(196, 92, 38, 0.35)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              marginBottom: 12,
+            }}
+          >
+            <WarningOutlined
+              style={{ color: nectarColors.alert, fontSize: 18, marginTop: 2 }}
+            />
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--font-fraunces), Georgia, serif",
+                  fontSize: 18,
+                  color: nectarColors.ink,
+                }}
+              >
+                Same-plant date overlap
+              </div>
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontSize: 13,
+                  color: nectarColors.muted,
+                  lineHeight: 1.45,
+                }}
+              >
+                {plantOverlaps.length} other active leave
+                {plantOverlaps.length === 1 ? "" : "s"} at{" "}
+                {getSiteName(leave.siteId)} cover overlapping dates. Review
+                coverage before approving.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {plantOverlaps.map((o) => (
+              <Link
+                key={o.id}
+                href={`/leave/requests/${o.id}`}
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "8px 14px",
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  background: "rgba(196, 92, 38, 0.06)",
+                  color: nectarColors.ink,
+                  textDecoration: "none",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: nectarColors.leaf }}>
+                  {o.employeeName}
+                </span>
+                <span style={{ fontSize: 13 }}>
+                  {o.startDate} → {o.endDate}
+                </span>
+                <Tag
+                  color={o.mode === "emergency" ? nectarColors.alert : nectarColors.sky}
+                  style={{ margin: 0 }}
+                >
+                  {o.mode}
+                </Tag>
+                <Tag style={{ margin: 0 }}>{LEAVE_STATUS_LABELS[o.status]}</Tag>
+                {o.potentialOtHours > 0 ? (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: nectarColors.alert,
+                      fontWeight: 600,
+                    }}
+                  >
+                    +{o.potentialOtHours} hrs OT risk
+                  </span>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <LeaveImpactPanel impact={impact} />
 
@@ -473,6 +727,7 @@ export default function LeaveDetailPage({
             (canManager &&
               ["SITE_APPROVED", "SITE_VERIFIED"].includes(leave.status)) ||
             (canAdmin && leave.status === "MANAGER_APPROVED");
+          const showWithdraw = canWithdraw;
           const hasButtons =
             showConsent ||
             showVerify ||
@@ -480,7 +735,8 @@ export default function LeaveDetailPage({
             showManager ||
             showAdmin ||
             showReturn ||
-            showReject;
+            showReject ||
+            showWithdraw;
 
           if (!hasButtons && !waitingOnConsent) {
             let statusNote = "No actions available for your role on this leave.";
@@ -493,6 +749,10 @@ export default function LeaveDetailPage({
               statusNote = leave.rejectionReason
                 ? `Leave rejected: ${leave.rejectionReason}`
                 : "Leave was rejected. No further action needed.";
+            } else if (leave.status === "CANCELLED") {
+              statusNote = leave.cancellationReason
+                ? `Leave withdrawn: ${leave.cancellationReason}`
+                : "Leave was withdrawn. Kept on record for ops visibility.";
             } else if (leave.status === "CLOSED") {
               statusNote = "Leave closed — return confirmed.";
             } else if (
@@ -517,6 +777,19 @@ export default function LeaveDetailPage({
               }}
             >
               Reject
+            </Button>
+          ) : null;
+
+          const withdrawBtn = showWithdraw ? (
+            <Button
+              danger
+              ghost
+              onClick={() => {
+                setWithdrawNote("");
+                setWithdrawOpen(true);
+              }}
+            >
+              Withdraw leave
             </Button>
           ) : null;
 
@@ -595,6 +868,7 @@ export default function LeaveDetailPage({
           ) : null}
 
           {rejectBtn}
+          {withdrawBtn}
 
           {showReturn ? (
             <>
@@ -728,6 +1002,56 @@ export default function LeaveDetailPage({
           placeholder="Remark — why this leave is rejected"
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
+        />
+      </Modal>
+
+      <Modal
+        title="Withdraw leave request"
+        open={withdrawOpen}
+        onCancel={() => setWithdrawOpen(false)}
+        onOk={() => {
+          const note = withdrawNote.trim();
+          if (!note) {
+            message.error("Add a reason before withdrawing");
+            return;
+          }
+          run(() => {
+            cancelLeave(leave.id, actor, note, actorLeaveRole);
+            const emp = getEmployeeById(leave.employeeId);
+            const notifyIds = new Set<string>();
+            if (emp?.supervisorId) notifyIds.add(emp.supervisorId);
+            if (emp?.managerId) notifyIds.add(emp.managerId);
+            if (emp?.shiftInChargeId) notifyIds.add(emp.shiftInChargeId);
+            if (leave.submittedByEmployeeId) {
+              notifyIds.add(leave.submittedByEmployeeId);
+            }
+            notifyIds.delete(leave.employeeId);
+            for (const employeeId of notifyIds) {
+              pushNotification({
+                employeeId,
+                kind: "leave_decision",
+                title: "Leave withdrawn",
+                body: `${leave.employeeName} withdrew leave ${leave.startDate}–${leave.endDate}: ${note}`,
+                href: `/leave/requests/${leave.id}`,
+                meta: { leaveId: leave.id },
+              });
+            }
+          }, "Leave withdrawn — still visible to ops");
+          setWithdrawOpen(false);
+        }}
+        okText="Withdraw"
+        okButtonProps={{ danger: true }}
+      >
+        <p style={{ margin: "0 0 10px", fontSize: 13, color: nectarColors.muted }}>
+          This does not permanently delete the request. Supervisors and managers
+          will still see it as withdrawn, with your reason. Withdrawal is not
+          allowed after site approval or escalation.
+        </p>
+        <Input.TextArea
+          rows={3}
+          placeholder="Reason for withdrawing this leave"
+          value={withdrawNote}
+          onChange={(e) => setWithdrawNote(e.target.value)}
         />
       </Modal>
     </div>

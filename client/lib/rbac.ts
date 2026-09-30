@@ -152,6 +152,33 @@ export function canConfirmLeaveReturn(user: SessionUser | null): boolean {
   );
 }
 
+/** Soft-withdraw: owner employee, before site approval / escalation. */
+export function canWithdrawLeaveRequest(
+  user: SessionUser | null,
+  leave: { employeeId: string; status: string; enteredByName?: string },
+): boolean {
+  if (!user) return false;
+  const withdrawable = [
+    "REQUESTED",
+    "PENDING_EMPLOYEE_CONSENT",
+    "SUPERVISOR_VERIFIED",
+    "ABSENT",
+    "SUPERVISOR_RECORDED",
+  ];
+  if (!withdrawable.includes(leave.status)) return false;
+  if (user.employeeId && user.employeeId === leave.employeeId) return true;
+  // Person who filed on-behalf may withdraw while awaiting consent
+  if (
+    leave.status === "PENDING_EMPLOYEE_CONSENT" &&
+    user.name &&
+    leave.enteredByName &&
+    user.name === leave.enteredByName
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function canManageShifts(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return (

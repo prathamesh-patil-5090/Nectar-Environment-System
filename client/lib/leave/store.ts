@@ -436,7 +436,13 @@ function persistLeaveStore() {
 function pushLeaveCreate(leave: LeaveRequest) {
   if (typeof window === "undefined") return;
   void import("../api/leaves")
-    .then(({ createLeave }) => createLeave(leave))
+    .then(async ({ createLeave }) => {
+      const remote = await createLeave(leave);
+      leaveStore = leaveStore.map((l) =>
+        l.id === leave.id || l.id === remote.id ? { ...l, ...remote } : l,
+      );
+      persistLeaveStore();
+    })
     .catch(() => {});
 }
 
@@ -592,9 +598,14 @@ export type CreateLeaveInput = {
   managerName?: string;
   submittedByEmployeeId?: string;
   lastCommunication?: string;
+  isHalfDay?: boolean;
+  halfDaySlot?: "morning" | "afternoon";
 };
 
-export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
+export function createLeaveRequest(
+  input: CreateLeaveInput,
+  options?: { skipApiPush?: boolean },
+): LeaveRequest {
   ensureLeaveHydrated();
   const emp = getEmployeeById(input.employeeId);
   if (!emp) throw new Error("Employee not found");
@@ -616,6 +627,10 @@ export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
   } else {
     status = "REQUESTED";
   }
+
+  const daysRequested = input.isHalfDay
+    ? 0.5
+    : dayCount(input.startDate, input.endDate);
 
   const row: LeaveRequest = {
     id,
@@ -645,7 +660,9 @@ export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
     potentialOtHours: impact.potentialOtHours,
     potentialOtCost: impact.potentialOtCost,
     leaveBalanceDays: 6,
-    daysRequested: dayCount(input.startDate, input.endDate),
+    daysRequested,
+    isHalfDay: input.isHalfDay,
+    halfDaySlot: input.halfDaySlot,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     timeline: [
@@ -668,27 +685,101 @@ export function createLeaveRequest(input: CreateLeaveInput): LeaveRequest {
 
   leaveStore = [row, ...leaveStore];
   persistLeaveStore();
-  pushLeaveCreate(row);
+  if (!options?.skipApiPush) {
+    pushLeaveCreate(row);
+  }
   return row;
+}
+
+/**
+ * Create with server policy gate first.
+ * BLOCK → throws (nothing persisted). PASS/WARN → local row + Nest create.
+ */
+export async function createLeaveRequestViaApi(
+  input: CreateLeaveInput,
+): Promise<LeaveRequest> {
+  ensureLeaveHydrated();
+  const emp = getEmployeeById(input.employeeId);
+  if (!emp) throw new Error("Employee not found");
+
+  try {
+    const { validateLeave, createLeave } = await import("../api/leaves");
+    const validation = await validateLeave({
+      employeeId: input.employeeId,
+      mode: input.mode,
+      leaveType: input.leaveType,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      expectedReturnDate: input.expectedReturnDate,
+      entrySource: input.entrySource,
+      isHalfDay: input.isHalfDay,
+      halfDaySlot: input.halfDaySlot,
+    });
+    if (validation.verdict === "BLOCK") {
+      const detail = validation.flags
+        .filter((f) => f.severity === "block")
+        .map((f) => f.message)
+        .join("; ");
+      throw new Error(detail || "Leave policy blocked this request");
+    }
+
+    const local = createLeaveRequest(input, { skipApiPush: true });
+    const enriched: LeaveRequest = {
+      ...local,
+      daysRequested: validation.daysRequested || local.daysRequested,
+      leaveBalanceDays:
+        validation.balanceSnapshot?.available ?? local.leaveBalanceDays,
+      policyVerdict: validation.verdict,
+      policyFlags: validation.flags,
+      policySuggestions: validation.suggestions,
+    };
+    leaveStore = leaveStore.map((l) => (l.id === local.id ? enriched : l));
+    persistLeaveStore();
+
+    try {
+      const remote = await createLeave(enriched);
+      leaveStore = leaveStore.map((l) =>
+        l.id === enriched.id ? { ...enriched, ...remote } : l,
+      );
+      persistLeaveStore();
+      return leaveStore.find((l) => l.id === enriched.id)!;
+    } catch {
+      return enriched;
+    }
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /blocked|Overlap|Invalid|inactive|not found/i.test(err.message)
+    ) {
+      throw err;
+    }
+    return createLeaveRequest(input);
+  }
 }
 
 const PLANNED_NEXT: Partial<Record<LeaveStatus, LeaveStatus[]>> = {
   PENDING_EMPLOYEE_CONSENT: ["REQUESTED", "REJECTED", "CANCELLED"],
   REQUESTED: ["SUPERVISOR_VERIFIED", "REJECTED", "CANCELLED"],
+  /** Withdraw allowed until site coverage / escalation */
   SUPERVISOR_VERIFIED: ["SITE_APPROVED", "PENDING_INFORMATION", "REJECTED", "CANCELLED"],
-  SITE_APPROVED: ["MANAGER_APPROVED", "REJECTED", "CANCELLED"],
-  MANAGER_APPROVED: ["APPROVED", "REJECTED", "CANCELLED"],
-  APPROVED: ["CLOSED", "EXTENSION_REQUIRED", "CANCELLED"],
-  EXTENSION_REQUIRED: ["CLOSED", "CANCELLED"],
+  SITE_APPROVED: ["MANAGER_APPROVED", "REJECTED"],
+  MANAGER_APPROVED: ["APPROVED", "REJECTED"],
+  APPROVED: ["CLOSED", "EXTENSION_REQUIRED"],
+  EXTENSION_REQUIRED: ["CLOSED"],
 };
 
 const EMERGENCY_NEXT: Partial<Record<LeaveStatus, LeaveStatus[]>> = {
   ABSENT: ["SUPERVISOR_RECORDED", "REJECTED", "CANCELLED"],
-  SUPERVISOR_RECORDED: ["SITE_VERIFIED", "PENDING_INFORMATION", "REJECTED", "CANCELLED"],
-  SITE_VERIFIED: ["MANAGER_APPROVED", "REJECTED", "CANCELLED"],
-  MANAGER_APPROVED: ["APPROVED", "REJECTED", "CANCELLED"],
-  APPROVED: ["CLOSED", "EXTENSION_REQUIRED", "CANCELLED"],
-  EXTENSION_REQUIRED: ["CLOSED", "CANCELLED"],
+  SUPERVISOR_RECORDED: [
+    "SITE_VERIFIED",
+    "PENDING_INFORMATION",
+    "REJECTED",
+    "CANCELLED",
+  ],
+  SITE_VERIFIED: ["MANAGER_APPROVED", "REJECTED"],
+  MANAGER_APPROVED: ["APPROVED", "REJECTED"],
+  APPROVED: ["CLOSED", "EXTENSION_REQUIRED"],
+  EXTENSION_REQUIRED: ["CLOSED"],
 };
 
 /** Statuses that still cover the employee's planned shift days. */
@@ -1049,22 +1140,61 @@ export function escalateLeave(id: string, actor: string, note: string) {
   );
 }
 
-export function cancelLeave(id: string, actor: string, note?: string) {
+export function cancelLeave(
+  id: string,
+  actor: string,
+  note: string,
+  actorRole: LeaveRequest["enteredByRole"] = "employee",
+) {
   const leave = getLeaveById(id);
   if (!leave) throw new Error("Not found");
+  const reason = note?.trim();
+  if (!reason) throw new Error("A reason is required to withdraw this leave");
   assertLeaveTransition(leave, "CANCELLED");
   releaseRelieverForLeave(id);
   return updateLeave(
     id,
     {
       status: "CANCELLED",
+      cancellationReason: reason,
+      cancelledByName: actor,
+      cancelledByRole: actorRole,
+      cancelledAt: new Date().toISOString(),
       assignedRelieverId: undefined,
       replacementPlan: leave.replacementPlan
         ? `${leave.replacementPlan} · replacement released`
         : undefined,
     },
-    event(actor, leave.enteredByRole, "Leave cancelled", note),
+    event(actor, actorRole, "Leave withdrawn", reason),
   );
+}
+
+/** Same plant + overlapping dates (active covering leaves), excluding self. */
+export function getPlantOverlappingLeaves(leaveId: string): LeaveRequest[] {
+  ensureLeaveHydrated();
+  const leave = getLeaveById(leaveId);
+  if (!leave) return [];
+  return leaveStore.filter(
+    (l) =>
+      l.id !== leave.id &&
+      l.siteId === leave.siteId &&
+      COVERING_LEAVE_STATUSES.includes(l.status) &&
+      l.startDate <= leave.endDate &&
+      leave.startDate <= l.endDate,
+  );
+}
+
+/** Statuses where the requester may still withdraw (not yet site-approved / escalated / finalized). */
+export const WITHDRAWABLE_LEAVE_STATUSES: LeaveStatus[] = [
+  "REQUESTED",
+  "PENDING_EMPLOYEE_CONSENT",
+  "SUPERVISOR_VERIFIED",
+  "ABSENT",
+  "SUPERVISOR_RECORDED",
+];
+
+export function canWithdrawLeaveStatus(status: LeaveStatus): boolean {
+  return WITHDRAWABLE_LEAVE_STATUSES.includes(status);
 }
 
 // ----------------------------------------------------

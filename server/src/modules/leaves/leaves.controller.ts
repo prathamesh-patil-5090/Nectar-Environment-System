@@ -1,11 +1,47 @@
 import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { LeavesService } from './leaves.service';
 
 @ApiTags('leaves')
 @Controller('leaves')
 export class LeavesController {
   constructor(private readonly leavesService: LeavesService) {}
+
+  @Get('policy')
+  @ApiOperation({ summary: 'Get active org leave policy' })
+  getPolicy() {
+    return this.leavesService.getPolicy();
+  }
+
+  @Get('balances/:employeeId')
+  @ApiOperation({ summary: 'Get leave balances for an employee' })
+  getBalance(@Param('employeeId') employeeId: string) {
+    return this.leavesService.getBalance(employeeId);
+  }
+
+  @Post('validate')
+  @ApiOperation({ summary: 'Dry-run leave policy validation (PASS / WARN / BLOCK)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['employeeId', 'mode', 'leaveType', 'startDate', 'endDate'],
+      properties: {
+        employeeId: { type: 'string' },
+        mode: { type: 'string', enum: ['planned', 'emergency'] },
+        leaveType: { type: 'string' },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' },
+        expectedReturnDate: { type: 'string' },
+        entrySource: { type: 'string' },
+        isHalfDay: { type: 'boolean' },
+        halfDaySlot: { type: 'string', enum: ['morning', 'afternoon'] },
+        asOfDate: { type: 'string' },
+      },
+    },
+  })
+  validate(@Body() body: Record<string, any>) {
+    return this.leavesService.validatePolicy(body as any);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get all leave requests' })
@@ -25,7 +61,7 @@ export class LeavesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new leave request' })
+  @ApiOperation({ summary: 'Create a new leave request (policy-gated)' })
   create(@Body() body: Record<string, any>) {
     return this.leavesService.create(body);
   }

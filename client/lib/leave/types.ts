@@ -69,6 +69,11 @@ export type LeaveRequest = {
   managerDecision?: ManagerDecision;
   managerDecisionAt?: string;
   rejectionReason?: string;
+  /** Soft-delete / withdrawal (kept visible for ops) */
+  cancellationReason?: string;
+  cancelledByName?: string;
+  cancelledByRole?: LeaveActorRole;
+  cancelledAt?: string;
   replacementRequired: boolean;
   assignedRelieverId?: string;
   replacementPlan?: string;
@@ -76,6 +81,15 @@ export type LeaveRequest = {
   potentialOtCost: number;
   leaveBalanceDays: number;
   daysRequested: number;
+  isHalfDay?: boolean;
+  halfDaySlot?: "morning" | "afternoon";
+  policyVerdict?: "PASS" | "WARN" | "BLOCK";
+  policyFlags?: Array<{
+    code: string;
+    severity: "warn" | "block";
+    message: string;
+  }>;
+  policySuggestions?: string[];
   createdAt: string;
   updatedAt: string;
   timeline: LeaveTimelineEvent[];
@@ -129,6 +143,6 @@ export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
   PENDING_INFORMATION: "Pending information",
   UNEXPLAINED_ABSENCE: "Unexplained absence",
   REJECTED: "Rejected",
-  CANCELLED: "Cancelled",
+  CANCELLED: "Withdrawn",
   EXTENSION_REQUIRED: "Extension required",
 };

@@ -1,6 +1,55 @@
 import { apiClient } from './client';
 import type { LeaveRequest } from '../leave/types';
 
+export type LeavePolicyResult = {
+  verdict: 'PASS' | 'WARN' | 'BLOCK';
+  flags: Array<{
+    code: string;
+    severity: 'warn' | 'block';
+    message: string;
+  }>;
+  daysRequested: number;
+  balanceSnapshot?: {
+    leaveType: string;
+    available: number;
+    afterRequest: number;
+  };
+  suggestions?: string[];
+};
+
+export type LeavePolicyConfig = {
+  id: string;
+  allowedLeaveTypes: string[];
+  noticeDays: number;
+  noticeSeverity: 'warn' | 'block';
+  halfDayAllowed: boolean;
+  restrictedPeriods: Array<{
+    id: string;
+    label: string;
+    startDate: string;
+    endDate: string;
+  }>;
+  active?: boolean;
+};
+
+export type LeaveBalanceRecord = {
+  employeeId: string;
+  balances: Record<string, number>;
+};
+
+export type ValidateLeaveInput = {
+  employeeId: string;
+  mode: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  expectedReturnDate?: string;
+  entrySource?: string;
+  isHalfDay?: boolean;
+  halfDaySlot?: string;
+  asOfDate?: string;
+};
+
 export async function getLeaves(params?: {
   siteId?: string;
   employeeId?: string;
@@ -28,10 +77,31 @@ export async function createLeave(
 export async function updateLeaveStatus(
   id: string,
   status: string,
-  meta?: Record<string, any>,
+  meta?: Record<string, unknown>,
 ): Promise<LeaveRequest> {
   return apiClient<LeaveRequest>(`/leaves/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status, ...meta }),
   });
+}
+
+export async function validateLeave(
+  input: ValidateLeaveInput,
+): Promise<LeavePolicyResult> {
+  return apiClient<LeavePolicyResult>('/leaves/validate', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getLeavePolicy(): Promise<LeavePolicyConfig> {
+  return apiClient<LeavePolicyConfig>('/leaves/policy');
+}
+
+export async function getLeaveBalance(
+  employeeId: string,
+): Promise<LeaveBalanceRecord> {
+  return apiClient<LeaveBalanceRecord>(
+    `/leaves/balances/${encodeURIComponent(employeeId)}`,
+  );
 }
