@@ -1,13 +1,11 @@
-import { employees, getEmployeeById, getSiteById } from "@/lib/mock-data";
-import { getShiftById } from "@/lib/overtime/data";
+import { employees, getEmployeeById } from "@/lib/mock-data";
 import {
   assignChosenRelieverForLeave,
   assignRelieverForLeave,
-  getClusterForSite,
-  getRelievers,
   releaseRelieverForLeave,
 } from "@/lib/reliever/pool";
-import { getPlannedShiftForLeave } from "@/lib/shift/store";
+import { leaveImpactFromEngine } from "@/lib/shift-impact/engine";
+import { registerCoverageApi, registerLeaveApi } from "@/lib/shift-impact/registry";
 import { registerCoveringLeaveCheck } from "./coverage";
 import type {
   LeaveImpact,
@@ -18,7 +16,6 @@ import type {
   LeaveType,
 } from "./types";
 
-const OT_HOURLY_COST = 270;
 const LEAVE_STORAGE_KEY = "nectar-enviro-leave-store-v2";
 
 let leaveStore: LeaveRequest[] = [];
@@ -42,85 +39,9 @@ export function computeLeaveImpact(
   date: string,
   endDate?: string,
 ): LeaveImpact & { affectedShiftDays: LeaveShiftImpactDay[] } {
-  const emp = getEmployeeById(employeeId);
-  const siteId = emp?.siteId ?? "s-etp";
-  const site = getSiteById(siteId);
-  const shift = getShiftById(emp?.shiftId ?? "sh-morning");
-  const siteStaff = employees.filter(
-    (e) => e.siteId === siteId && e.employmentStatus === "active",
-  ).length;
-  const onLeaveSameDay = leaveStore.filter(
-    (l) =>
-      l.siteId === siteId &&
-      l.startDate <= date &&
-      l.endDate >= date &&
-      !["REJECTED", "CANCELLED", "CLOSED"].includes(l.status) &&
-      l.employeeId !== employeeId,
-  ).length;
-
-  const currentManpower = Math.max(0, siteStaff - onLeaveSameDay - 1);
-  const requiredManpower = site?.headcount
-    ? Math.max(8, Math.round(site.headcount * 0.85))
-    : 10;
-
-  const cluster = getClusterForSite(siteId);
-  const availableRelievers = getRelievers(cluster?.id).filter(
-    (r) => r.availability === "available",
-  ).length;
-
-  const nearbyAvailableWorkers = getRelievers(cluster?.id).filter(
-    (r) =>
-      r.availability === "available" &&
-      r.homeSiteId &&
-      r.homeSiteId !== siteId,
-  ).length;
-
-  const planned = getPlannedShiftForLeave(
-    employeeId,
-    date,
-    endDate ?? date,
-  );
-  const affectedShiftDays: LeaveShiftImpactDay[] = planned.map((p) => ({
-    date: p.date,
-    shiftCode: p.plannedCode,
-    shiftName:
-      p.plannedCode === "OFF"
-        ? "Weekly Off"
-        : `${p.plannedCode} Shift`,
-    replacementRequired: p.plannedCode !== "OFF",
-  }));
-
-  const affectedWorkingDays =
-    affectedShiftDays.filter((d) => d.replacementRequired).length || 1;
-
-  const shortfall = Math.max(0, requiredManpower - currentManpower);
-  const coveredByPool = Math.min(shortfall, availableRelievers);
-  const uncovered = shortfall - coveredByPool;
-  const potentialOtHours =
-    uncovered > 0 ? uncovered * 8 : Math.max(0, affectedWorkingDays - availableRelievers) * 8;
-  const potentialOtCost = potentialOtHours * OT_HOURLY_COST;
-
-  let risk: LeaveImpact["risk"] = "none";
-  if (potentialOtHours >= 8) risk = "high";
-  else if (potentialOtHours > 0 || availableRelievers === 0) risk = "low";
-
-  return {
-    employeeId,
-    employeeName: emp?.name ?? employeeId,
-    siteId,
-    siteName: site?.name ?? siteId,
-    shiftId: emp?.shiftId ?? "sh-morning",
-    shiftName: shift?.name ?? "Shift",
-    date,
-    currentManpower,
-    requiredManpower,
-    availableRelievers,
-    nearbyAvailableWorkers,
-    potentialOtHours,
-    potentialOtCost,
-    risk,
-    affectedShiftDays,
-  };
+  const result = leaveImpactFromEngine(employeeId, date, endDate);
+  const { report: _report, ...impact } = result;
+  return impact;
 }
 
 function event(
@@ -411,15 +332,10 @@ const seed: LeaveRequest[] = [
   },
 ];
 
-leaveStore = seed.map((l) => {
-  const impact = computeLeaveImpact(l.employeeId, l.startDate);
-  return {
-    ...l,
-    potentialOtHours: l.potentialOtHours || impact.potentialOtHours,
-    potentialOtCost: l.potentialOtCost || impact.potentialOtCost,
-    daysRequested: dayCount(l.startDate, l.endDate),
-  };
-});
+leaveStore = seed.map((l) => ({
+  ...l,
+  daysRequested: dayCount(l.startDate, l.endDate),
+}));
 
 const seedSnapshot = leaveStore.map((l) => ({ ...l, timeline: [...l.timeline] }));
 
@@ -819,6 +735,12 @@ export function employeeHasCoveringLeave(employeeId: string, date: string) {
 }
 
 registerCoveringLeaveCheck(employeeHasCoveringLeave);
+registerCoverageApi({ employeeHasCoveringLeave });
+registerLeaveApi({
+  getLeaveRequests: (siteId, employeeId) =>
+    getLeaveRequests(siteId, employeeId),
+  getLeaveById: (id) => getLeaveById(id),
+});
 
 function updateLeave(id: string, patch: Partial<LeaveRequest>, ev: LeaveTimelineEvent) {
   ensureLeaveHydrated();
@@ -866,9 +788,11 @@ export function siteApprove(
     leave.mode === "emergency" ? "SITE_VERIFIED" : "SITE_APPROVED";
   assertLeaveTransition(leave, next);
 
-  const impact = computeLeaveImpact(leave.employeeId, leave.startDate);
+  const impact = computeLeaveImpact(leave.employeeId, leave.startDate, leave.endDate);
   let replacementPlan = leave.replacementPlan;
   let assignedRelieverId = leave.assignedRelieverId;
+  let assignedCoverEmployeeId = leave.assignedCoverEmployeeId;
+  let coverSource = leave.coverSource;
   let potentialOtHours = impact.potentialOtHours;
   let potentialOtCost = impact.potentialOtCost;
 
@@ -888,22 +812,37 @@ export function siteApprove(
       opts.relieverId ? { relieverId: opts.relieverId } : { ot: true },
     );
     replacementPlan = cover.plan;
-    if (cover.relieverId) {
+    coverSource = cover.coverSource;
+    if (cover.coverEmployeeId) {
+      assignedCoverEmployeeId = cover.coverEmployeeId;
+      assignedRelieverId = undefined;
+      potentialOtHours = 0;
+      potentialOtCost = 0;
+    } else if (cover.relieverId) {
       assignedRelieverId = cover.relieverId;
+      assignedCoverEmployeeId = undefined;
       potentialOtHours = 0;
       potentialOtCost = 0;
     } else {
       assignedRelieverId = undefined;
+      assignedCoverEmployeeId = undefined;
     }
   } else if (opts?.arrangeReplacement) {
     const cover = assignRelieverForLeave(coverInput);
     replacementPlan = cover.plan;
+    coverSource = cover.relieverId
+      ? cover.outcome === "local_assigned"
+        ? "local_pool"
+        : "auto_pool"
+      : "ot_fallback";
     if (cover.relieverId) {
       assignedRelieverId = cover.relieverId;
+      assignedCoverEmployeeId = undefined;
       potentialOtHours = 0;
       potentialOtCost = 0;
     } else {
       assignedRelieverId = undefined;
+      assignedCoverEmployeeId = undefined;
     }
   }
 
@@ -919,9 +858,14 @@ export function siteApprove(
       status: next,
       replacementPlan,
       assignedRelieverId,
+      assignedCoverEmployeeId,
+      coverSource,
       potentialOtHours,
       potentialOtCost,
-      replacementRequired: potentialOtHours > 0 || !!assignedRelieverId,
+      replacementRequired:
+        potentialOtHours > 0 ||
+        !!assignedRelieverId ||
+        !!assignedCoverEmployeeId,
     },
     event(
       actor,
@@ -1161,6 +1105,8 @@ export function cancelLeave(
       cancelledByRole: actorRole,
       cancelledAt: new Date().toISOString(),
       assignedRelieverId: undefined,
+      assignedCoverEmployeeId: undefined,
+      coverSource: undefined,
       replacementPlan: leave.replacementPlan
         ? `${leave.replacementPlan} · replacement released`
         : undefined,

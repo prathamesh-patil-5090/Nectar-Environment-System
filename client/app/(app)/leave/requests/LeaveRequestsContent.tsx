@@ -107,7 +107,10 @@ export default function LeaveRequestsContent() {
   const coverOptions = useMemo(() => {
     void tick;
     if (!coverLeave) return { local: [] as ReturnType<typeof listReplacementOptions>["local"], cluster: [] as ReturnType<typeof listReplacementOptions>["cluster"] };
-    return listReplacementOptions(coverLeave.siteId);
+    return listReplacementOptions(coverLeave.siteId, {
+      date: coverLeave.startDate,
+      excludeEmployeeId: coverLeave.employeeId,
+    });
   }, [coverLeave, tick]);
 
   const setView = (key: string) => {
@@ -884,7 +887,7 @@ export default function LeaveRequestsContent() {
         }}
       >
         <p style={{ marginTop: 0, color: nectarColors.muted, fontSize: 13 }}>
-          People at this site are listed first, then the cluster.
+          Same-plant employees, cluster employees, then pool — pick cover or OT.
         </p>
         <Radio.Group
           value={coverChoice}
@@ -893,15 +896,17 @@ export default function LeaveRequestsContent() {
         >
           {coverOptions.local.map((person) => (
             <Radio key={person.relieverId} value={person.relieverId}>
-              {person.name} · this site · {person.phone}
+              {person.name} ·{" "}
+              {person.kind === "employee" ? "employee" : "pool"} · this site
+              {person.phone ? ` · ${person.phone}` : ""}
             </Radio>
           ))}
           {coverOptions.cluster.map((person) => (
             <Radio key={person.relieverId} value={person.relieverId}>
-              {person.name} · cluster
+              {person.name} ·{" "}
+              {person.kind === "employee" ? "employee" : "pool"} · cluster
               {person.homeSiteId ? ` · ${getSiteName(person.homeSiteId)}` : ""}
-              {" · "}
-              {person.phone}
+              {person.phone ? ` · ${person.phone}` : ""}
             </Radio>
           ))}
           <Radio value="ot">No one — accept overtime</Radio>

@@ -17,7 +17,7 @@ import {
 } from "antd";
 import { ArrowLeftOutlined, WarningOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import LeaveImpactPanel from "@/components/leave/LeaveImpactPanel";
+import ShiftImpactPanel from "@/components/leave/ShiftImpactPanel";
 import { getSession } from "@/lib/auth";
 import { getEmployeeById, getSiteName } from "@/lib/mock-data";
 import {
@@ -36,6 +36,10 @@ import {
   siteApprove,
   supervisorVerify,
 } from "@/lib/leave";
+import {
+  candidateDisplaySource,
+  computeShiftImpact,
+} from "@/lib/shift-impact";
 import { pushNotification } from "@/lib/notifications";
 import {
   canConfirmLeaveReturn,
@@ -50,7 +54,7 @@ import {
   scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
-import { getRelievers, listReplacementOptions } from "@/lib/reliever/pool";
+import { listReplacementOptions } from "@/lib/reliever/pool";
 
 function InfoTile({
   label,
@@ -126,10 +130,24 @@ export default function LeaveDetailPage({
       : null;
   }, [leave, tick]);
 
+  const shiftReport = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return computeShiftImpact({
+      siteId: leave.siteId,
+      from: leave.startDate,
+      to: leave.endDate,
+      focusLeaveId: leave.id,
+    });
+  }, [leave, tick]);
+
   const replacementOptions = useMemo(() => {
     void tick;
     if (!leave) return { local: [], cluster: [] };
-    return listReplacementOptions(leave.siteId);
+    return listReplacementOptions(leave.siteId, {
+      date: leave.startDate,
+      excludeEmployeeId: leave.employeeId,
+    });
   }, [leave, tick]);
 
   const plantOverlaps = useMemo(() => {
@@ -517,7 +535,10 @@ export default function LeaveDetailPage({
         </div>
       ) : null}
 
-      <LeaveImpactPanel impact={impact} />
+      <ShiftImpactPanel
+        impact={impact}
+        report={shiftReport ?? undefined}
+      />
 
       {(() => {
         const awaitingCover = [
@@ -529,22 +550,32 @@ export default function LeaveDetailPage({
         const canPick =
           canSite &&
           ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED"].includes(leave.status);
-        const assigned = leave.assignedRelieverId
-          ? getRelievers().find((r) => r.id === leave.assignedRelieverId)
-          : undefined;
+        const assignedName =
+          leave.replacementPlan ??
+          (leave.assignedCoverEmployeeId
+            ? getEmployeeById(leave.assignedCoverEmployeeId)?.name
+            : undefined);
         const people = [
-          ...replacementOptions.local.map((p) => ({ ...p, label: "This site" })),
+          ...replacementOptions.local.map((p) => ({
+            ...p,
+            label: p.coverSource
+              ? candidateDisplaySource(p.coverSource)
+              : "This site",
+          })),
           ...replacementOptions.cluster.map((p) => ({
             ...p,
-            label: p.homeSiteId
-              ? `Cluster · ${getSiteName(p.homeSiteId)}`
-              : "Cluster",
+            label: p.coverSource
+              ? candidateDisplaySource(p.coverSource)
+              : p.homeSiteId
+                ? `Cluster · ${getSiteName(p.homeSiteId)}`
+                : "Cluster",
           })),
         ];
         const showPanel =
           awaitingCover ||
           Boolean(leave.replacementPlan) ||
-          Boolean(assigned) ||
+          Boolean(leave.assignedRelieverId) ||
+          Boolean(leave.assignedCoverEmployeeId) ||
           canPick;
 
         if (!showPanel) return null;
@@ -566,18 +597,20 @@ export default function LeaveDetailPage({
             >
               Replacement
             </div>
-            {assigned || leave.replacementPlan ? (
+            {leave.assignedRelieverId ||
+            leave.assignedCoverEmployeeId ||
+            leave.replacementPlan ? (
               <p style={{ margin: "0 0 12px", color: nectarColors.ink, fontSize: 14 }}>
                 {leave.replacementPlan ??
-                  (assigned
-                    ? `${assigned.name} assigned`
+                  (assignedName
+                    ? `${assignedName} assigned`
                     : "Replacement arranged")}
               </p>
             ) : (
               <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
                 {canPick
-                  ? "Choose who covers this shift. People at this site are listed first, then the cluster."
-                  : "People available to cover this leave once the Shift In-Charge arranges replacement."}
+                  ? "Choose cover from same-plant employees, cluster employees, or the reliever pool."
+                  : "Cover candidates appear once the Shift In-Charge arranges replacement."}
               </p>
             )}
 
@@ -590,7 +623,9 @@ export default function LeaveDetailPage({
                 >
                   {people.map((person) => (
                     <Radio key={person.relieverId} value={person.relieverId}>
-                      {person.name} · {person.label} · {person.phone}
+                      {person.name} · {person.label}
+                      {person.kind === "employee" ? " · employee" : " · pool"}
+                      {person.phone ? ` · ${person.phone}` : ""}
                     </Radio>
                   ))}
                   <Radio value="ot">No one — accept overtime</Radio>
@@ -612,7 +647,7 @@ export default function LeaveDetailPage({
                           ),
                         coverChoice === "ot"
                           ? "Covered with overtime"
-                          : "Replacement arranged",
+                          : "Cover arranged",
                       );
                     }}
                   >
@@ -654,16 +689,17 @@ export default function LeaveDetailPage({
                   lineHeight: 1.7,
                 }}
               >
-                {people.map((person) => (
+                {people.slice(0, 8).map((person) => (
                   <li key={person.relieverId}>
-                    {person.name} · {person.label} · {person.phone}
+                    {person.name} · {person.label}
+                    {person.kind === "employee" ? " · employee" : " · pool"}
+                    {person.phone ? ` · ${person.phone}` : ""}
                   </li>
                 ))}
               </ul>
             ) : (
               <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-                No available relievers in the pool right now — overtime may be
-                needed.
+                No available cover candidates — overtime may be needed.
               </p>
             )}
           </div>

@@ -1,5 +1,9 @@
 import { employees, sites, type PlantType } from "@/lib/mock-data";
 import { shifts } from "@/lib/overtime/data";
+import { listCoverOptionsForSite } from "@/lib/shift-impact/engine";
+import { registerPoolApi } from "@/lib/shift-impact/registry";
+import { inferRequiredSkills } from "@/lib/shift-impact/skills";
+import type { ShiftCode } from "@/lib/shift/types";
 
 export type RelieverAvailability = "available" | "assigned" | "unavailable";
 
@@ -56,6 +60,15 @@ export type AbsenceRecord = {
     | "ot_fallback"
     | "resolved";
   assignedRelieverId?: string;
+  /** Same-plant / cluster employee covering the shift */
+  assignedCoverEmployeeId?: string;
+  coverSource?:
+    | "local_employee"
+    | "cluster_employee"
+    | "local_pool"
+    | "cluster_pool"
+    | "ot_fallback"
+    | "auto_pool";
   resolutionNote?: string;
 };
 
@@ -390,7 +403,12 @@ export function getEvents(absenceId?: string) {
 
 function skillMatch(reliever: Reliever, required: SkillTag[]) {
   if (!required.length) return true;
-  return required.every((s) => reliever.skills.includes(s));
+  // Prefer plant Ops tags; otherwise any overlap
+  const plantOps = required.filter((s) => s.endsWith("Ops"));
+  if (plantOps.length) {
+    return plantOps.some((s) => reliever.skills.includes(s));
+  }
+  return required.some((s) => reliever.skills.includes(s));
 }
 
 function plantMatch(reliever: Reliever, siteId: string) {
@@ -419,45 +437,58 @@ export function findReplacementCandidates(absence: AbsenceRecord) {
 }
 
 export type ReplacementOption = {
+  /** Reliever id or employee id */
   relieverId: string;
   name: string;
   phone: string;
   source: "local" | "cluster";
   homeSiteId?: string;
+  kind?: "employee" | "reliever";
+  coverSource?:
+    | "local_employee"
+    | "cluster_employee"
+    | "local_pool"
+    | "cluster_pool";
 };
 
 /** People the Shift In-Charge can choose. Does not assign anyone. */
-export function listReplacementOptions(siteId: string): {
+export function listReplacementOptions(
+  siteId: string,
+  opts?: { date?: string; excludeEmployeeId?: string },
+): {
   local: ReplacementOption[];
   cluster: ReplacementOption[];
 } {
-  const clusterId = getClusterForSite(siteId)?.id ?? "";
-  const stub: AbsenceRecord = {
-    id: "preview",
-    employeeId: "",
-    employeeName: "",
+  const date = opts?.date ?? new Date().toISOString().slice(0, 10);
+  const { local, cluster } = listCoverOptionsForSite(
     siteId,
-    clusterId,
-    date: "",
-    shiftId: "",
-    reason: "",
-    requiredSkills: [],
-    status: "open",
-  };
-  const { local, cluster } = findReplacementCandidates(stub);
+    date,
+    opts?.excludeEmployeeId,
+  );
   const toOption = (
-    reliever: Reliever,
-    source: ReplacementOption["source"],
+    c: {
+      id: string;
+      name: string;
+      phone?: string;
+      source: string;
+      homeSiteId?: string;
+      kind: string;
+    },
   ): ReplacementOption => ({
-    relieverId: reliever.id,
-    name: reliever.name,
-    phone: reliever.phone,
-    source,
-    homeSiteId: reliever.homeSiteId,
+    relieverId: c.id,
+    name: c.name,
+    phone: c.phone ?? "",
+    source:
+      c.source === "local_employee" || c.source === "local_pool"
+        ? "local"
+        : "cluster",
+    homeSiteId: c.homeSiteId,
+    kind: c.kind as ReplacementOption["kind"],
+    coverSource: c.source as ReplacementOption["coverSource"],
   });
   return {
-    local: local.map((r) => toOption(r, "local")),
-    cluster: cluster.map((r) => toOption(r, "cluster")),
+    local: local.map(toOption),
+    cluster: cluster.map(toOption),
   };
 }
 
@@ -471,6 +502,14 @@ function ensureLeaveAbsence(input: {
   reason: string;
 }) {
   const clusterId = getClusterForSite(input.siteId)?.id ?? "";
+  const shiftIdToCode: Record<string, ShiftCode> = {
+    "sh-morning": "A",
+    "sh-afternoon": "B",
+    "sh-night": "C",
+    "sh-general": "G",
+  };
+  const shiftCode = shiftIdToCode[input.shiftId] ?? "A";
+  const requiredSkills = inferRequiredSkills(input.siteId, shiftCode);
   if (!absenceStore.some((a) => a.id === input.leaveId)) {
     absenceStore = [
       {
@@ -482,11 +521,17 @@ function ensureLeaveAbsence(input: {
         date: input.date,
         shiftId: input.shiftId,
         reason: input.reason,
-        requiredSkills: [],
+        requiredSkills,
         status: "open",
       },
       ...absenceStore,
     ];
+  } else {
+    absenceStore = absenceStore.map((a) =>
+      a.id === input.leaveId && !a.requiredSkills.length
+        ? { ...a, requiredSkills }
+        : a,
+    );
   }
   return absenceStore.find((a) => a.id === input.leaveId)!;
 }
@@ -636,7 +681,7 @@ export function assignRelieverForLeave(input: {
   };
 }
 
-/** Shift In-Charge picks one available person, or accepts OT. */
+/** Shift In-Charge picks one available person (employee or pool), or accepts OT. */
 export function assignChosenRelieverForLeave(
   input: {
     leaveId: string;
@@ -647,11 +692,16 @@ export function assignChosenRelieverForLeave(
     date: string;
     reason: string;
   },
-  choice: { relieverId: string } | { ot: true },
+  choice:
+    | { relieverId: string }
+    | { coverEmployeeId: string }
+    | { ot: true },
 ): {
-  outcome: "local_assigned" | "pool_assigned" | "ot_fallback";
+  outcome: "local_assigned" | "pool_assigned" | "ot_fallback" | "employee_assigned";
   relieverId?: string;
   relieverName?: string;
+  coverEmployeeId?: string;
+  coverSource?: AbsenceRecord["coverSource"];
   plan: string;
 } {
   ensureRelieverHydrated();
@@ -660,6 +710,8 @@ export function assignChosenRelieverForLeave(
   if ("ot" in choice) {
     absence.status = "ot_fallback";
     absence.assignedRelieverId = undefined;
+    absence.assignedCoverEmployeeId = undefined;
+    absence.coverSource = "ot_fallback";
     absence.resolutionNote = "Shift In-Charge accepted OT — no reliever assigned";
     absenceStore = absenceStore.map((a) =>
       a.id === absence.id ? { ...absence } : a,
@@ -667,16 +719,42 @@ export function assignChosenRelieverForLeave(
     persistRelieverPool();
     return {
       outcome: "ot_fallback",
-      plan: "No reliever chosen — OT last resort",
+      coverSource: "ot_fallback",
+      plan: "No cover chosen — OT last resort",
     };
   }
 
-  const options = listReplacementOptions(input.siteId);
+  const options = listReplacementOptions(input.siteId, {
+    date: input.date,
+    excludeEmployeeId: input.employeeId,
+  });
+  const choiceId =
+    "coverEmployeeId" in choice ? choice.coverEmployeeId : choice.relieverId;
   const picked =
-    options.local.find((o) => o.relieverId === choice.relieverId) ??
-    options.cluster.find((o) => o.relieverId === choice.relieverId);
+    options.local.find((o) => o.relieverId === choiceId) ??
+    options.cluster.find((o) => o.relieverId === choiceId);
   if (!picked) {
     throw new Error("That person is not available for this site");
+  }
+
+  if (picked.kind === "employee" || picked.coverSource?.includes("employee")) {
+    absence.status = "local_assigned";
+    absence.assignedRelieverId = undefined;
+    absence.assignedCoverEmployeeId = picked.relieverId;
+    absence.coverSource = picked.coverSource ?? "local_employee";
+    absence.resolutionNote = `${picked.name} (employee) chosen by Shift In-Charge`;
+    absenceStore = absenceStore.map((a) =>
+      a.id === absence.id ? { ...absence } : a,
+    );
+    persistRelieverPool();
+    const where =
+      picked.coverSource === "cluster_employee" ? "cluster" : "same plant";
+    return {
+      outcome: "employee_assigned",
+      coverEmployeeId: picked.relieverId,
+      coverSource: absence.coverSource,
+      plan: `${picked.name} arranged from ${where} employees`,
+    };
   }
 
   const outcome = picked.source === "local" ? "local_assigned" : "pool_assigned";
@@ -692,6 +770,10 @@ export function assignChosenRelieverForLeave(
   );
   absence.status = outcome;
   absence.assignedRelieverId = picked.relieverId;
+  absence.assignedCoverEmployeeId = undefined;
+  absence.coverSource =
+    picked.coverSource ??
+    (picked.source === "local" ? "local_pool" : "cluster_pool");
   absence.resolutionNote = `${picked.name} chosen by Shift In-Charge`;
   absenceStore = absenceStore.map((a) =>
     a.id === absence.id ? { ...absence } : a,
@@ -703,6 +785,7 @@ export function assignChosenRelieverForLeave(
     outcome,
     relieverId: picked.relieverId,
     relieverName: picked.name,
+    coverSource: absence.coverSource,
     plan: `${picked.name} arranged from ${where} reliever pool`,
   };
 }
@@ -720,7 +803,13 @@ export function releaseRelieverForLeave(leaveId: string) {
   });
   absenceStore = absenceStore.map((a) =>
     a.id === leaveId
-      ? { ...a, status: "resolved", assignedRelieverId: undefined }
+      ? {
+          ...a,
+          status: "resolved",
+          assignedRelieverId: undefined,
+          assignedCoverEmployeeId: undefined,
+          coverSource: undefined,
+        }
       : a,
   );
   persistRelieverPool();
@@ -909,4 +998,15 @@ export async function syncRelieversWithApi(): Promise<void> {
     // Graceful offline fallback
   }
 }
+
+registerPoolApi({
+  getClusterForSite,
+  getRelievers,
+  sites: sites.map((s) => ({
+    id: s.id,
+    name: s.name,
+    plantType: s.plantType,
+    headcount: s.headcount,
+  })),
+});
 

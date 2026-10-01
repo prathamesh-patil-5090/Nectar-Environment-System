@@ -35,8 +35,14 @@ import {
   type Reliever,
   type RelieverAvailability,
 } from "@/lib/reliever/pool";
+import {
+  candidateDisplaySource,
+  computeShiftImpact,
+} from "@/lib/shift-impact";
 import { canManageRelieverPool, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+
+const IMPACT_TODAY = "2026-09-23";
 
 const availabilityColor: Record<RelieverAvailability, string> = {
   available: nectarColors.mint,
@@ -83,6 +89,24 @@ export default function RelieverPoolPage() {
       })
       .map((s) => getSiteManpowerRequirement(s.id));
   }, [clusterId, tick, siteScope]);
+
+  const impactVacancies = useMemo(() => {
+    void tick;
+    const report = computeShiftImpact({
+      siteId: siteScope,
+      from: IMPACT_TODAY,
+      to: IMPACT_TODAY,
+    });
+    return report.vacancies.filter((v) => {
+      if (v.status !== "open") return false;
+      if (siteScope && v.siteId !== siteScope) return false;
+      if (clusterId) {
+        const cluster = getClusterById(clusterId);
+        if (cluster && !cluster.siteIds.includes(v.siteId)) return false;
+      }
+      return true;
+    });
+  }, [tick, siteScope, clusterId]);
 
   const assign = (absenceId: string) => {
     if (!canManage) {
@@ -354,6 +378,68 @@ export default function RelieverPoolPage() {
           {siteClusters[0].generalShifts} general + shared relievers per cluster
         </div>
       </div>
+
+      <Panel
+        title="Shift Impact vacancies"
+        icon={<ClusterOutlined style={{ color: nectarColors.leaf }} />}
+      >
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: nectarColors.muted }}>
+          Leave days and roster gaps needing cover from employees or the pool.{" "}
+          <Link href="/shifts/reliever-allocation">Full allocation view</Link>
+        </p>
+        <Table
+          rowKey="id"
+          size="small"
+          pagination={{ pageSize: 5 }}
+          dataSource={impactVacancies}
+          locale={{ emptyText: "No open shift vacancies today" }}
+          columns={[
+            {
+              title: "When",
+              key: "when",
+              render: (_, r) => `${r.date} · ${r.shiftCode}`,
+            },
+            {
+              title: "Site",
+              dataIndex: "siteId",
+              render: (id: string) =>
+                sites.find((s) => s.id === id)?.name ?? id,
+            },
+            {
+              title: "Source",
+              dataIndex: "source",
+              render: (s: string) => (s === "leave" ? "Leave" : "Roster gap"),
+            },
+            {
+              title: "Absent",
+              dataIndex: "absentEmployeeName",
+              render: (n?: string) => n ?? "—",
+            },
+            {
+              title: "Top candidates",
+              key: "cand",
+              render: (_, r) =>
+                r.candidates.length ? (
+                  r.candidates.slice(0, 2).map((c) => (
+                    <Tag key={c.id} color={nectarColors.leaf}>
+                      {c.name} · {candidateDisplaySource(c.source)}
+                    </Tag>
+                  ))
+                ) : (
+                  <Tag color={nectarColors.alert}>OT risk</Tag>
+                ),
+            },
+            {
+              title: "",
+              key: "link",
+              render: (_, r) =>
+                r.leaveId ? (
+                  <Link href={`/leave/requests/${r.leaveId}`}>Leave</Link>
+                ) : null,
+            },
+          ]}
+        />
+      </Panel>
 
       <Panel
         title="Open absences & replacement"

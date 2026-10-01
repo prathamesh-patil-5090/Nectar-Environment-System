@@ -96,6 +96,12 @@ export class LeaveRequest {
   assignedRelieverId: string;
 
   @Prop()
+  assignedCoverEmployeeId: string;
+
+  @Prop()
+  coverSource: string;
+
+  @Prop()
   replacementPlan: string;
 
   @Prop({ default: 0 })

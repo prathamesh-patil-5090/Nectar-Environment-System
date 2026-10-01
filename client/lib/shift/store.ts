@@ -1,6 +1,7 @@
 import { employees, getEmployeeById, sites } from "@/lib/mock-data";
 import { employeeHasCoveringLeave } from "@/lib/leave/coverage";
-import { getRelievers, getClusterForSite } from "@/lib/reliever/pool";
+import { computeShiftImpact } from "@/lib/shift-impact/engine";
+import { registerShiftApi } from "@/lib/shift-impact/registry";
 import { nectarColors } from "@/lib/theme";
 import type {
   EmployeeRotationRow,
@@ -1156,38 +1157,38 @@ export function createChangeRequest(
 
 export function getRelieverSuggestions(siteId?: string): RelieverSuggestion[] {
   ensureShiftHydrated();
-  const targetSites = siteId ? sites.filter((s) => s.id === siteId) : sites;
-  const suggestions: RelieverSuggestion[] = [];
+  const report = computeShiftImpact({
+    siteId,
+    from: TODAY,
+    to: TODAY,
+  });
 
-  for (const site of targetSites) {
-    for (const shift of shiftMaster.filter((s) => s.code !== "G")) {
-      const todayPlanned = getPlannedDays({
-        siteId: site.id,
-        from: TODAY,
-        to: TODAY,
-      }).filter((d) => d.plannedShiftId === shift.id);
-      const required = Math.max(2, Math.ceil(site.headcount / 3));
-      const available = todayPlanned.length;
-      const absent = Math.max(0, required - available);
-      if (absent <= 0) continue;
-
-      const cluster = getClusterForSite(site.id);
-      const pool = getRelievers(cluster?.id)
-        .filter((r) => r.availability === "available")
-        .slice(0, 3);
-
-      suggestions.push({
-        shiftId: shift.id,
-        shiftCode: shift.code,
-        siteId: site.id,
+  const byKey = new Map<string, RelieverSuggestion>();
+  for (const v of report.vacancies) {
+    if (siteId && v.siteId !== siteId) continue;
+    const key = `${v.siteId}|${v.shiftId}`;
+    const existing = byKey.get(key);
+    const suggested = v.candidates.slice(0, 3).map((c) => c.id);
+    if (!existing) {
+      const required = Math.max(2, Math.ceil((sites.find((s) => s.id === v.siteId)?.headcount ?? 6) / 3));
+      byKey.set(key, {
+        shiftId: v.shiftId,
+        shiftCode: v.shiftCode,
+        siteId: v.siteId,
         required,
-        available,
-        absent,
-        suggestedRelieverIds: pool.map((r) => r.id),
+        available: Math.max(0, required - 1),
+        absent: 1,
+        suggestedRelieverIds: suggested,
       });
+    } else {
+      existing.absent += 1;
+      existing.available = Math.max(0, existing.required - existing.absent);
+      if (!existing.suggestedRelieverIds.length) {
+        existing.suggestedRelieverIds = suggested;
+      }
     }
   }
-  return suggestions;
+  return [...byKey.values()];
 }
 
 export function getShiftDashboardKpis(siteId?: string) {
@@ -1305,3 +1306,10 @@ export async function syncShiftsWithApi(): Promise<void> {
 }
 
 export { ACTIVE_PATTERN, TODAY, EFFECTIVE, addDays };
+
+registerShiftApi({
+  getPlannedDays,
+  getPlannedShiftForLeave,
+  shiftMaster,
+  getShiftByCode,
+});

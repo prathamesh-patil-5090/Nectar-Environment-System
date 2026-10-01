@@ -76,6 +76,16 @@ export type LeaveRequest = {
   cancelledAt?: string;
   replacementRequired: boolean;
   assignedRelieverId?: string;
+  /** Employee assigned as cover (first-class, not pool) */
+  assignedCoverEmployeeId?: string;
+  /** How coverage was resolved */
+  coverSource?:
+    | "local_employee"
+    | "cluster_employee"
+    | "local_pool"
+    | "cluster_pool"
+    | "ot_fallback"
+    | "auto_pool";
   replacementPlan?: string;
   potentialOtHours: number;
   potentialOtCost: number;
