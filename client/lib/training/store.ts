@@ -1,17 +1,20 @@
-import {
-  mockCourses,
-  initialEnrollments,
-  initialSkillMappingResults,
-  initialWrittenTestResults,
-  initialPracticalTestResults,
-  initialOralTestResults,
-  initialCertificates,
-  initialLearningNeedRecords,
-  initialTrainingSessions,
-  mockMentors,
-  mockSpecializationTracks,
-  initialMentorLiveSessions,
-} from "./data";
+/**
+ * Training store — an in-memory cache of DATABASE data, loaded through the NestJS API.
+ *
+ * - Nothing here is seeded from mock files and nothing is kept in localStorage.
+ * - Reads are synchronous over the cache (the course player relies on that); call
+ *   `loadTrainingData()` (or `useTrainingData()`) before reading.
+ * - Writes update the cache optimistically for instant feedback, then the server
+ *   (which scores quizzes/tests and issues certificates) replaces the cached copy.
+ *
+ * Exception agreed with the client: specialization tracks and the LNI competency list
+ * are still client-side mock content (lib/training/data.ts).
+ */
+import { useEffect, useState, useSyncExternalStore } from "react";
+import * as api from "@/lib/api/training";
+import { getEmployees } from "@/lib/api/employees";
+import { getSites } from "@/lib/api/sites";
+import { mockSpecializationTracks } from "./data";
 import type {
   Course,
   CourseEnrollment,
@@ -25,448 +28,358 @@ import type {
   Certificate,
   LearningNeedRecord,
   TrainingSession,
-  CourseRecommendation,
-  MentorProfile,
   SpecializationTrack,
-  MentorLiveSession,
   TrainingAssignment,
 } from "./types";
-import { getEmployeeById } from "@/lib/mock-data";
+import type { TrainingItem, TrainingPriority } from "@/lib/mock-data";
 
-const STORAGE_KEYS = {
-  ENROLLMENTS: "neipl_training_enrollments_v3",
-  SKILL_MAPPING: "neipl_training_skill_mapping_v3",
-  WRITTEN_TESTS: "neipl_training_written_tests_v3",
-  PRACTICAL_TESTS: "neipl_training_practical_tests_v3",
-  ORAL_TESTS: "neipl_training_oral_tests_v3",
-  CERTIFICATES: "neipl_training_certificates_v3",
-  LNI_RECORDS: "neipl_training_lni_records_v3",
-  SESSIONS: "neipl_training_sessions_v3",
-  MENTOR_LIVE_SESSIONS: "neipl_mentor_live_sessions_v5",
-  COURSES: "neipl_training_courses_v3",
-  RECOMMENDATIONS: "neipl_training_recommendations_v2",
-  ASSIGNMENTS: "neipl_training_assignments_v2",
+type PersonLite = {
+  id: string;
+  name: string;
+  designation?: string;
+  siteId?: string;
+  managerId?: string;
+  supervisorId?: string;
+  shiftInChargeId?: string;
+  employeeCategory?: string;
+};
+type SiteLite = { id: string; name: string; plantType?: string };
+
+const cache = {
+  courses: [] as Course[],
+  enrollments: [] as CourseEnrollment[],
+  certificates: [] as Certificate[],
+  sessions: [] as TrainingSession[],
+  assignments: [] as TrainingAssignment[],
+  people: new Map<string, PersonLite>(),
+  sites: new Map<string, SiteLite>(),
+  loaded: false,
+  error: null as string | null,
+  version: 0,
 };
 
-const STATIC_MENTOR_PHOTOS: Record<string, string> = {
-  "session-director-adsul": "/mentors/director_prashant.jpg",
-  "session-etp-dakave": "/mentors/mentor_sanjay.jpg",
-  "session-ro-patil": "/mentors/mentor_rajesh.jpg",
-  "session-mee-waghaskar": "/mentors/mentor_vikram.jpg",
+// ----------------------------------------------------
+// Change notification (React re-renders on cache updates)
+// ----------------------------------------------------
+const listeners = new Set<() => void>();
+function emit() {
+  cache.version++;
+  listeners.forEach((l) => l());
+}
+export function subscribeTraining(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+export function getTrainingVersion(): number {
+  return cache.version;
+}
+/** Re-render on every cache change. */
+export function useTrainingVersion(): number {
+  return useSyncExternalStore(subscribeTraining, getTrainingVersion, () => 0);
+}
+
+let inflight: Promise<void> | null = null;
+
+/** Load everything the training screens read synchronously. Safe to call repeatedly. */
+export function loadTrainingData(force = false): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (cache.loaded && !force) return Promise.resolve();
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const [courses, enrollments, certificates, sessions, assignments, employees, sites] = await Promise.all([
+        api.getCourses(),
+        api.getEnrollments(),
+        api.getCertificates(),
+        api.getSessions(),
+        api.getTrainingAssignments(),
+        getEmployees(),
+        getSites(),
+      ]);
+      cache.courses = courses;
+      cache.enrollments = enrollments;
+      cache.certificates = certificates;
+      cache.sessions = sessions;
+      cache.assignments = assignments;
+      cache.people = new Map((employees as unknown as PersonLite[]).map((e) => [e.id, e]));
+      cache.sites = new Map((sites as unknown as SiteLite[]).map((s) => [s.id, s]));
+      cache.loaded = true;
+      cache.error = null;
+    } catch (err) {
+      cache.error = (err as Error).message || "Could not load training data";
+    } finally {
+      inflight = null;
+      emit();
+    }
+  })();
+  return inflight;
+}
+
+/** Kept for existing callers (AppShell hydration). */
+export const syncTrainingWithApi = () => loadTrainingData(true);
+
+/** Hook: loads once and re-renders on changes. */
+export function useTrainingData(): { ready: boolean; error: string | null; version: number; reload: () => Promise<void> } {
+  const version = useTrainingVersion();
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    void loadTrainingData().then(() => setTick((t) => t + 1));
+  }, []);
+  return { ready: cache.loaded, error: cache.error, version, reload: () => loadTrainingData(true) };
+}
+
+export function resetTrainingStore(): void {
+  cache.loaded = false;
+  void loadTrainingData(true);
+}
+
+const replaceEnrollment = (e: CourseEnrollment) => {
+  const i = cache.enrollments.findIndex((x) => x.id === e.id || (x.employeeId === e.employeeId && x.courseId === e.courseId));
+  if (i >= 0) cache.enrollments[i] = e;
+  else cache.enrollments.push(e);
+  emit();
+};
+const reportError = (err: unknown) => {
+  cache.error = (err as Error)?.message ?? String(err);
+  emit();
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("training-error", { detail: cache.error }));
+};
+const refreshCertificates = async (employeeId: string) => {
+  try {
+    const mine = await api.getCertificates(employeeId);
+    cache.certificates = [...cache.certificates.filter((c) => c.employeeId !== employeeId), ...mine];
+    emit();
+  } catch (err) {
+    reportError(err);
+  }
 };
 
-function cleanOldStorageKeys(): void {
-  if (typeof window === "undefined") return;
-  try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith("neipl_mentor_live_sessions_") && k !== STORAGE_KEYS.MENTOR_LIVE_SESSIONS) {
-        keysToRemove.push(k);
-      }
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
-  } catch {
-    // Graceful fallback
-  }
+// ----------------------------------------------------
+// People (from the employees API)
+// ----------------------------------------------------
+export function getPersonName(id: string): string | undefined {
+  return cache.people.get(id)?.name;
 }
-
-function sanitizeStorageValue<T>(key: string, value: T): T {
-  if (key === STORAGE_KEYS.MENTOR_LIVE_SESSIONS && Array.isArray(value)) {
-    return value.map((item: any) => {
-      if (item && typeof item === "object") {
-        const photo = item.photoDataUrl;
-        if (typeof photo === "string" && (photo.startsWith("data:") || photo.length > 500)) {
-          return {
-            ...item,
-            photoDataUrl: STATIC_MENTOR_PHOTOS[item.id] || "/mentors/director_prashant.jpg",
-          };
-        }
-      }
-      return item;
-    }) as unknown as T;
-  }
-  return value;
+export function getSiteName(siteId?: string): string | undefined {
+  return siteId ? cache.sites.get(siteId)?.name : undefined;
 }
-
-function readStorage<T>(key: string, defaultValue: T): T {
-  if (typeof window === "undefined") return defaultValue;
-  try {
-    cleanOldStorageKeys();
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      writeStorage(key, defaultValue);
-      return defaultValue;
-    }
-    const parsed = JSON.parse(raw) as T;
-    return sanitizeStorageValue(key, parsed);
-  } catch {
-    return defaultValue;
-  }
+export function getPeople(): PersonLite[] {
+  return [...cache.people.values()];
 }
-
-function writeStorage<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
-  const sanitized = sanitizeStorageValue(key, value);
-  try {
-    localStorage.setItem(key, JSON.stringify(sanitized));
-  } catch (err: any) {
-    if (err?.name === "QuotaExceededError" || err?.code === 22 || err?.number === -2147024882) {
-      cleanOldStorageKeys();
-      try {
-        localStorage.setItem(key, JSON.stringify(sanitized));
-      } catch {
-        // Graceful non-blocking quota absorption
-      }
-    }
-  }
+export function getPerson(id: string): PersonLite | undefined {
+  return cache.people.get(id);
+}
+export function getSite(siteId?: string): (SiteLite & { managerName?: string; managerId?: string }) | undefined {
+  return siteId ? (cache.sites.get(siteId) as SiteLite & { managerName?: string; managerId?: string }) : undefined;
 }
 
 // ----------------------------------------------------
-// Public Training API
+// Courses
 // ----------------------------------------------------
-
 export function getAllCourses(): Course[] {
-  const cached = readStorage<Course[]>(STORAGE_KEYS.COURSES, []);
-  if (cached && cached.length) return cached;
-  return mockCourses;
+  return cache.courses;
 }
 
 export function getCourseById(courseId: string): Course | undefined {
-  const all = getAllCourses();
-  return all.find((c) => c.id === courseId || c.courseId === courseId || c.code === courseId);
+  return cache.courses.find((c) => c.id === courseId || c.courseId === courseId || c.code === courseId);
 }
 
-export const COURSE_TITLE_TO_ID_MAP: Record<string, string> = {
-  "ETP Process Fundamentals": "course-etp-101",
-  "ETP Biological & Chemical Treatment Operations": "course-etp-101",
-  "PPE & Site Induction": "course-saf-202",
-  "Confined Space Entry": "course-saf-203",
-  "Hazardous Waste Handling": "course-saf-202",
-  "First Aid Refresh": "course-saf-202",
-  "Lockout / Tagout": "course-saf-203",
-  "Factory Safety Audit & Statutory Compliance": "course-saf-203",
-  "Environmental Risk Assessment & Crisis Management": "course-qac-401",
-  "STP Operation & Biological Nutrient Removal": "course-stp-101",
-  "WTP Clarification, Filtration & Disinfection": "course-ops-301",
-  "Zero Liquid Discharge (ZLD) Thermal & Evaporator Operations": "course-zld-301",
-  "Industrial RO Membrane Operations & CIP Descaling": "course-ops-301",
-  "Advanced Membrane Bio-Reactor (MBR) for Industrial Effluents": "course-etp-102",
-  "Sludge Thickening, Dewatering & Filter Press Operations": "course-slu-104",
-  "Ultrafiltration (UF) Hollow-Fiber Membrane Backwash": "course-ops-304",
-  "High-Pressure Booster Pumps & Energy Recovery Devices": "course-ops-303",
-  "Electro-Deionization (EDI) & High-Purity Demineralization": "course-ops-302",
-  "Multiple Effect Evaporator (MEE) Thermo-Compressor Dynamics": "course-zld-301",
-  "Agitated Thin Film Dryer (ATFD) Salt Crystallization": "course-zld-302",
-  "Centrifuge Salt Dewatering & Mother Liquor Recycling": "course-zld-303",
-  "Industrial Water Balance Audits & CPCB / MPCB Consents": "course-qac-401",
-  "Industrial Bench Treatability Studies & Jar Testing Protocols": "course-env-402",
-  "Continuous Online Effluent Telemetry (OCEMS) Calibration": "course-qac-403",
-  "Environmental Clearances (CTE/CTO) & Form-V Filings": "course-qac-404",
-  "Hazardous Chemical Handling & Spillage Emergency Response": "course-saf-202",
-  "Electrical Safety, LOTO Protocols & Arc-Flash Protection": "course-saf-203",
-  "Industrial Water Plant Manpower Operations & Shift Logbooks": "course-onm-501",
-  "Safe Workplace: Confined Space Entry & H2S Gas Rescue": "course-saf-202",
-  "Electrical Safety, Lockout / Tagout (LOTO) & Arc Flash": "course-saf-203",
-  "Ultrafiltration (UF) & Membrane Integrity Testing": "course-ops-304",
-  "Multiple Effect Evaporator (MEE) & Steam Economy Optimization": "course-zld-301",
-  "Agitated Thin Film Dryer (ATFD) & Salt Crystallization": "course-zld-302",
-  "Preventive Maintenance Scheduling & Rotary Equipment Overhauls": "course-onm-502",
-};
-
-export function getCourseByTitle(title: string): Course {
-  const directId = COURSE_TITLE_TO_ID_MAP[title];
-  if (directId) {
-    const found = getCourseById(directId);
-    if (found) return found;
-  }
-  const match = mockCourses.find(
-    (c) =>
-      c.title.toLowerCase().includes(title.toLowerCase()) ||
-      title.toLowerCase().includes(c.title.toLowerCase()),
-  );
-  return match || mockCourses[0];
+/** Exact title match only (no guessing). */
+export function getCourseByTitle(title: string): Course | undefined {
+  const t = title.trim().toLowerCase();
+  return cache.courses.find((c) => c.title.trim().toLowerCase() === t);
 }
 
+// ----------------------------------------------------
+// Enrollments
+// ----------------------------------------------------
 export function getAllEnrollments(): CourseEnrollment[] {
-  return readStorage<CourseEnrollment[]>(STORAGE_KEYS.ENROLLMENTS, initialEnrollments);
+  return cache.enrollments;
 }
 
 export function getEnrollmentsForEmployee(employeeId: string): CourseEnrollment[] {
-  const all = getAllEnrollments();
-  return all.filter((e) => e.employeeId === employeeId);
+  return cache.enrollments.filter((e) => e.employeeId === employeeId);
 }
 
-export function getEnrollment(
-  employeeId: string,
-  courseId: string,
-): CourseEnrollment {
-  const all = getAllEnrollments();
-  let enr = all.find((e) => e.employeeId === employeeId && e.courseId === courseId);
-  if (!enr) {
-    // Auto-create initial enrollment if not exists
-    const course = getCourseById(courseId);
-    const initialProgress: Record<string, AbilityProgress> = {};
-    if (course) {
-      course.abilities.forEach((ab) => {
-        initialProgress[ab.id] = {
-          abilityId: ab.id,
-          videoWatchedPct: 0,
-          videoComplete: false,
-          readingAcknowledged: false,
-          quizAttempts: 0,
-          quizPassed: false,
-          unlockedAt: ab.order === 1 ? new Date().toISOString() : "",
-        };
-      });
-    }
-    enr = {
-      id: `enr-${employeeId}-${courseId}`,
-      employeeId,
-      courseId,
-      status: "IN_PROGRESS",
-      startedAt: new Date().toISOString(),
-      abilityProgress: initialProgress,
-    };
-    all.push(enr);
-    writeStorage(STORAGE_KEYS.ENROLLMENTS, all);
-  }
+const freshProgress = (abilityId: string, unlocked: boolean): AbilityProgress => ({
+  abilityId,
+  videoWatchedPct: 0,
+  videoComplete: false,
+  readingAcknowledged: false,
+  quizAttempts: 0,
+  quizPassed: false,
+  unlockedAt: unlocked ? new Date().toISOString() : "",
+});
+
+/** Cached enrollment; if missing, enrolls on the server (get-or-create) and shows a local copy meanwhile. */
+export function getEnrollment(employeeId: string, courseId: string): CourseEnrollment {
+  const course = getCourseById(courseId);
+  const cid = course?.id ?? courseId;
+  const existing = cache.enrollments.find((e) => e.employeeId === employeeId && e.courseId === cid);
+  if (existing) return existing;
+  const local: CourseEnrollment = {
+    id: `enr-${employeeId}-${cid}`,
+    employeeId,
+    courseId: cid,
+    status: "IN_PROGRESS",
+    startedAt: new Date().toISOString(),
+    abilityProgress: Object.fromEntries((course?.abilities ?? []).map((a) => [a.id, freshProgress(a.id, a.order === 1)])),
+    assessments: {},
+  };
+  cache.enrollments.push(local);
+  api.enroll(employeeId, cid).then(replaceEnrollment).catch(reportError);
+  return local;
+}
+
+/** Explicit enroll (course page button). */
+export async function enrollInCourse(employeeId: string, courseId: string): Promise<CourseEnrollment> {
+  const e = await api.enroll(employeeId, courseId);
+  replaceEnrollment(e);
+  return e;
+}
+
+export function isAbilityUnlocked(enrollment: CourseEnrollment, ability: Ability, course: Course): boolean {
+  if (ability.order === 1) return true;
+  const prev = course.abilities.find((a) => a.order === ability.order - 1);
+  if (!prev) return true;
+  return Boolean(enrollment.abilityProgress[prev.id]?.completedAt);
+}
+
+const hasQuiz = (a?: Ability) => Boolean(a?.microQuiz?.questions?.length);
+
+function findEnrollment(enrollmentId: string) {
+  const enr = cache.enrollments.find((e) => e.id === enrollmentId);
+  if (!enr) throw new Error("Enrollment not found");
   return enr;
 }
 
-export function isAbilityUnlocked(
-  enrollment: CourseEnrollment,
-  ability: Ability,
-  course: Course,
-): boolean {
-  if (ability.order === 1) return true;
-  const prevAbility = course.abilities.find((a) => a.order === ability.order - 1);
-  if (!prevAbility) return true;
-  const prevProgress = enrollment.abilityProgress[prevAbility.id];
-  return Boolean(prevProgress && prevProgress.completedAt);
+/** Mirrors the server: quiz-less abilities complete after video (+ reading if any). */
+function completeIfNoQuiz(enr: CourseEnrollment, abilityId: string) {
+  const course = getCourseById(enr.courseId);
+  const ability = course?.abilities.find((a) => a.id === abilityId);
+  if (!course || !ability || hasQuiz(ability)) return;
+  const p = enr.abilityProgress[abilityId];
+  if (p.videoComplete && (!ability.readingContent || p.readingAcknowledged) && !p.completedAt) {
+    p.completedAt = new Date().toISOString();
+    const next = course.abilities.find((a) => a.order === ability.order + 1);
+    if (next) (enr.abilityProgress[next.id] ??= freshProgress(next.id, true)).unlockedAt ||= new Date().toISOString();
+  }
 }
 
-export function updateVideoProgress(
-  enrollmentId: string,
-  abilityId: string,
-  watchedPct: number,
-): AbilityProgress {
-  const all = getAllEnrollments();
-  const enr = all.find((e) => e.id === enrollmentId);
-  if (!enr) throw new Error("Enrollment not found");
-
-  if (!enr.abilityProgress[abilityId]) {
-    enr.abilityProgress[abilityId] = {
-      abilityId,
-      videoWatchedPct: 0,
-      videoComplete: false,
-      readingAcknowledged: false,
-      quizAttempts: 0,
-      quizPassed: false,
-      unlockedAt: new Date().toISOString(),
-    };
-  }
-
-  const p = enr.abilityProgress[abilityId];
+export function updateVideoProgress(enrollmentId: string, abilityId: string, watchedPct: number): AbilityProgress {
+  const enr = findEnrollment(enrollmentId);
+  const p = (enr.abilityProgress[abilityId] ??= freshProgress(abilityId, true));
   p.videoWatchedPct = Math.min(100, Math.max(p.videoWatchedPct, Math.round(watchedPct)));
-  if (p.videoWatchedPct >= 90) {
-    p.videoComplete = true;
-  }
-
-  writeStorage(STORAGE_KEYS.ENROLLMENTS, all);
+  if (p.videoWatchedPct >= 90) p.videoComplete = true;
+  completeIfNoQuiz(enr, abilityId);
+  api.postVideoProgress(enrollmentId, abilityId, watchedPct).then(replaceEnrollment).catch(reportError);
   return p;
 }
 
 export function acknowledgeReading(enrollmentId: string, abilityId: string): void {
-  const all = getAllEnrollments();
-  const enr = all.find((e) => e.id === enrollmentId);
-  if (!enr) return;
-  if (enr.abilityProgress[abilityId]) {
-    enr.abilityProgress[abilityId].readingAcknowledged = true;
-    writeStorage(STORAGE_KEYS.ENROLLMENTS, all);
-  }
+  const enr = findEnrollment(enrollmentId);
+  (enr.abilityProgress[abilityId] ??= freshProgress(abilityId, true)).readingAcknowledged = true;
+  completeIfNoQuiz(enr, abilityId);
+  api.postReading(enrollmentId, abilityId).then(replaceEnrollment).catch(reportError);
 }
+
+const scoreOf = (questions: { id: string; correctOptionId: string }[], answers: Record<string, string>) =>
+  questions.length ? Math.round((questions.filter((q) => answers[q.id] === q.correctOptionId).length / questions.length) * 100) : 0;
 
 export function submitMicroQuiz(
   enrollmentId: string,
   abilityId: string,
   answers: Record<string, string>,
 ): { scorePct: number; passed: boolean } {
-  const all = getAllEnrollments();
-  const enr = all.find((e) => e.id === enrollmentId);
-  if (!enr) throw new Error("Enrollment not found");
-
+  const enr = findEnrollment(enrollmentId);
   const course = getCourseById(enr.courseId);
   const ability = course?.abilities.find((a) => a.id === abilityId);
-  if (!ability) throw new Error("Ability not found");
-
-  const questions = ability.microQuiz.questions;
-  let correctCount = 0;
-  questions.forEach((q) => {
-    if (answers[q.id] === q.correctOptionId) {
-      correctCount++;
-    }
-  });
-
-  const scorePct = Math.round((correctCount / questions.length) * 100);
+  if (!course || !ability?.microQuiz?.questions?.length) return { scorePct: 0, passed: false };
+  const scorePct = scoreOf(ability.microQuiz.questions, answers);
   const passed = scorePct >= ability.microQuiz.passThreshold;
-
-  const prog = enr.abilityProgress[abilityId] || {
-    abilityId,
-    videoWatchedPct: 100,
-    videoComplete: true,
-    readingAcknowledged: true,
-    quizAttempts: 0,
-    quizPassed: false,
-    unlockedAt: new Date().toISOString(),
-  };
-
-  prog.quizAttempts += 1;
-  prog.quizScorePct = scorePct;
-
+  const p = (enr.abilityProgress[abilityId] ??= freshProgress(abilityId, true));
+  p.quizAttempts += 1;
+  p.quizScorePct = scorePct;
   if (passed) {
-    prog.quizPassed = true;
-    prog.completedAt = new Date().toISOString();
-
-    // Check next ability and set its unlockedAt
-    const nextAbility = course?.abilities.find((a) => a.order === ability.order + 1);
-    if (nextAbility) {
-      if (!enr.abilityProgress[nextAbility.id]) {
-        enr.abilityProgress[nextAbility.id] = {
-          abilityId: nextAbility.id,
-          videoWatchedPct: 0,
-          videoComplete: false,
-          readingAcknowledged: false,
-          quizAttempts: 0,
-          quizPassed: false,
-          unlockedAt: new Date().toISOString(),
-        };
-      } else {
-        enr.abilityProgress[nextAbility.id].unlockedAt = new Date().toISOString();
-      }
-    }
-
-    // Check if ALL abilities in course are now passed
-    const allAbilitiesPassed = course?.abilities.every((a) => {
-      if (a.id === abilityId) return true;
-      const ap = enr.abilityProgress[a.id];
-      return ap && (ap.completedAt || ap.quizPassed);
-    });
-    if (allAbilitiesPassed && enr.status === "IN_PROGRESS") {
-      enr.status = "SKILL_MAP_DONE";
-    }
+    p.quizPassed = true;
+    p.completedAt ??= new Date().toISOString();
+    const next = course.abilities.find((a) => a.order === ability.order + 1);
+    if (next) (enr.abilityProgress[next.id] ??= freshProgress(next.id, true)).unlockedAt ||= new Date().toISOString();
   }
-
-  enr.abilityProgress[abilityId] = prog;
-  writeStorage(STORAGE_KEYS.ENROLLMENTS, all);
+  api
+    .postMicroQuiz(enrollmentId, abilityId, answers)
+    .then((r) => replaceEnrollment(r.enrollment))
+    .catch(reportError);
   return { scorePct, passed };
 }
 
 export function canTakeSkillMapping(enrollment: CourseEnrollment, course: Course): boolean {
-  if (!enrollment || !course || !course.abilities || course.abilities.length === 0) return false;
-  return course.abilities.every((a) => {
-    const p = enrollment.abilityProgress[a.id];
-    return p && (p.completedAt || p.quizPassed);
-  });
+  if (!enrollment || !course?.abilities?.length) return false;
+  return course.abilities.every((a) => enrollment.abilityProgress[a.id]?.completedAt);
 }
 
-export function submitSkillMapping(
+/** True when the course has the questions for this gate (they are authored in the database). */
+export function hasGateQuestions(course: Course, gate: "skillMap" | "written"): boolean {
+  return Boolean((gate === "skillMap" ? course.skillMappingQuestions : course.writtenTestQuestions)?.length);
+}
+
+function quizGate(
   enrollmentId: string,
+  gate: "skillMap" | "written",
   answers: Record<string, string>,
 ): SkillMappingResult {
-  const allEnrollments = getAllEnrollments();
-  const enr = allEnrollments.find((e) => e.id === enrollmentId);
-  if (!enr) throw new Error("Enrollment not found");
-
+  const enr = findEnrollment(enrollmentId);
   const course = getCourseById(enr.courseId);
-  if (!course) throw new Error("Course not found");
-
-  let correct = 0;
-  course.skillMappingQuestions.forEach((q) => {
-    if (answers[q.id] === q.correctOptionId) {
-      correct++;
-    }
-  });
-
-  const scorePct = Math.round((correct / course.skillMappingQuestions.length) * 100);
-  const passed = scorePct >= course.passThreshold;
-
-  const results = readStorage<SkillMappingResult[]>(
-    STORAGE_KEYS.SKILL_MAPPING,
-    initialSkillMappingResults,
-  );
-
-  const existingIndex = results.findIndex((r) => r.enrollmentId === enrollmentId);
+  const questions = (gate === "skillMap" ? course?.skillMappingQuestions : course?.writtenTestQuestions) ?? [];
+  const scorePct = scoreOf(questions, answers);
   const result: SkillMappingResult = {
-    id: `smr-${Date.now()}`,
+    id: `${gate}-${Date.now()}`,
     enrollmentId,
     scorePct,
-    passed,
+    passed: questions.length > 0 && scorePct >= (course?.passThreshold ?? 70),
     takenAt: new Date().toISOString(),
     answers,
   };
-
-  if (existingIndex >= 0) {
-    results[existingIndex] = result;
-  } else {
-    results.push(result);
+  if (!questions.length) {
+    reportError(new Error("The questions for this test are not set up yet"));
+    return result;
   }
-  writeStorage(STORAGE_KEYS.SKILL_MAPPING, results);
-
-  if (passed) {
-    enr.status = "SKILL_MAP_DONE";
-    writeStorage(STORAGE_KEYS.ENROLLMENTS, allEnrollments);
-  }
-
+  enr.assessments = { ...(enr.assessments ?? {}), [gate]: result };
+  if (gate === "skillMap" && result.passed && enr.status === "IN_PROGRESS") enr.status = "SKILL_MAP_DONE";
+  emit();
+  (gate === "skillMap" ? api.postSkillMap : api.postWritten)(enrollmentId, answers)
+    .then((r) => {
+      replaceEnrollment(r.enrollment);
+      if (r.certificate) void refreshCertificates(enr.employeeId);
+    })
+    .catch(reportError);
   return result;
 }
 
-export function submitWrittenTest(
+export function submitSkillMapping(enrollmentId: string, answers: Record<string, string>): SkillMappingResult {
+  return quizGate(enrollmentId, "skillMap", answers);
+}
+
+export function submitWrittenTest(enrollmentId: string, answers: Record<string, string>): WrittenTestResult {
+  return quizGate(enrollmentId, "written", answers);
+}
+
+const rubricPct = (scores: AbilityScore[]) =>
+  scores.length ? Math.round((scores.reduce((s, x) => s + x.score, 0) / (scores.length * 5)) * 1000) / 10 : 0;
+
+/** Practical / oral by the Director or the learner's allotted manager (checked on the server). */
+async function evaluate(
+  gate: "practical" | "oral",
   enrollmentId: string,
-  answers: Record<string, string>,
-): WrittenTestResult {
-  const allEnrollments = getAllEnrollments();
-  const enr = allEnrollments.find((e) => e.id === enrollmentId);
-  if (!enr) throw new Error("Enrollment not found");
-
-  const course = getCourseById(enr.courseId);
-  if (!course) throw new Error("Course not found");
-
-  let correct = 0;
-  course.writtenTestQuestions.forEach((q) => {
-    if (answers[q.id] === q.correctOptionId) {
-      correct++;
-    }
-  });
-
-  const scorePct = Math.round((correct / course.writtenTestQuestions.length) * 100);
-  const passed = scorePct >= course.passThreshold;
-
-  const results = readStorage<WrittenTestResult[]>(
-    STORAGE_KEYS.WRITTEN_TESTS,
-    initialWrittenTestResults,
-  );
-
-  const existingIndex = results.findIndex((r) => r.enrollmentId === enrollmentId);
-  const result: WrittenTestResult = {
-    id: `wtr-${Date.now()}`,
-    enrollmentId,
-    scorePct,
-    passed,
-    takenAt: new Date().toISOString(),
-    answers,
-  };
-
-  if (existingIndex >= 0) {
-    results[existingIndex] = result;
-  } else {
-    results.push(result);
-  }
-  writeStorage(STORAGE_KEYS.WRITTEN_TESTS, results);
-
-  updateLniForEnrollment(enrollmentId);
-  checkAndTriggerCertification(enrollmentId);
-  return result;
+  evaluatorId: string,
+  scores: AbilityScore[],
+  notes?: string,
+) {
+  const call = gate === "practical" ? api.postPractical : api.postOral;
+  const r = await call(enrollmentId, evaluatorId, scores, notes);
+  replaceEnrollment(r.enrollment);
+  if (r.certificate) await refreshCertificates(r.enrollment.employeeId);
+  return r;
 }
 
 export function submitPracticalAssessment(
@@ -476,48 +389,19 @@ export function submitPracticalAssessment(
   scores: AbilityScore[],
   generalNotes?: string,
 ): PracticalTestResult {
-  const maxPossible = scores.length * 5;
-  const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
-  const overallPct = Math.round((totalScore / maxPossible) * 1000) / 10;
-
-  const results = readStorage<PracticalTestResult[]>(
-    STORAGE_KEYS.PRACTICAL_TESTS,
-    initialPracticalTestResults,
-  );
-
-  const newResult: PracticalTestResult = {
+  const local: PracticalTestResult = {
     id: `ptr-${Date.now()}`,
     enrollmentId,
     evaluatorId,
     evaluatorName,
     scores,
-    overallPct,
+    overallPct: rubricPct(scores),
     conductedAt: new Date().toISOString(),
     signatureVerified: true,
     generalNotes,
   };
-
-  const existingIndex = results.findIndex((r) => r.enrollmentId === enrollmentId);
-  if (existingIndex >= 0) {
-    results[existingIndex] = newResult;
-  } else {
-    results.push(newResult);
-  }
-  writeStorage(STORAGE_KEYS.PRACTICAL_TESTS, results);
-
-  // Update enrollment status
-  const allEnrollments = getAllEnrollments();
-  const enr = allEnrollments.find((e) => e.id === enrollmentId);
-  if (enr && enr.status === "SKILL_MAP_DONE") {
-    enr.status = "PRACTICAL_DONE";
-    writeStorage(STORAGE_KEYS.ENROLLMENTS, allEnrollments);
-  }
-
-  // Generate / update LNI record with AI insights
-  updateLniForEnrollment(enrollmentId);
-  checkAndTriggerCertification(enrollmentId);
-
-  return newResult;
+  evaluate("practical", enrollmentId, evaluatorId, scores, generalNotes).catch(reportError);
+  return local;
 }
 
 export function submitOralAssessment(
@@ -527,49 +411,26 @@ export function submitOralAssessment(
   scores: AbilityScore[],
   interviewNotes?: string,
 ): OralTestResult {
-  const maxPossible = scores.length * 5;
-  const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
-  const overallPct = Math.round((totalScore / maxPossible) * 1000) / 10;
-
-  const results = readStorage<OralTestResult[]>(
-    STORAGE_KEYS.ORAL_TESTS,
-    initialOralTestResults,
-  );
-
-  const newResult: OralTestResult = {
+  const local: OralTestResult = {
     id: `otr-${Date.now()}`,
     enrollmentId,
     evaluatorId,
     evaluatorName,
     scores,
-    overallPct,
+    overallPct: rubricPct(scores),
     conductedAt: new Date().toISOString(),
     interviewNotes,
     generalNotes: interviewNotes,
   };
-
-  const existingIndex = results.findIndex((r) => r.enrollmentId === enrollmentId);
-  if (existingIndex >= 0) {
-    results[existingIndex] = newResult;
-  } else {
-    results.push(newResult);
-  }
-  writeStorage(STORAGE_KEYS.ORAL_TESTS, results);
-
-  // Update enrollment status
-  const allEnrollments = getAllEnrollments();
-  const enr = allEnrollments.find((e) => e.id === enrollmentId);
-  if (enr && enr.status === "PRACTICAL_DONE") {
-    enr.status = "ORAL_DONE";
-    writeStorage(STORAGE_KEYS.ENROLLMENTS, allEnrollments);
-  }
-
-  // Update LNI and attempt certificate
-  updateLniForEnrollment(enrollmentId);
-  checkAndTriggerCertification(enrollmentId);
-
-  return newResult;
+  evaluate("oral", enrollmentId, evaluatorId, scores, interviewNotes).catch(reportError);
+  return local;
 }
+
+/** Promise versions for new screens that want to await the server. */
+export const evaluatePractical = (enrollmentId: string, evaluatorId: string, scores: AbilityScore[], notes?: string) =>
+  evaluate("practical", enrollmentId, evaluatorId, scores, notes);
+export const evaluateOral = (enrollmentId: string, evaluatorId: string, scores: AbilityScore[], notes?: string) =>
+  evaluate("oral", enrollmentId, evaluatorId, scores, notes);
 
 export function getAssessmentResults(enrollmentId: string): {
   skillMap?: SkillMappingResult;
@@ -577,119 +438,19 @@ export function getAssessmentResults(enrollmentId: string): {
   practical?: PracticalTestResult;
   oral?: OralTestResult;
 } {
-  const smList = readStorage<SkillMappingResult[]>(
-    STORAGE_KEYS.SKILL_MAPPING,
-    initialSkillMappingResults,
-  );
-  const wtList = readStorage<WrittenTestResult[]>(
-    STORAGE_KEYS.WRITTEN_TESTS,
-    initialWrittenTestResults,
-  );
-  const ptList = readStorage<PracticalTestResult[]>(
-    STORAGE_KEYS.PRACTICAL_TESTS,
-    initialPracticalTestResults,
-  );
-  const otList = readStorage<OralTestResult[]>(
-    STORAGE_KEYS.ORAL_TESTS,
-    initialOralTestResults,
-  );
-
-  return {
-    skillMap: smList.find((r) => r.enrollmentId === enrollmentId),
-    written: wtList.find((r) => r.enrollmentId === enrollmentId),
-    practical: ptList.find((r) => r.enrollmentId === enrollmentId),
-    oral: otList.find((r) => r.enrollmentId === enrollmentId),
-  };
+  return cache.enrollments.find((e) => e.id === enrollmentId)?.assessments ?? {};
 }
 
+/** The server issues certificates when all 4 gates pass; this just returns it. */
 export function checkAndTriggerCertification(enrollmentId: string): Certificate | null {
-  const results = getAssessmentResults(enrollmentId);
-  const allEnrollments = getAllEnrollments();
-  const enr = allEnrollments.find((e) => e.id === enrollmentId);
-  if (!enr) return null;
-
-  // Rule: Certificate requires all 4 assessments!
-  if (
-    !results.skillMap?.passed ||
-    !results.written?.passed ||
-    !results.practical ||
-    !results.oral
-  ) {
-    return null;
-  }
-
-  // Weighted calculation:
-  // Skill Map: 25%, Written: 25%, Practical: 30%, Oral: 20%
-  const overallPct =
-    Math.round(
-      (results.skillMap.scorePct * 0.25 +
-        results.written.scorePct * 0.25 +
-        results.practical.overallPct * 0.3 +
-        results.oral.overallPct * 0.2) *
-        10,
-    ) / 10;
-
-  const certificates = readStorage<Certificate[]>(
-    STORAGE_KEYS.CERTIFICATES,
-    initialCertificates,
-  );
-
-  const existingCert = certificates.find((c) => c.enrollmentId === enrollmentId);
-  if (existingCert) return existingCert;
-
-  const emp = getEmployeeById(enr.employeeId);
-  const course = getCourseById(enr.courseId);
-
-  const randomHash =
-    "SHA256-" +
-    Math.random().toString(36).substring(2, 8).toUpperCase() +
-    Math.random().toString(36).substring(2, 8).toUpperCase();
-
-  const issueDate = new Date();
-  const expireDate = new Date(issueDate);
-  expireDate.setFullYear(expireDate.getFullYear() + 1); // 1-year validity rule
-
-  const newCert: Certificate = {
-    id: `cert-${Date.now()}`,
-    certificateNo: `NEIPL-CERT-2026-${String(Math.floor(1000 + Math.random() * 9000))}`,
-    enrollmentId,
-    employeeId: enr.employeeId,
-    employeeName: emp?.name ?? "Nectar Operator",
-    courseId: enr.courseId,
-    courseTitle: course?.title ?? "Plant Competency Certification",
-    overallPct,
-    skillMapPct: results.skillMap.scorePct,
-    writtenPct: results.written.scorePct,
-    practicalPct: results.practical.overallPct,
-    oralPct: results.oral.overallPct,
-    issuedAt: issueDate.toISOString(),
-    expiresAt: expireDate.toISOString(),
-    status: "active",
-    managerSignatory:
-      emp?.siteId === "s-ro"
-        ? "Uday Patil (RO Plant Manager)"
-        : emp?.siteId === "s-mee"
-          ? "Sanjay Waghaskar (MEE Plant Manager)"
-          : emp?.siteId === "s-etp"
-            ? "Anand Dakave (ETP Plant Manager)"
-            : "Prashant Rohidas Adsul (Director)",
-    verificationHash: randomHash,
-  };
-
-  certificates.push(newCert);
-  writeStorage(STORAGE_KEYS.CERTIFICATES, certificates);
-
-  enr.status = "CERTIFIED";
-  enr.completedAt = new Date().toISOString();
-  writeStorage(STORAGE_KEYS.ENROLLMENTS, allEnrollments);
-
-  return newCert;
+  return cache.certificates.find((c) => c.enrollmentId === enrollmentId) ?? null;
 }
 
+// ----------------------------------------------------
+// Certificates
+// ----------------------------------------------------
 export function getCertificates(employeeId?: string): Certificate[] {
-  const all = readStorage<Certificate[]>(STORAGE_KEYS.CERTIFICATES, initialCertificates);
-  if (!employeeId) return all;
-  return all.filter((c) => c.employeeId === employeeId);
+  return employeeId ? cache.certificates.filter((c) => c.employeeId === employeeId) : cache.certificates;
 }
 
 export type CertificateStatus = "valid" | "expiring_soon" | "expired";
@@ -721,54 +482,38 @@ export const CERT_STATUS_LABELS: Record<CertificateStatus, string> = {
 
 export function getCertificateStatus(expiresAt?: string): CertificateStatus {
   if (!expiresAt) return "valid";
-  const exp = new Date(expiresAt).getTime();
-  const now = Date.now();
-  const days = (exp - now) / 86400000;
+  const days = (new Date(expiresAt).getTime() - Date.now()) / 86400000;
   if (days < 0) return "expired";
   if (days <= 60) return "expiring_soon";
   return "valid";
 }
 
 export function getAllCertificates(siteId?: string): ViewCertificateItem[] {
-  const { employees } = require("@/lib/mock-data");
-  const certs = getCertificates();
-  return certs
+  return cache.certificates
     .map((c) => {
-      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === c.employeeId);
-      const siteName =
-        emp?.siteId === "s-ro"
-          ? "RO Plant"
-          : emp?.siteId === "s-mee"
-            ? "MEE Plant"
-            : emp?.siteId === "s-etp"
-              ? "ETP Plant"
-              : "Corporate HQ";
-      const issuedOn = c.issuedAt ? c.issuedAt.slice(0, 10) : "2026-08-01";
-      const expiresOn = c.expiresAt ? c.expiresAt.slice(0, 10) : "2027-08-01";
+      const emp = cache.people.get(c.employeeId);
       return {
         id: c.id,
         certificateNo: c.certificateNo,
         enrollmentId: c.enrollmentId,
         employeeId: c.employeeId,
         employeeName: c.employeeName,
-        siteName,
+        siteName: getSiteName(emp?.siteId) ?? "—",
         name: c.courseTitle,
         courseTitle: c.courseTitle,
         issuer: c.managerSignatory || "Nectar Enviro Academy",
-        issuedOn,
-        expiresOn,
+        issuedOn: c.issuedAt?.slice(0, 10) ?? "",
+        expiresOn: c.expiresAt?.slice(0, 10) ?? "",
         status: getCertificateStatus(c.expiresAt),
         overallPct: c.overallPct,
         managerSignatory: c.managerSignatory,
         verificationHash: c.verificationHash,
         raw: c,
+        siteId: emp?.siteId,
       };
     })
-    .filter((c) => {
-      if (!siteId) return true;
-      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === c.employeeId);
-      return emp?.siteId === siteId;
-    })
+    .filter((c) => !siteId || c.siteId === siteId)
+    .map(({ siteId: _s, ...c }) => c)
     .sort((a, b) => b.issuedOn.localeCompare(a.issuedOn));
 }
 
@@ -776,111 +521,55 @@ export function getCertificatesForEmployee(employeeId: string): ViewCertificateI
   return getAllCertificates().filter((c) => c.employeeId === employeeId);
 }
 
+// ----------------------------------------------------
+// LNI records — derived from database assessment results (not stored, not mocked)
+// ----------------------------------------------------
 export function getLearningNeedRecords(employeeId?: string): LearningNeedRecord[] {
-  // Sync each active enrollment's LNI so that stale or fabricated mock scores are updated based on authentic completed test records
-  const allEnrollments = getAllEnrollments();
-  allEnrollments.forEach((e) => {
-    updateLniForEnrollment(e.id);
-  });
+  return cache.enrollments
+    .filter((e) => !employeeId || e.employeeId === employeeId)
+    .map((e) => {
+      const course = getCourseById(e.courseId);
+      if (!course) return null;
+      const r = e.assessments ?? {};
+      const skillMap = r.skillMap?.scorePct ?? null;
+      const written = r.written?.scorePct ?? null;
+      const practical = r.practical?.overallPct ?? null;
+      const oral = r.oral?.overallPct ?? null;
+      if (skillMap === null && written === null && practical === null && oral === null) return null;
 
-  const all = readStorage<LearningNeedRecord[]>(
-    STORAGE_KEYS.LNI_RECORDS,
-    initialLearningNeedRecords,
-  );
-  if (!employeeId) return all;
-  return all.filter((r) => r.employeeId === employeeId);
+      let level: "LOW" | "MED" | "HIGH" = "MED";
+      if ((practical !== null && practical < 60) || (written !== null && written < 60)) level = "LOW";
+      else if (written !== null && practical !== null && practical >= 80 && written >= 80 && (oral ?? 0) >= 70) level = "HIGH";
+
+      let insight: string;
+      if (written === null) insight = practical !== null ? `Practical ${practical}%. Written test not taken yet.` : "Assessment in progress. Written test not taken yet.";
+      else if (practical === null) insight = `Written test ${written}%. Practical evaluation pending.`;
+      else if (written >= 75 && practical < 65) insight = `Theory is strong (${written}%) but hands-on execution shows a gap (${practical}%).`;
+      else if (practical >= 75 && written < 65) insight = `Hands-on work is confident (${practical}%) but theory needs reinforcement (${written}%).`;
+      else if (level === "HIGH") insight = `Strong in theory (${written}%) and practice (${practical}%).`;
+      else insight = `Written ${written}% · practical ${practical}%.`;
+
+      return {
+        id: `lni-${e.employeeId}-${course.id}`,
+        employeeId: e.employeeId,
+        competencyAreaId: course.abilities[0]?.competencyAreaId ?? "",
+        competencyAreaName: course.title,
+        currentLevel: level,
+        skillMapScorePct: skillMap,
+        writtenScorePct: written,
+        practicalScorePct: practical,
+        oralScorePct: oral,
+        trainingRequired: level !== "HIGH" || written === null,
+        aiInsight: insight,
+        recommendedCourseId: course.id,
+        recommendedCourseTitle: course.title,
+        generatedAt: e.completedAt ?? e.startedAt,
+      } satisfies LearningNeedRecord;
+    })
+    .filter(Boolean) as LearningNeedRecord[];
 }
 
-// Generates or updates an LNI record based on 4-part assessment scores
-function updateLniForEnrollment(enrollmentId: string) {
-  const allEnrollments = getAllEnrollments();
-  const enr = allEnrollments.find((e) => e.id === enrollmentId);
-  if (!enr) return;
-
-  const results = getAssessmentResults(enrollmentId);
-  const course = getCourseById(enr.courseId);
-  if (!course) return;
-
-  const lniRecords = readStorage<LearningNeedRecord[]>(
-    STORAGE_KEYS.LNI_RECORDS,
-    initialLearningNeedRecords,
-  );
-
-  const skillMapScore = results.skillMap ? results.skillMap.scorePct : null;
-  const writtenScore = results.written ? results.written.scorePct : null;
-  const practicalScore = results.practical ? results.practical.overallPct : null;
-  const oralScore = results.oral ? results.oral.overallPct : null;
-
-  // Determine Level:
-  // Cannot be certified HIGH if Written test is not taken/passed!
-  let level: "LOW" | "MED" | "HIGH" = "MED";
-  if (practicalScore !== null && practicalScore < 60) {
-    level = "LOW";
-  } else if (writtenScore !== null && writtenScore < 60) {
-    level = "LOW";
-  } else if (
-    writtenScore !== null &&
-    practicalScore !== null &&
-    practicalScore >= 80 &&
-    writtenScore >= 80 &&
-    (oralScore ?? 0) >= 70
-  ) {
-    level = "HIGH";
-  } else {
-    level = "MED";
-  }
-
-  // AI-powered Gap Synthesis insight
-  let aiInsight = "";
-  if (writtenScore === null) {
-    if (practicalScore !== null && practicalScore >= 75) {
-      aiInsight = `Hands-on plant execution demonstrated high proficiency (${practicalScore}% in practical evaluation), but Formal Written Theory Exam is NOT YET CONDUCTED. Final qualification and autonomous sign-off pending written test.`;
-    } else if (practicalScore !== null && practicalScore < 60) {
-      aiInsight = `Practical plant execution shows operational gaps (${practicalScore}%). Written examination has not been taken yet. Remedial field coaching required before theoretical exam.`;
-    } else {
-      aiInsight = `Field assessment sequence in progress. Written examination has not been conducted yet.`;
-    }
-  } else if (practicalScore === null) {
-    aiInsight = `Written theory exam cleared (${writtenScore}%). Practical field maneuvering evaluation by plant manager is pending.`;
-  } else if (writtenScore >= 75 && practicalScore < 65) {
-    aiInsight = `Theoretical understanding is strong (${writtenScore}%), but hands-on operational execution shows gap (${practicalScore}%). Candidate struggled with rapid field calibration. Recommend 1-day shadow with senior supervisor.`;
-  } else if (practicalScore >= 75 && writtenScore < 65) {
-    aiInsight = `Hands-on valve & pump maneuvering is confident (${practicalScore}%), but chemical stoichiometric equations need reinforcement (${writtenScore}%).`;
-  } else if (level === "HIGH") {
-    aiInsight = `Exemplary dual proficiency across theory (${writtenScore}%) and applied plant operation (${practicalScore}%). Qualified for autonomous shift operation.`;
-  } else {
-    aiInsight = `Standard operational baseline across written (${writtenScore}%) and field evaluations. Continuing periodic assessment recommended.`;
-  }
-
-  const existingIndex = lniRecords.findIndex(
-    (r) => r.employeeId === enr.employeeId && r.recommendedCourseId === enr.courseId,
-  );
-
-  const rec: LearningNeedRecord = {
-    id: `lni-${enr.employeeId}-${course.id}`,
-    employeeId: enr.employeeId,
-    competencyAreaId: course.abilities[0]?.competencyAreaId ?? "ca-design",
-    competencyAreaName: course.title,
-    currentLevel: level,
-    skillMapScorePct: skillMapScore,
-    writtenScorePct: writtenScore,
-    practicalScorePct: practicalScore,
-    oralScorePct: oralScore,
-    trainingRequired: level !== "HIGH" || writtenScore === null,
-    aiInsight,
-    recommendedCourseId: course.id,
-    recommendedCourseTitle: course.title,
-    generatedAt: new Date().toISOString(),
-  };
-
-  if (existingIndex >= 0) {
-    lniRecords[existingIndex] = rec;
-  } else {
-    lniRecords.push(rec);
-  }
-  writeStorage(STORAGE_KEYS.LNI_RECORDS, lniRecords);
-}
-
+/** Learners waiting for an on-site practical / oral (sync view over the cache). */
 export function getPendingEvaluations(siteId?: string): {
   enrollment: CourseEnrollment;
   employeeName: string;
@@ -893,515 +582,132 @@ export function getPendingEvaluations(siteId?: string): {
   hasPractical: boolean;
   hasOral: boolean;
 }[] {
-  const allEnrollments = getAllEnrollments();
-  let enrollmentsChanged = false;
-
-  const eligible = allEnrollments.filter((e) => {
-    if (e.status === "CERTIFIED") return false;
-    const course = getCourseById(e.courseId);
-    if (!course) return false;
-    const emp = getEmployeeById(e.employeeId);
-    if (!emp) return false;
-    if (siteId && emp.siteId !== siteId) return false;
-
-    // If candidate completed all module videos and quizzes, they are ready for manager evaluation!
-    const modulesDone = canTakeSkillMapping(e, course);
-    if (modulesDone && e.status === "IN_PROGRESS") {
-      e.status = "SKILL_MAP_DONE";
-      enrollmentsChanged = true;
-    }
-
-    return (
-      modulesDone ||
-      e.status === "SKILL_MAP_DONE" ||
-      e.status === "PRACTICAL_DONE" ||
-      e.status === "ORAL_DONE"
-    );
-  });
-
-  if (enrollmentsChanged) {
-    writeStorage(STORAGE_KEYS.ENROLLMENTS, allEnrollments);
-  }
-
-  return eligible
+  return cache.enrollments
+    .filter((e) => ["SKILL_MAP_DONE", "PRACTICAL_DONE", "ORAL_DONE"].includes(e.status))
     .map((e) => {
-      const emp = getEmployeeById(e.employeeId);
+      const emp = cache.people.get(e.employeeId);
       const course = getCourseById(e.courseId);
-      const res = getAssessmentResults(e.id);
-      if (!emp || !course) return null;
-
-      // Micro-quizzes average score or skill map score
-      const abilityList = Object.values(e.abilityProgress);
-      const avgQuizScore =
-        abilityList.length > 0
-          ? Math.round(
-              abilityList.reduce((sum, a) => sum + (a.quizScorePct || 100), 0) /
-                abilityList.length,
-            )
-          : 100;
-
-      const siteLabel =
-        emp.siteId === "s-etp"
-          ? "ETP Plant"
-          : emp.siteId === "s-ro"
-            ? "RO Plant"
-            : emp.siteId === "s-mee"
-              ? "MEE Plant"
-              : "Cross-Plant";
-
+      const r = e.assessments ?? {};
+      if (!emp || !course || !r.skillMap || (r.practical && r.oral)) return null;
+      if (siteId && emp.siteId !== siteId) return null;
       return {
         enrollment: e,
         employeeName: emp.name,
-        employeeDesignation: emp.designation,
-        siteId: emp.siteId,
-        siteName: siteLabel,
+        employeeDesignation: emp.designation ?? "",
+        siteId: emp.siteId ?? "",
+        siteName: getSiteName(emp.siteId) ?? "—",
         course,
-        skillMapScore: res.skillMap?.scorePct ?? avgQuizScore,
-        writtenScore: res.written?.scorePct,
-        hasPractical: Boolean(res.practical),
-        hasOral: Boolean(res.oral),
+        skillMapScore: r.skillMap.scorePct,
+        writtenScore: r.written?.scorePct,
+        hasPractical: Boolean(r.practical),
+        hasOral: Boolean(r.oral),
       };
     })
-    .filter(Boolean) as any[];
+    .filter(Boolean) as ReturnType<typeof getPendingEvaluations>;
 }
 
-export function resetTrainingStore(): void {
-  if (typeof window === "undefined") return;
-  writeStorage(STORAGE_KEYS.ENROLLMENTS, initialEnrollments);
-  writeStorage(STORAGE_KEYS.SKILL_MAPPING, initialSkillMappingResults);
-  writeStorage(STORAGE_KEYS.WRITTEN_TESTS, initialWrittenTestResults);
-  writeStorage(STORAGE_KEYS.PRACTICAL_TESTS, initialPracticalTestResults);
-  writeStorage(STORAGE_KEYS.ORAL_TESTS, initialOralTestResults);
-  writeStorage(STORAGE_KEYS.CERTIFICATES, initialCertificates);
-  writeStorage(STORAGE_KEYS.LNI_RECORDS, initialLearningNeedRecords);
-  writeStorage(STORAGE_KEYS.SESSIONS, initialTrainingSessions);
-}
-
+// ----------------------------------------------------
+// Assessment schedule
+// ----------------------------------------------------
 export function getTrainingSessions(employeeId?: string): TrainingSession[] {
-  const all = readStorage<TrainingSession[]>(STORAGE_KEYS.SESSIONS, initialTrainingSessions);
-  if (!employeeId) return all;
-  return all.filter((s) => s.employeeIds.includes(employeeId));
+  return employeeId ? cache.sessions.filter((s) => s.employeeIds.includes(employeeId)) : cache.sessions;
 }
 
-export function createTrainingSession(
-  session: Omit<TrainingSession, "id" | "status">,
-): TrainingSession {
-  const all = readStorage<TrainingSession[]>(STORAGE_KEYS.SESSIONS, initialTrainingSessions);
-  const newSession: TrainingSession = {
-    ...session,
-    id: `sess-${Date.now()}`,
-    status: "scheduled",
-  };
-  all.push(newSession);
-  writeStorage(STORAGE_KEYS.SESSIONS, all);
-  return newSession;
+export async function createTrainingSession(
+  session: Omit<TrainingSession, "id" | "status"> & { actorId: string },
+): Promise<TrainingSession> {
+  const row = await api.createSession(session);
+  cache.sessions = [...cache.sessions, row];
+  emit();
+  return row;
 }
 
-export function getRecommendedCourses(employeeId?: string): CourseRecommendation[] {
-  const cached = readStorage<CourseRecommendation[]>(STORAGE_KEYS.RECOMMENDATIONS, []);
-  if (cached && cached.length) {
-    if (employeeId) {
-      const assignments = getTrainingAssignments(employeeId);
-      const asgnMap = new Map(assignments.map((a) => [a.courseId, a]));
-      return cached.map((c) => {
-        const asgn = asgnMap.get(c.id) || asgnMap.get(c.courseId) || asgnMap.get(c.code);
-        if (asgn) {
-          return {
-            ...c,
-            matchScorePct: 99,
-            badge: "★ Assigned by Plant Manager",
-            badgeColor: "#eab308",
-            isAssignedByManager: true,
-            assignedByName: asgn.assignedByName,
-            directiveReason: asgn.reason,
-            priority: asgn.priority,
-            dueDate: asgn.dueDate,
-          };
-        }
-        return c;
-      });
-    }
-    return cached;
-  }
-
-  // Fallback generation from all courses
-  const courses = getAllCourses();
-  const assignments = getTrainingAssignments(employeeId);
-  const assignmentMap = new Map(assignments.map((a) => [a.courseId, a]));
-
-  return courses.map((c) => {
-    const asgn = assignmentMap.get(c.id) || assignmentMap.get(c.courseId || "") || assignmentMap.get(c.code);
-    return {
-      id: c.id,
-      courseId: c.courseId || c.id,
-      title: c.title,
-      code: c.code,
-      category: c.section || c.category,
-      provider: c.provider || "Nectar Technical Operations",
-      thumbnailUrl: c.thumbnailUrl || "/courses/etp_plant.jpg",
-      rating: c.rating || 4.8,
-      reviewCount: c.reviewCount || 30,
-      level: (c.level as any) || "Intermediate",
-      durationHours: c.estimatedHours || 4.0,
-      matchScorePct: asgn ? 99 : 92,
-      badge: asgn ? "★ Assigned by Plant Manager" : "Role Pathway",
-      badgeColor: asgn ? "#eab308" : "#3b82f6",
-      isAssignedByManager: !!asgn,
-      assignedByName: asgn?.assignedByName,
-      directiveReason: asgn?.reason,
-      priority: asgn?.priority,
-      dueDate: asgn?.dueDate,
-      moduleCount: c.modules?.length || 3,
-      videoCount: c.modules?.reduce((acc, m) => acc + (m.videos?.length || 0), 0) || (c.abilities?.length || 3),
-    };
-  });
-}
-
+// ----------------------------------------------------
+// Assignments & flags
+// ----------------------------------------------------
 export function getTrainingAssignments(employeeId?: string): TrainingAssignment[] {
-  const all = readStorage<TrainingAssignment[]>(STORAGE_KEYS.ASSIGNMENTS, []);
-  if (employeeId) {
-    return all.filter((a) => a.employeeId === employeeId);
-  }
-  return all;
+  return employeeId ? cache.assignments.filter((a) => a.employeeId === employeeId) : cache.assignments;
 }
 
-export async function createTrainingAssignment(data: Partial<TrainingAssignment>): Promise<TrainingAssignment> {
-  const all = readStorage<TrainingAssignment[]>(STORAGE_KEYS.ASSIGNMENTS, []);
-  const newAssignment: TrainingAssignment = {
-    id: data.id || `asgn-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    employeeId: data.employeeId || "",
-    assignedByEmployeeId: data.assignedByEmployeeId || "",
-    assignedByName: data.assignedByName || "Plant Manager",
-    courseId: data.courseId || "",
-    moduleId: data.moduleId,
-    reason: data.reason || "Operational training requirement",
-    priority: data.priority || "high",
-    status: data.status || "assigned",
-    dueDate: data.dueDate,
-    createdAt: new Date().toISOString(),
-  };
-  all.unshift(newAssignment);
-  writeStorage(STORAGE_KEYS.ASSIGNMENTS, all);
-
-  // Sync to backend
-  try {
-    const { createTrainingAssignment: apiCreate } = await import("../api/training");
-    await apiCreate(newAssignment);
-  } catch {}
-
-  return newAssignment;
+export async function createTrainingAssignment(
+  data: Partial<TrainingAssignment> & { employeeIds?: string[] },
+): Promise<TrainingAssignment[]> {
+  const rows = await api.createTrainingAssignments({
+    ...data,
+    employeeIds: data.employeeIds ?? (data.employeeId ? [data.employeeId] : []),
+    assignedByEmployeeId: data.assignedByEmployeeId ?? "",
+  });
+  cache.assignments = [...rows, ...cache.assignments];
+  emit();
+  return rows;
 }
 
-export function getMentorProfiles(): MentorProfile[] {
-  return mockMentors;
-}
-
-export function registerForDropInClinic(
-  mentorId: string,
-  employeeId: string,
-  clinicId: string,
-  notes?: string,
-): { success: boolean; message: string; session?: TrainingSession } {
-  const mentor = mockMentors.find((m) => m.id === mentorId);
-  if (!mentor) {
-    return { success: false, message: "Mentor not found" };
-  }
-  const clinic = mentor.publishedClinics.find((c) => c.id === clinicId);
-  if (!clinic) {
-    return { success: false, message: "Clinic time slot not found" };
-  }
-  if (clinic.registeredCount >= clinic.capacity) {
-    return { success: false, message: "This clinic is already at full capacity" };
-  }
-
-  clinic.registeredCount += 1;
-
-  const topicTitle = clinic.topic || mentor.specialty;
-
-  const newSession: TrainingSession = {
-    id: `clinic-reg-${Date.now()}`,
-    title: `Shift Drop-In: ${topicTitle} with ${mentor.name}`,
-    type: "PRACTICAL",
-    scheduledBy: employeeId,
-    scheduledByName: mentor.name,
-    scheduledAt: clinic.dayTime,
-    venueOrLink: clinic.location,
-    employeeIds: [employeeId],
-    courseId: "course-etp-101",
-    status: "scheduled",
-  };
-
-  const all = readStorage<TrainingSession[]>(STORAGE_KEYS.SESSIONS, initialTrainingSessions);
-  all.push(newSession);
-  writeStorage(STORAGE_KEYS.SESSIONS, all);
-
-  return {
-    success: true,
-    message: `Registered for "${topicTitle}" with ${mentor.name} on ${clinic.dayTime} at ${clinic.location}`,
-    session: newSession,
-  };
-}
-
+// ----------------------------------------------------
+// Specialization tracks — client-side mock content (agreed exception, plan §7 Q12)
+// ----------------------------------------------------
 export function getSpecializationTrackById(id: string): SpecializationTrack | undefined {
   return mockSpecializationTracks.find((t) => t.id === id || t.slug === id);
 }
 
 // ----------------------------------------------------
-// Executive & Plant Lead Masterclasses (Mentor Live Sessions)
+// Training items (dashboard / employee views) — derived from database rows only
 // ----------------------------------------------------
-export function getLiveMasterclasses(): MentorLiveSession[] {
-  return readStorage<MentorLiveSession[]>(
-    STORAGE_KEYS.MENTOR_LIVE_SESSIONS,
-    initialMentorLiveSessions,
-  );
+const OPEN = ["open", "in_progress", "assigned"];
+
+export function getTrainingItems(opts?: { employeeId?: string; siteEmployeeIds?: string[] }): TrainingItem[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const soon = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  const keep = (empId: string) =>
+    (!opts?.employeeId || empId === opts.employeeId) && (!opts?.siteEmployeeIds || opts.siteEmployeeIds.includes(empId));
+
+  const rows: TrainingItem[] = [];
+  const seen = new Set<string>();
+  // Mandatory assignments carry the real due dates
+  for (const a of cache.assignments) {
+    if (a.kind === "suggested" || !a.courseId || !keep(a.employeeId)) continue;
+    const course = getCourseById(a.courseId);
+    const enr = cache.enrollments.find((e) => e.employeeId === a.employeeId && e.courseId === a.courseId);
+    const certified = enr?.status === "CERTIFIED";
+    const due = a.dueDate?.slice(0, 10) ?? "";
+    const emp = cache.people.get(a.employeeId);
+    seen.add(`${a.employeeId}|${a.courseId}`);
+    rows.push({
+      id: a.id,
+      employeeId: a.employeeId,
+      employeeName: emp?.name ?? a.employeeId,
+      siteName: getSiteName(emp?.siteId) ?? "—",
+      course: course?.title ?? a.courseId,
+      priority: (a.priority === "critical" ? "critical" : a.priority === "high" ? "high" : "medium") as TrainingPriority,
+      dueDate: due,
+      completedAt: enr?.completedAt?.slice(0, 10),
+      status: certified || !OPEN.includes(a.status) ? "completed" : due && due < today ? "overdue" : due && due <= soon ? "due-soon" : "scheduled",
+      score: enr?.assessments?.oral?.overallPct ?? enr?.assessments?.practical?.overallPct ?? enr?.assessments?.written?.scorePct,
+    } as TrainingItem);
+  }
+  // Self-started enrollments (no due date)
+  for (const e of cache.enrollments) {
+    if (!keep(e.employeeId) || seen.has(`${e.employeeId}|${e.courseId}`)) continue;
+    const course = getCourseById(e.courseId);
+    const emp = cache.people.get(e.employeeId);
+    rows.push({
+      id: e.id,
+      employeeId: e.employeeId,
+      employeeName: emp?.name ?? e.employeeId,
+      siteName: getSiteName(emp?.siteId) ?? "—",
+      course: course?.title ?? e.courseId,
+      priority: "medium",
+      dueDate: "",
+      completedAt: e.completedAt?.slice(0, 10),
+      status: e.status === "CERTIFIED" ? "completed" : "scheduled",
+      score: e.assessments?.oral?.overallPct ?? e.assessments?.practical?.overallPct ?? e.assessments?.written?.scorePct,
+    } as TrainingItem);
+  }
+  return rows;
 }
 
-export async function enrollInLiveMasterclass(
-  sessionId: string,
-  employeeId: string,
-  employeeName: string,
-  question?: string,
-  slotId?: string,
-  agenda?: string,
-): Promise<{ success: boolean; message: string; session?: MentorLiveSession }> {
-  const sessions = getLiveMasterclasses();
-  const session = sessions.find((s) => s.id === sessionId);
-  if (!session) {
-    return { success: false, message: "1:1 Session not found" };
-  }
-
-  if (!session.selectedSlotMap) session.selectedSlotMap = {};
-  if (!session.selectedAgendaMap) session.selectedAgendaMap = {};
-
-  if (slotId) session.selectedSlotMap[employeeId] = slotId;
-  if (agenda) session.selectedAgendaMap[employeeId] = agenda;
-
-  if (session.enrolledEmployeeIds.includes(employeeId)) {
-    if (question?.trim()) {
-      session.questions.push({
-        id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        employeeId,
-        employeeName: employeeName || "Employee",
-        question: question.trim(),
-        submittedAt: new Date().toISOString(),
-      });
-    }
-    writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
-    return {
-      success: true,
-      message: `Your 1:1 slot & topic with ${session.mentorName} have been updated!`,
-      session,
-    };
-  }
-
-  if (session.registeredCount >= session.maxCapacity) {
-    return {
-      success: false,
-      message: `This session is fully booked (${session.maxCapacity} seats max).`,
-    };
-  }
-
-  session.enrolledEmployeeIds.push(employeeId);
-  session.registeredCount = session.enrolledEmployeeIds.length;
-
-  if (question?.trim()) {
-    session.questions.push({
-      id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      employeeId,
-      employeeName: employeeName || "Employee",
-      question: question.trim(),
-      submittedAt: new Date().toISOString(),
-    });
-  }
-
-  writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
-
-  // Sync with MongoDB backend in background
-  try {
-    const { enrollInLiveSession } = await import("../api/training");
-    enrollInLiveSession(sessionId, employeeId, employeeName, question).catch(() => {});
-  } catch {}
-
-  return {
-    success: true,
-    message: `1:1 Session confirmed with ${session.mentorName}! Google Meet link is active.`,
-    session,
-  };
-}
-
-export async function cancelLiveMasterclassEnrollment(
-  sessionId: string,
-  employeeId: string,
-): Promise<{ success: boolean; message: string }> {
-  const sessions = getLiveMasterclasses();
-  const session = sessions.find((s) => s.id === sessionId);
-  if (!session) {
-    return { success: false, message: "1:1 Session not found" };
-  }
-
-  session.enrolledEmployeeIds = session.enrolledEmployeeIds.filter((id) => id !== employeeId);
-  session.registeredCount = session.enrolledEmployeeIds.length;
-  if (session.selectedSlotMap) delete session.selectedSlotMap[employeeId];
-  if (session.selectedAgendaMap) delete session.selectedAgendaMap[employeeId];
-  writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
-
-  // Sync with MongoDB backend in background
-  try {
-    const { cancelLiveSessionEnrollment } = await import("../api/training");
-    cancelLiveSessionEnrollment(sessionId, employeeId).catch(() => {});
-  } catch {}
-
-  return {
-    success: true,
-    message: `1:1 Meeting with ${session.mentorName} has been cancelled.`,
-  };
-}
-
-export async function submitLiveMasterclassQuestion(
-  sessionId: string,
-  employeeId: string,
-  employeeName: string,
-  question: string,
-): Promise<{ success: boolean; message: string }> {
-  const sessions = getLiveMasterclasses();
-  const session = sessions.find((s) => s.id === sessionId);
-  if (!session) {
-    return { success: false, message: "Masterclass not found" };
-  }
-
-  session.questions.push({
-    id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    employeeId,
-    employeeName: employeeName || "Employee",
-    question: question.trim(),
-    submittedAt: new Date().toISOString(),
-  });
-
-  writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, sessions);
-
-  // Sync with MongoDB backend in background
-  try {
-    const { submitSessionQuestion } = await import("../api/training");
-    submitSessionQuestion(sessionId, employeeId, employeeName, question).catch(() => {});
-  } catch {}
-
-  return {
-    success: true,
-    message: `Your question has been submitted to ${session.mentorName}!`,
-  };
-}
-
-// ----------------------------------------------------
-// Live NestJS Backend Synchronization
-// ----------------------------------------------------
-export async function syncTrainingWithApi(employeeId?: string): Promise<void> {
-  if (typeof window === "undefined") return;
-  try {
-    const {
-      getCourses,
-      getCertificates,
-      getSessions,
-      getMentorLiveSessions,
-      getRecommendedCourses,
-      getTrainingAssignments,
-    } = await import("../api/training");
-    const [courses, certs, sessions, mentorSessions, recommendations, assignments] = await Promise.all([
-      getCourses().catch(() => []),
-      getCertificates().catch(() => []),
-      getSessions().catch(() => []),
-      getMentorLiveSessions().catch(() => []),
-      getRecommendedCourses(employeeId).catch(() => []),
-      getTrainingAssignments(employeeId).catch(() => []),
-    ]);
-
-    if (courses && courses.length) {
-      writeStorage(STORAGE_KEYS.COURSES, courses);
-    }
-    if (certs && certs.length) {
-      writeStorage(STORAGE_KEYS.CERTIFICATES, certs);
-    }
-    if (sessions && sessions.length) {
-      writeStorage(STORAGE_KEYS.SESSIONS, sessions);
-    }
-    if (mentorSessions && mentorSessions.length) {
-      writeStorage(STORAGE_KEYS.MENTOR_LIVE_SESSIONS, mentorSessions);
-    }
-    if (recommendations && recommendations.length) {
-      writeStorage(STORAGE_KEYS.RECOMMENDATIONS, recommendations);
-    }
-    if (assignments && assignments.length) {
-      writeStorage(STORAGE_KEYS.ASSIGNMENTS, assignments);
-    }
-  } catch {
-    // Graceful offline fallback
-  }
-}
-
-// ----------------------------------------------------
-// Training Items View (Derived directly from live enrollments & courses)
-// ----------------------------------------------------
-export function getTrainingItems(opts?: {
-  employeeId?: string;
-  siteEmployeeIds?: string[];
-}): import("@/lib/mock-data").TrainingItem[] {
-  const enrollments = getAllEnrollments();
-  const courses = getAllCourses();
-  const { employees } = require("@/lib/mock-data");
-
-  return enrollments
-    .filter((enr) => {
-      if (opts?.employeeId && enr.employeeId !== opts.employeeId) return false;
-      if (opts?.siteEmployeeIds && !opts.siteEmployeeIds.includes(enr.employeeId)) return false;
-      return true;
-    })
-    .map((enr) => {
-      const course = courses.find((c) => c.id === enr.courseId);
-      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === enr.employeeId);
-      const isCertified = enr.status === "CERTIFIED";
-      const siteName =
-        emp?.siteId === "s-ro"
-          ? "RO Plant"
-          : emp?.siteId === "s-mee"
-            ? "MEE Plant"
-            : emp?.siteId === "s-etp"
-              ? "ETP Plant"
-              : "Corporate HQ";
-
-      const abilityList = Object.values(enr.abilityProgress || {});
-      const abilitiesCompleted = abilityList.filter((a) => a.videoComplete && a.quizPassed).length;
-      const totalAbilities = course?.abilities?.length || abilityList.length || 1;
-      const progressPct = isCertified
-        ? 100
-        : Math.round((abilitiesCompleted / totalAbilities) * 100);
-
-      const res = getAssessmentResults(enr.id);
-      const score = res.oral?.overallPct ?? res.practical?.overallPct ?? res.written?.scorePct ?? (isCertified ? 92 : undefined);
-
-      const isHighPriority = course?.section?.includes("ETP") || course?.section?.includes("ZLD");
-
-      return {
-        id: enr.id,
-        employeeId: enr.employeeId,
-        employeeName: emp?.name ?? "Operator",
-        siteName,
-        course: course?.title ?? "Industrial Plant Operations",
-        priority: (isHighPriority ? "high" : "medium") as import("@/lib/mock-data").TrainingPriority,
-        dueDate: enr.completedAt ? enr.completedAt.slice(0, 10) : "2026-10-15",
-        completedAt: enr.completedAt?.slice(0, 10),
-        status: (isCertified ? "completed" : progressPct > 0 ? "due-soon" : "scheduled") as import("@/lib/mock-data").TrainingItem["status"],
-        score,
-      };
-    });
-}
-
-export function getUrgentTrainingItems(siteId?: string): import("@/lib/mock-data").TrainingItem[] {
-  const { employees } = require("@/lib/mock-data");
+export function getUrgentTrainingItems(siteId?: string): TrainingItem[] {
   return getTrainingItems()
     .filter((t) => t.status === "overdue" || t.status === "due-soon")
-    .filter((t) => {
-      if (!siteId) return true;
-      const emp = (employees as import("@/lib/mock-data").Employee[]).find((e) => e.id === t.employeeId);
-      return emp?.siteId === siteId;
-    })
+    .filter((t) => !siteId || cache.people.get(t.employeeId)?.siteId === siteId)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }

@@ -110,7 +110,7 @@ export default function LoginPage() {
           {error ? (
             <Alert
               type="error"
-              message={error}
+              title={error}
               showIcon
               style={{ marginBottom: 18, borderRadius: 10, border: "1px solid rgba(196, 92, 38, 0.2)", fontSize: 13 }}
             />

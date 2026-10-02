@@ -37,6 +37,7 @@ async function bootstrap() {
     .addTag('shifts', 'Shift rotation management')
     .addTag('training', 'Training & certification management')
     .addTag('relievers', 'Reliever pool management')
+    .addTag('notifications', 'In-app notifications')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

@@ -42,6 +42,8 @@ import { getSession, logout, type SessionUser, type UserRole } from "@/lib/auth"
 import { resetDemoLocalData } from "@/lib/demo-reset";
 import { getEmployeeById, getSiteById } from "@/lib/mock-data";
 import { getUnreadCount } from "@/lib/notifications";
+import { getServerNotifications } from "@/lib/api/training";
+import { personIdOf } from "@/lib/training/identity";
 import {
   canAssignOt,
   canViewLeaveManagement,
@@ -68,7 +70,7 @@ const FLYOUT_TITLES: Record<string, string> = {
   "academic-records": "Academic Records",
 };
 
-/** HR / Manager / Director see Training + Certifications as records; everyone else as Academy. */
+/** HR / Manager / Director see Training, Events + Certifications as records; everyone else as Academy. */
 function academyNavGroup(role: UserRole): NonNullable<MenuProps["items"]>[number] {
   const isRecords = role === "hr" || role === "manager" || role === "director";
   return {
@@ -77,6 +79,7 @@ function academyNavGroup(role: UserRole): NonNullable<MenuProps["items"]>[number
     label: isRecords ? "Academic Records" : "Academy",
     children: [
       { key: "/training", icon: <ReadOutlined />, label: "Training" },
+      { key: "/training/events", icon: <CalendarOutlined />, label: "Events" },
       { key: "/certifications", icon: <SafetyCertificateOutlined />, label: "Certifications" },
     ],
   };
@@ -219,7 +222,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // Restore before paint so a hard refresh keeps the last collapse choice
   useLayoutEffect(() => {
-    setCollapsed(readSiderCollapsed());
+    setCollapsed(readSiderCollapsed() || window.innerWidth < 768); // narrow screens start collapsed (not persisted)
   }, []);
 
   // GSAP: Animate logo swap on collapse/expand
@@ -275,6 +278,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     hydrateAllStoresFromApi().catch(() => {});
   }, []);
+
+  // Server notifications (training events, flags, certificates): poll the unread count
+  const [serverUnread, setServerUnread] = useState(0);
+  useEffect(() => {
+    const personId = personIdOf(user);
+    if (!personId) return;
+    const load = () =>
+      getServerNotifications(personId)
+        .then((rows) => setServerUnread(rows.filter((n) => !n.read).length))
+        .catch(() => {});
+    void load();
+    const t = setInterval(load, 60_000);
+    window.addEventListener("server-notifications-changed", load);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("server-notifications-changed", load);
+    };
+  }, [user, pathname]);
 
   // GSAP: Smooth magnetic hover on sidebar menu items
   useEffect(() => {
@@ -403,7 +424,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return "/employees";
     }
 
-    // 5. Direct match from pageTitles
+    // 5. Training events + communities have their own sidebar entry
+    if (pathname.startsWith("/training/events") || pathname.startsWith("/training/communities")) {
+      return "/training/events";
+    }
+
+    // 6. Direct match from pageTitles
     const match = Object.keys(pageTitles).find(
       (key) =>
         !key.startsWith("/overtime") &&
@@ -437,6 +463,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/leave/requests/")) {
       return "Leave detail";
+    }
+    if (pathname.startsWith("/training/")) {
+      const section = pathname.split("/")[2];
+      const titles: Record<string, string> = {
+        home: "Training · My learning home",
+        explore: "Training · Explore",
+        course: "Training · Course",
+        learn: "Training · Course player",
+        track: "Training · Specialization",
+        "my-learning": "Training · My Learning",
+        events: "Training · Events",
+        communities: "Training · Community",
+        mentor: "Training · Mentor Studio",
+        team: "Training · My team",
+      };
+      return titles[section] ?? "Training";
     }
     if (pathname.startsWith("/overtime/employees/")) {
       const id = pathname.split("/")[3];
@@ -527,9 +569,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ? `/employees/${user.employeeId}`
     : null;
 
-  const unreadCount = user?.employeeId
-    ? getUnreadCount(user.employeeId)
-    : 0;
+  const unreadCount = (user?.employeeId ? getUnreadCount(user.employeeId) : 0) + serverUnread;
 
   const userMenu: MenuProps["items"] = [
     ...(profileHref

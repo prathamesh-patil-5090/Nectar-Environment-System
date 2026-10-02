@@ -32,23 +32,23 @@ export class Course {
   @Prop()
   description: string;
 
-  @Prop({ default: '/courses/etp_plant.jpg' })
-  thumbnailUrl: string;
+  @Prop()
+  thumbnailUrl?: string;
 
-  @Prop({ default: 'Nectar Technical Operations' })
-  provider: string;
+  @Prop()
+  provider?: string;
 
-  @Prop({ default: 4.8 })
-  rating: number;
+  @Prop()
+  rating?: number;
 
-  @Prop({ default: 24 })
-  reviewCount: number;
+  @Prop()
+  reviewCount?: number;
 
-  @Prop({ default: 'Intermediate' })
-  level: string;
+  @Prop()
+  level?: string;
 
-  @Prop({ default: 40 })
-  estimatedHours: number;
+  @Prop()
+  estimatedHours?: number;
 
   @Prop({ default: 70 })
   passThreshold: number;
@@ -95,6 +95,24 @@ export class Course {
       }>;
     };
   }>;
+
+  /** Who the course targets. Empty arrays = open to everyone. */
+  @Prop({ type: Object, default: {} })
+  audience?: { roles?: string[]; designations?: string[]; plantTypes?: string[] };
+
+  /** Skills taught — shown as "Skills you'll gain" and matched against manager flags. */
+  @Prop({ type: [String], default: [], index: true })
+  skills: string[];
+
+  @Prop({ type: [String], default: [] })
+  prerequisites: string[]; // course ids
+
+  @Prop({ default: 'course', enum: ['course', 'micro', 'specialization'] })
+  type: string;
+
+  /** Certificate validity. Most courses 12 months, some 6. */
+  @Prop({ default: 12 })
+  certificateValidityMonths: number;
 
   @Prop({ type: Array, default: [] })
   skillMappingQuestions?: any[];

@@ -10,6 +10,7 @@ import { RelieversModule } from './modules/relievers/relievers.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { HealthModule } from './modules/health/health.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MeetingsModule } from './modules/meetings/meetings.module';
     TrainingModule,
     RelieversModule,
     MeetingsModule,
+    NotificationsModule,
     HealthModule,
   ],
 })

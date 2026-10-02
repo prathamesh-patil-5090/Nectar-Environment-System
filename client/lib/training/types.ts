@@ -96,17 +96,26 @@ export interface CourseRecommendation {
   videoCount?: number;
 }
 
+/** Manager assignment (mandatory) or weak-area flag (suggested). */
 export interface TrainingAssignment {
   id: string;
   employeeId: string;
   assignedByEmployeeId: string;
   assignedByName: string;
-  courseId: string;
+  courseId?: string;
   moduleId?: string;
   reason: string;
   priority: "critical" | "high" | "normal";
-  status: "assigned" | "in_progress" | "completed";
+  /** "assigned" / "completed" are legacy values */
+  status: "open" | "in_progress" | "resolved" | "dismissed" | "assigned" | "completed";
   dueDate?: string;
+  kind?: "mandatory" | "suggested";
+  topic?: string;
+  skills?: string[];
+  abilityIds?: string[];
+  source?: "manager" | "lni" | "evaluation" | "role_path";
+  resolvedAt?: string;
+  resolvedBy?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -202,6 +211,12 @@ export interface Course {
   abilities: Ability[];
   skillMappingQuestions: QuizQuestion[];
   writtenTestQuestions: QuizQuestion[];
+  skills?: string[];
+  prerequisites?: string[];
+  audience?: { roles?: string[]; designations?: string[]; plantTypes?: string[] };
+  type?: "course" | "micro" | "specialization";
+  /** Most 12, some 6 */
+  certificateValidityMonths?: number;
 }
 
 export interface AbilityProgress {
@@ -224,6 +239,13 @@ export interface CourseEnrollment {
   startedAt: string;
   completedAt?: string;
   abilityProgress: Record<string, AbilityProgress>; // abilityId -> AbilityProgress
+  /** The 4 gates, stored with the enrollment in the database */
+  assessments?: {
+    skillMap?: SkillMappingResult;
+    written?: WrittenTestResult;
+    practical?: PracticalTestResult;
+    oral?: OralTestResult;
+  };
 }
 
 export interface SkillMappingResult {
@@ -357,4 +379,196 @@ export interface SpecializationTrack {
   leadMentorId: string;
   bannerImage: string;
   recommendedTrackIds: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Database-backed training: people, events (Meetup model), feed, notifications
+// ---------------------------------------------------------------------------
+
+/** Employee or leader (e.g. the Director) as the training API returns them. */
+export interface Person {
+  id: string;
+  name: string;
+  designation?: string;
+  siteId?: string;
+  siteName?: string;
+  plantType?: string;
+  role: string;
+  photoUrl?: string;
+  managerId?: string;
+  isLeader?: boolean;
+}
+
+export type EventFormat = "online" | "in_person";
+export type EventStatus = "draft" | "published" | "cancelled" | "completed";
+export type RsvpStatus = "going" | "waitlist" | "cancelled" | "attended" | "no_show";
+
+export interface TrainingEvent {
+  id: string;
+  seriesId?: string;
+  communityId?: string;
+  type: "masterclass" | "seminar" | "workshop" | "clinic";
+  title: string;
+  description: string;
+  agenda: { time: string; item: string }[];
+  topics: string[];
+  audience: { roles?: string[]; plantTypes?: string[] };
+  coverUrl?: string;
+  hostEmployeeIds: string[];
+  startsAt: string;
+  endsAt: string;
+  format: EventFormat;
+  /** Only present for hosts and attendees */
+  meetLink?: string;
+  venue?: { siteId: string; room?: string };
+  capacity: number;
+  waitlistEnabled: boolean;
+  rsvpOpensAt?: string;
+  rsvpClosesAt?: string;
+  rsvpQuestion?: string;
+  status: EventStatus;
+  cancelReason?: string;
+  recordingUrl?: string;
+  // Computed by the server
+  hosts: Person[];
+  community?: { id: string; name: string; slug: string };
+  goingCount: number;
+  waitlistCount: number;
+  spotsLeft: number;
+  isHost: boolean;
+  myRsvp?: { id: string; status: RsvpStatus; answer?: string; waitlistPosition?: number };
+}
+
+export interface EventAttendee {
+  id?: string;
+  status?: RsvpStatus;
+  answer?: string;
+  rsvpAt?: string;
+  employee: Person;
+}
+
+export interface EventPost {
+  id: string;
+  eventId: string;
+  authorEmployeeId: string;
+  text: string;
+  kind: "question" | "comment" | "announcement";
+  parentId?: string;
+  pinned: boolean;
+  createdAt: string;
+  author?: Person;
+}
+
+export interface Community {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  domain?: string;
+  coverUrl?: string;
+  organizerEmployeeIds: string[];
+  organizers: Person[];
+  memberCount: number;
+  isMember: boolean;
+}
+
+export interface MentorProfileRecord {
+  id: string;
+  employeeId: string;
+  name: string;
+  title?: string;
+  department?: string;
+  bio?: string;
+  photoUrl?: string;
+  specialties: string[];
+  active: boolean;
+}
+
+/** Course fields for cards (no question banks). */
+export interface CourseCardData {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  section: string;
+  thumbnailUrl?: string;
+  provider?: string;
+  rating?: number;
+  reviewCount?: number;
+  level?: string;
+  estimatedHours?: number;
+  skills: string[];
+  abilityCount: number;
+  moduleCount: number;
+  certificateValidityMonths: number;
+  type: string;
+}
+
+export interface CatalogItem extends CourseCardData {
+  abilityTitles: string[];
+  plantType?: string;
+  myStatus?: EnrollmentStatus;
+  myProgressPct?: number;
+}
+
+export interface Recommendation {
+  course: CourseCardData;
+  score: number;
+  reasons: string[];
+  reason: string;
+  suggestedBy?: string;
+}
+
+export interface EnrollmentSummary {
+  id: string;
+  status: EnrollmentStatus;
+  done: number;
+  total: number;
+  pct: number;
+}
+
+export interface TrainingFeed {
+  me: Person;
+  stats: { assigned: number; inProgress: number; certified: number };
+  /** Open weak-area flags from the manager (always shown, even with no matching course) */
+  suggestions: { assignment: TrainingAssignment; course?: CourseCardData; matches: CourseCardData[] }[];
+  assigned: { assignment: TrainingAssignment; course: CourseCardData; enrollment?: EnrollmentSummary; overdue: boolean }[];
+  continueLearning: { course: CourseCardData; enrollment: EnrollmentSummary }[];
+  recommended: Recommendation[];
+  requiredPaths: {
+    id: string;
+    title: string;
+    steps: { courseId: string; mandatory: boolean; order: number; course: CourseCardData; certified: boolean }[];
+  }[];
+  upcomingEvents: TrainingEvent[];
+  popularAtSite: { course: CourseCardData; learners: number }[];
+}
+
+export interface PendingEvaluation {
+  enrollment: CourseEnrollment;
+  employee?: Person;
+  course?: Course;
+  needs: "practical" | "oral";
+}
+
+export interface ServerNotification {
+  id: string;
+  employeeId: string;
+  kind: string;
+  title: string;
+  body: string;
+  href?: string;
+  read: boolean;
+  meta?: Record<string, string>;
+  createdAt: string;
+}
+
+export interface RolePath {
+  id: string;
+  role: string;
+  designation?: string;
+  plantType?: string;
+  title: string;
+  steps: { courseId: string; mandatory: boolean; order: number }[];
+  renewEveryMonths?: number;
 }

@@ -4,6 +4,6 @@ export default () => ({
   clientUrl: process.env.CLIENT_URL ?? 'http://localhost:3000',
   database: {
     uri: process.env.MONGODB_URI ?? '',
-    name: 'nectar_enviro',
+    name: process.env.MONGODB_DB_NAME ?? 'nectar_enviro',
   },
 });

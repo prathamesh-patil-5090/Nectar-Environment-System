@@ -10,10 +10,7 @@ import {
   FileProtectOutlined,
 } from "@ant-design/icons";
 import type { Course, CourseEnrollment, AbilityScore } from "@/lib/training/types";
-import {
-  submitPracticalAssessment,
-  submitOralAssessment,
-} from "@/lib/training/store";
+import { evaluatePractical, evaluateOral } from "@/lib/training/store";
 import { nectarColors } from "@/lib/theme";
 import type { CSSProperties } from "react";
 
@@ -30,7 +27,8 @@ interface EvaluatorScoringModalProps {
   course: Course | null;
   type: "practical" | "oral";
   evaluatorName?: string;
-  evaluatorId?: string;
+  /** Logged-in evaluator (Director or the learner's allotted manager — checked by the server) */
+  evaluatorId: string;
   onClose: () => void;
   onSubmitted: () => void;
 }
@@ -48,8 +46,8 @@ export default function EvaluatorScoringModal({
   candidateName,
   course,
   type,
-  evaluatorName = "Anand Dakave (ETP Plant Manager)",
-  evaluatorId = "emp0123",
+  evaluatorName,
+  evaluatorId,
   onClose,
   onSubmitted,
 }: EvaluatorScoringModalProps) {
@@ -69,6 +67,7 @@ export default function EvaluatorScoringModal({
 
   const [remarks, setRemarks] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   if (!enrollment || !course) return null;
 
@@ -77,36 +76,26 @@ export default function EvaluatorScoringModal({
   const maxPossible = course.abilities.length * 5;
   const computedPct = Math.round((totalPoints / maxPossible) * 1000) / 10;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const scoreItems: AbilityScore[] = course.abilities.map((a) => ({
       abilityId: a.id,
       abilityTitle: a.title,
       score: scores[a.id] || 4,
-      remark: remarks[a.id] || "Demonstrated required plant competence under supervision.",
+      remark: remarks[a.id] ?? "",
     }));
-
-    if (isPractical) {
-      submitPracticalAssessment(
-        enrollment.id,
-        evaluatorId,
-        evaluatorName,
-        scoreItems,
-        generalNotes,
+    setSaving(true);
+    try {
+      const res = await (isPractical ? evaluatePractical : evaluateOral)(enrollment.id, evaluatorId, scoreItems, generalNotes);
+      message.success(
+        `${isPractical ? "Practical" : "Oral viva"} scored (${res.result.overallPct}%).${res.certificate ? ` Certificate ${res.certificate.certificateNo} issued.` : ""}`,
       );
-      message.success(`Practical field evaluation scored (${computedPct}%). Ledger updated!`);
-    } else {
-      submitOralAssessment(
-        enrollment.id,
-        evaluatorId,
-        evaluatorName,
-        scoreItems,
-        generalNotes,
-      );
-      message.success(`Oral technical interview evaluation scored (${computedPct}%). Ledger updated!`);
+      onSubmitted();
+      onClose();
+    } catch (err) {
+      message.error((err as Error).message);
+    } finally {
+      setSaving(false);
     }
-
-    onSubmitted();
-    onClose();
   };
 
   return (
@@ -277,6 +266,7 @@ export default function EvaluatorScoringModal({
             <Button
               type="primary"
               onClick={handleSubmit}
+              loading={saving}
               style={{ borderRadius: 8, fontWeight: 600, background: nectarColors.leaf }}
             >
               Confirm & Save Assessment ({computedPct}%)

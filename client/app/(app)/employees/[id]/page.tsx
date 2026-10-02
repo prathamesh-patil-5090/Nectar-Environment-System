@@ -44,6 +44,7 @@ import { canAccessEmployeeRecord, canViewOtModule, scopedEmployeeId } from "@/li
 import { computeSiteReadiness } from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText18Ink, sSerifText18InkMb4 } from "@/lib/styles";
+import EmployeeTrainingSection from "@/components/training/records/EmployeeTrainingSection";
 import type { CSSProperties } from "react";
 
 const rowBetweenWrapGap12Mb16: CSSProperties = {
@@ -201,7 +202,6 @@ export default function EmployeeDetailPage({
   const siteReadiness = employee.siteId ? computeSiteReadiness(employee.siteId) : null;
   const skills = getEmployeeSkills(employee);
   const skillKeys = Object.keys(skillLabels) as SkillKey[];
-  const training = getEmployeeTraining(employee.id);
 
   const otColumns: ColumnsType<OtRecord> = [
     { title: "Date", dataIndex: "date", width: 110 },
@@ -420,22 +420,7 @@ export default function EmployeeDetailPage({
       ) : null}
 
       <div style={{ background: nectarColors.white, padding: 24 }}>
-        <div style={rowBetweenWrapGap12Mb16}>
-          <div style={sSerifText18Ink}>Training history</div>
-          <Link href="/training" style={{ fontSize: 13, color: nectarColors.leaf }}>View all training</Link>
-        </div>
-        {training.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No training records for this employee." />
-        ) : (
-          <Table
-            rowKey="id"
-            columns={trainingColumns}
-            dataSource={training}
-            pagination={{ pageSize: 8 }}
-            size="middle"
-            scroll={{ x: 640 }}
-          />
-        )}
+        <EmployeeTrainingSection employeeId={employee.id} />
       </div>
     </div>
   );

@@ -16,8 +16,9 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import type { LearningNeedRecord, Course } from "@/lib/training/types";
-import { getLearningNeedRecords, getAllCourses, createTrainingAssignment } from "@/lib/training/store";
-import { getEmployeeById, employees } from "@/lib/mock-data";
+import { getLearningNeedRecords, getAllCourses, createTrainingAssignment, getPeople, getPerson, getSite, useTrainingData } from "@/lib/training/store";
+import { getSession } from "@/lib/auth";
+import { personIdOf } from "@/lib/training/identity";
 import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/data";
 import { nectarColors } from "@/lib/theme";
 import { sText11SemiboldColorBgR6Border, sWhiteR14BorderShadow } from "@/lib/styles";
@@ -65,14 +66,15 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
   const [plantFilter, setPlantFilter] = useState<string>(siteScope ?? "all");
   const [lniItems, setLniItems] = useState<NectarLniItem[]>(NECTAR_LNI_COMPETENCIES);
 
-  // Available employees for the Legacy sheet
-  const availableEmployees = siteScope
-    ? employees.filter((e) => e.siteId === siteScope)
-    : employees;
-
-  const defaultEmpId = availableEmployees[0]?.id ?? "emp0126";
-  const [selectedEmpId, setSelectedEmpId] = useState<string>(defaultEmpId);
-  const selectedEmp = getEmployeeById(selectedEmpId) ?? availableEmployees[0];
+  useTrainingData();
+  const actorId = personIdOf(getSession());
+  // Employees (from the database) for the LNI sheet
+  const allPeople = getPeople();
+  const availableEmployees = siteScope ? allPeople.filter((e) => e.siteId === siteScope) : allPeople;
+  const [pickedEmpId, setSelectedEmpId] = useState<string>("");
+  const selectedEmpId = pickedEmpId || availableEmployees[0]?.id || "";
+  const selectedEmp = getPerson(selectedEmpId);
+  const getEmployeeById = getPerson;
 
   const activeSite = siteScope ?? (plantFilter === "all" ? undefined : plantFilter);
 
@@ -297,18 +299,14 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                 textAlign: "left",
               }}
             >
-              <div><strong>Name :</strong> {selectedEmp ? selectedEmp.name : "Shilpa Hotkar"}</div>
-              <div><strong>Date :</strong> 28/09/2026</div>
-              <div><strong>EC No :</strong> NEIPL-{selectedEmp?.id?.replace("e-", "")?.toUpperCase() ?? "125"}</div>
+              <div><strong>Name :</strong> {selectedEmp?.name ?? "—"}</div>
+              <div><strong>Date :</strong> {new Date().toLocaleDateString("en-GB")}</div>
+              <div><strong>EC No :</strong> {selectedEmp?.id?.toUpperCase() ?? "—"}</div>
               <div>
                 <strong>Assessed by :</strong>{" "}
-                {selectedEmp?.siteId === "s-ro"
-                  ? "Uday Patil"
-                  : selectedEmp?.siteId === "s-mee"
-                  ? "Sanjay Waghaskar"
-                  : "Anand Dakave"}
+                {getSite(selectedEmp?.siteId)?.managerName ?? "—"}
               </div>
-              <div><strong>Desig :</strong> {selectedEmp ? selectedEmp.designation : "Shift Operator"}</div>
+              <div><strong>Desig :</strong> {selectedEmp?.designation ?? "—"}</div>
               <div><strong>Department :</strong> Plant Operations & Environmental Services</div>
             </div>
           </div>
@@ -393,19 +391,22 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                           type="link"
                           onClick={async () => {
                             if (item.recommendedCourseId) {
-                              await createTrainingAssignment({
-                                employeeId: selectedEmpId,
-                                courseId: item.recommendedCourseId,
-                                assignedByEmployeeId: "emp0125",
-                                assignedByName: "Anand Dakave (ETP Plant Manager)",
-                                reason: `Mandatory LNI skill gap directive: ${item.competencyArea}`,
-                                priority: "high",
-                                status: "assigned",
-                                dueDate: new Date(Date.now() + 14 * 86400000).toISOString(),
-                              });
-                              message.success(
-                                `Assigned ${item.competencyArea} to ${selectedEmp?.name || "employee"}! It now appears at Rank #1 in their personalized feed.`,
-                              );
+                              try {
+                                await createTrainingAssignment({
+                                  employeeIds: [selectedEmpId],
+                                  courseId: item.recommendedCourseId,
+                                  assignedByEmployeeId: actorId,
+                                  reason: `LNI gap: ${item.competencyArea}`,
+                                  priority: "high",
+                                  kind: "mandatory",
+                                  source: "lni",
+                                  dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+                                });
+                                message.success(`Assigned to ${selectedEmp?.name ?? "the employee"}, due in 14 days.`);
+                              } catch (err) {
+                                message.error((err as Error).message);
+                                return;
+                              }
                               const c = allCourses.find((x) => x.id === item.recommendedCourseId);
                               if (c && onOpenCourse) onOpenCourse(c);
                             }

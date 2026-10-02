@@ -36,7 +36,6 @@ import { computeShiftImpact, listCoverOptionsForSite } from "@/lib/shift-impact/
 import {
   getAllCertificates,
   getPendingEvaluations,
-  getRecommendedCourses,
   getTrainingItems,
   resetTrainingStore,
 } from "@/lib/training/store";
@@ -166,7 +165,8 @@ describe("kpis & aggregations", () => {
     expect({
       certificates: digest(getAllCertificates()),
       pendingEvaluations: digest(getPendingEvaluations()),
-      recommended: getRecommendedCourses("emp0126").map((r) => r.id),
+      // Training is database-backed since the redesign: recommendations are computed on the server
+      // (covered by server/test/*.e2e.ts) and the client cache is empty in this offline test.
       trainingItems: digest(getTrainingItems()),
       notifications: getNotificationsForEmployee("emp0126"),
       salary: getSalaryHistory("emp0126"),

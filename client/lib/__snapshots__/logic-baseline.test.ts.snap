@@ -3,8 +3,8 @@
 exports[`kpis & aggregations > dashboard / readiness 1`] = `
 {
   "complianceReady": [
-    3,
-    1,
+    2,
+    0,
     1,
     1,
   ],
@@ -40,7 +40,7 @@ exports[`kpis & aggregations > dashboard / readiness 1`] = `
   ],
   "readiness": {
     "length": 3,
-    "sha256": "135c31b2fe14d9c3b62b1fbd50cbbe46ef2b6036ff1b6f31c090d242abcb14bd",
+    "sha256": "d4887fc6775e0965b22aef0d78cb1dda67780218d042911fb06edd9aa1f824df",
   },
   "skillCoverage": [
     84,
@@ -397,42 +397,14 @@ exports[`kpis & aggregations > shift / reliever / impact 1`] = `
 exports[`kpis & aggregations > training / notifications / salary 1`] = `
 {
   "certificates": {
-    "length": 5,
-    "sha256": "4342bd3fbe99d8f056d43ba91bbf6a71408f279c7f44265fddbc9bd509804f21",
+    "length": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   },
   "notifications": [],
   "pendingEvaluations": {
-    "length": 1,
-    "sha256": "a467ddb75172ea5e0c9ef6a9830da60e356c6762bcb73a9dc75c2f8221cdaf38",
+    "length": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   },
-  "recommended": [
-    "course-etp-101",
-    "course-etp-102",
-    "course-etp-201",
-    "course-etp-202",
-    "course-etp-301",
-    "course-ops-301",
-    "course-ro-302",
-    "course-wtp-101",
-    "course-wtp-201",
-    "course-wtp-301",
-    "course-stp-101",
-    "course-stp-102",
-    "course-stp-201",
-    "course-stp-202",
-    "course-zld-401",
-    "course-zld-302",
-    "course-zld-303",
-    "course-zld-402",
-    "course-env-101",
-    "course-env-201",
-    "course-env-202",
-    "course-env-301",
-    "course-om-101",
-    "course-om-201",
-    "course-om-202",
-    "course-om-301",
-  ],
   "salary": [
     {
       "accountLast4": "1000",
@@ -526,8 +498,8 @@ exports[`kpis & aggregations > training / notifications / salary 1`] = `
     },
   ],
   "trainingItems": {
-    "length": 4,
-    "sha256": "6c410158a6d27b6340e7d038ab5456fc6638bae18ad5cdee1c86a40ed4a543f2",
+    "length": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   },
 }
 `;

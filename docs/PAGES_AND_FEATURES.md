@@ -157,7 +157,7 @@ OverTime
 |--------|-------------|
 | Profile | Email, phone, joined date, experience, site, plant type, readiness |
 | Skill map | Personal competency bars vs role-critical skills |
-| Training history | Courses, due dates, priority, status for that employee |
+| Training | Courses, due dates, scores and status (database), open weak-area flags, and **Flag / assign training** for the Director or the employee's manager |
 | Empty / not found | Safe fallback with back navigation |
 
 ---
@@ -172,13 +172,24 @@ OverTime
 
 ---
 
-### 4.5 Training — `/training`
+### 4.5 Training — `/training` (Coursera + Meetup style)
 
-| Feature | Description |
-|--------|-------------|
-| Training table | Employee, site, course, due date, priority, status |
-| Urgent only toggle | Filters to overdue / due-soon |
-| Employee links | Jump to employee profile |
+All data comes from the database. The full design is in `docs/TRAINING_REDESIGN_PLAN.md`.
+
+| Route | Who | Feature |
+|---|---|---|
+| `/training` | Academy roles | **Home**: stats, then shelves of 4 cards plus "Show more": Your manager suggests, Assigned to you, Continue learning, Recommended for you (with the reason), Required for your role, Upcoming events, Popular at your site |
+| `/training` | HR / Manager / Director | **Academic Records**: Team progress, Assign & flag (Director and managers), Evaluations, Assessment schedule, LNI matrix, Reports, Mentors & communities (HR and Director) |
+| `/training/home` | HR / Manager / Director | Their own learning Home |
+| `/training/explore` | Everyone | Catalog search, filters (domain, plant, level, not started) and sort, all kept in the URL |
+| `/training/course/[id]` | Everyone | Course page: About, Syllabus, Assessment (4 gates), Events, and Enroll / Resume |
+| `/training/learn/[id]` | Learner | Course player: abilities, quizzes, skill map, written test, and on-site practical / oral by the manager |
+| `/training/my-learning` | Everyone | In progress, Assigned, Suggested by manager, Completed, Assessment schedule |
+| `/training/events`, `/training/events/[id]` | Everyone | Meetup-style events: list or calendar view, RSVP with a waitlist, attendee list (registered people only), discussion, add to calendar |
+| `/training/communities/[slug]` | Everyone | Community page: members, events, join / leave |
+| `/training/mentor`, `/training/mentor/events/[id]` | Mentors | Mentor Studio: create, edit, repeat, publish, cancel and duplicate events; manage attendees and the waitlist; attendance; announcements; CSV |
+| `/training/team` | Supervisor / Shift / Site In-Charge | Their team's progress (view only) |
+| `/training/track/[id]` | Everyone | Specialization (client-side mock content, agreed exception) |
 
 ---
 

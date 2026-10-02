@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -14,7 +14,14 @@ import {
   MentorLiveSessionDocument,
   TrainingAssignment,
   TrainingAssignmentDocument,
+  RolePath,
+  RolePathDocument,
 } from '../../../db/schemas/training';
+import { NotificationsService } from '../notifications/notifications.service';
+import { PeopleService } from './people.service';
+
+/** 'assigned' is the legacy open status. */
+const OPEN_STATUSES = ['open', 'in_progress', 'assigned'];
 import { Employee, EmployeeDocument } from '../../../db/schemas/employee.schema';
 
 @Injectable()
@@ -33,6 +40,10 @@ export class TrainingService {
     private assignmentModel: Model<TrainingAssignmentDocument>,
     @InjectModel(Employee.name)
     private employeeModel: Model<EmployeeDocument>,
+    @InjectModel(RolePath.name)
+    private rolePathModel: Model<RolePathDocument>,
+    private readonly people: PeopleService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async findAllCourses(section?: string): Promise<Course[]> {
@@ -41,167 +52,189 @@ export class TrainingService {
   }
 
   // -------------------------------------------------------------------
-  // Manager Training Directives & Assignments
+  // Manager assignments & weak-area flags
   // -------------------------------------------------------------------
-  async findAssignments(employeeId?: string): Promise<TrainingAssignment[]> {
-    const filter = employeeId ? { employeeId } : {};
+  async findAssignments(q: {
+    employeeId?: string;
+    assignedBy?: string;
+    kind?: string;
+    status?: string;
+  } = {}): Promise<TrainingAssignment[]> {
+    const filter: Record<string, unknown> = {};
+    if (q.employeeId) filter.employeeId = q.employeeId;
+    if (q.assignedBy) filter.assignedByEmployeeId = q.assignedBy;
+    if (q.kind) filter.kind = q.kind;
+    if (q.status === 'open') filter.status = { $in: OPEN_STATUSES };
+    else if (q.status) filter.status = q.status;
     return this.assignmentModel.find(filter).sort({ createdAt: -1 }).lean().exec();
   }
 
-  async createAssignment(data: Partial<TrainingAssignment>): Promise<TrainingAssignment> {
-    const id = data.id || `asgn-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    return this.assignmentModel
-      .findOneAndUpdate({ id }, { ...data, id }, { upsert: true, new: true })
+  /** One row per employee. Mandatory needs a course and a due date; a suggestion needs a course, topic or skills. */
+  async createAssignments(data: Partial<TrainingAssignment> & { employeeIds?: string[] }): Promise<TrainingAssignment[]> {
+    const employeeIds = data.employeeIds?.length ? data.employeeIds : data.employeeId ? [data.employeeId] : [];
+    if (!employeeIds.length) throw new BadRequestException('employeeIds is required');
+    if (!data.assignedByEmployeeId) throw new BadRequestException('assignedByEmployeeId is required');
+    const kind = data.kind === 'suggested' ? 'suggested' : 'mandatory';
+    if (kind === 'mandatory' && (!data.courseId || !data.dueDate)) {
+      throw new BadRequestException('Mandatory training needs a course and a due date');
+    }
+    if (!data.courseId && !data.topic?.trim() && !data.skills?.length) {
+      throw new BadRequestException('Pick a course, or describe the weak topic');
+    }
+    const reason = data.reason?.trim();
+    if (!reason) throw new BadRequestException('A reason is required');
+
+    const people = await this.people.many([...employeeIds, data.assignedByEmployeeId]);
+    const flagger = people.get(data.assignedByEmployeeId);
+    if (!flagger) throw new BadRequestException(`Employee ${data.assignedByEmployeeId} not found`);
+    const course = data.courseId
+      ? await this.courseModel.findOne({ $or: [{ id: data.courseId }, { code: data.courseId }] }).lean().exec()
+      : null;
+    if (data.courseId && !course) throw new BadRequestException(`Course ${data.courseId} not found`);
+
+    // Only the Director, or the employee's allotted manager, can assign or flag
+    for (const employeeId of employeeIds) {
+      const target = people.get(employeeId);
+      if (!target) throw new BadRequestException(`Employee ${employeeId} not found`);
+      if (flagger.role !== 'director' && target.managerId !== flagger.id) {
+        throw new ForbiddenException(`${flagger.name} is not ${target.name}'s manager`);
+      }
+    }
+
+    const rows: TrainingAssignment[] = [];
+    for (const employeeId of employeeIds) {
+      const row = await this.assignmentModel.create({
+        id: `asgn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        employeeId,
+        assignedByEmployeeId: flagger.id,
+        assignedByName: flagger.name,
+        courseId: course?.id,
+        moduleId: data.moduleId,
+        reason,
+        priority: data.priority ?? 'normal',
+        status: 'open',
+        dueDate: data.dueDate,
+        kind,
+        topic: data.topic?.trim(),
+        skills: data.skills ?? [],
+        abilityIds: data.abilityIds ?? [],
+        source: data.source ?? 'manager',
+      });
+      rows.push(row.toObject());
+      const what = course ? course.title : data.topic?.trim() || (data.skills ?? []).join(', ');
+      await this.notifications.notify({
+        employeeId,
+        kind: kind === 'mandatory' ? 'training_assigned' : 'training_flagged',
+        title:
+          kind === 'mandatory'
+            ? `${flagger.name} assigned you: ${what}`
+            : `${flagger.name} suggests more training on ${what}`,
+        body: `${reason}${data.dueDate ? ` · Due ${data.dueDate}` : ''}`,
+        href: course ? `/training/course/${course.id}` : '/training',
+        meta: { assignmentId: row.id },
+      });
+    }
+    return rows;
+  }
+
+  async updateAssignment(id: string, patch: Partial<TrainingAssignment>, actorId: string) {
+    const row = await this.assignmentModel.findOne({ id }).lean().exec();
+    if (!row) throw new NotFoundException(`Assignment ${id} not found`);
+    if (row.assignedByEmployeeId !== actorId) throw new ForbiddenException('Only the person who created this can edit it');
+    const allowed: Record<string, unknown> = {};
+    for (const k of ['reason', 'priority', 'dueDate', 'topic', 'skills', 'courseId'] as const) {
+      if (patch[k] !== undefined) allowed[k] = patch[k];
+    }
+    return this.assignmentModel.findOneAndUpdate({ id }, allowed, { new: true }).lean().exec();
+  }
+
+  /** resolved (training done) or dismissed (no longer needed). Resolution notifies the flagger. */
+  async closeAssignment(id: string, status: 'resolved' | 'dismissed', actorId: string) {
+    const row = await this.assignmentModel.findOne({ id }).lean().exec();
+    if (!row) throw new NotFoundException(`Assignment ${id} not found`);
+    if (!OPEN_STATUSES.includes(row.status)) throw new BadRequestException('This item is already closed');
+    if (status === 'dismissed' && row.assignedByEmployeeId !== actorId) {
+      throw new ForbiddenException('Only the person who created this can dismiss it');
+    }
+    const updated = await this.assignmentModel
+      .findOneAndUpdate({ id }, { status, resolvedAt: new Date().toISOString(), resolvedBy: actorId }, { new: true })
       .lean()
       .exec();
+    if (status === 'resolved') {
+      const learner = await this.people.one(row.employeeId);
+      await this.notifications.notify({
+        employeeId: row.assignedByEmployeeId,
+        kind: 'training_flag_resolved',
+        title: `${learner?.name ?? row.employeeId} completed: ${row.topic || row.courseId}`,
+        body: row.reason,
+        href: `/employees/${row.employeeId}`,
+        meta: { assignmentId: id },
+      });
+    }
+    return updated;
   }
 
   // -------------------------------------------------------------------
-  // 4-Tier Personalized Recommendation Engine (100% DB-backed)
+  // Role paths
   // -------------------------------------------------------------------
-  async getPersonalizedRecommendations(employeeId?: string): Promise<any[]> {
-    // 1. Fetch all available courses from database
-    const allCourses = await this.courseModel.find().lean().exec();
-
-    // 2. Fetch employee profile if employeeId provided
-    let emp: Employee | null = null;
-    let assignments: TrainingAssignment[] = [];
-    let records: TrainingRecord[] = [];
-
-    if (employeeId) {
-      emp = await this.employeeModel
-        .findOne({ $or: [{ id: employeeId }, { employeeId }] })
-        .lean()
-        .exec();
-
-      assignments = await this.assignmentModel
-        .find({ employeeId, status: { $ne: 'completed' } })
-        .lean()
-        .exec();
-
-      records = await this.recordModel.find({ employeeId }).lean().exec();
-    }
-
-    const assignmentMap = new Map<string, TrainingAssignment>();
-    assignments.forEach((a) => {
-      assignmentMap.set(a.courseId, a);
+  async findRolePaths(q: { role?: string; designation?: string; plantType?: string }) {
+    const filter: Record<string, unknown> = {};
+    if (q.role) filter.role = q.role;
+    const and: Record<string, unknown>[] = [];
+    const anyOr = (field: string, value: string) => ({
+      $or: [{ [field]: value }, { [field]: { $exists: false } }, { [field]: '' }],
     });
-
-    const recordsMap = new Map<string, TrainingRecord>();
-    records.forEach((r) => {
-      recordsMap.set(r.courseId, r);
-    });
-
-    // 3. Determine employee's primary plant specialization
-    let primaryCategory = 'Effluent Treatment Plants (ETP)';
-    if (emp) {
-      const dept = (emp.department || '').toLowerCase();
-      const site = (emp.siteId || '').toLowerCase();
-      const role = (emp.role || '').toLowerCase();
-
-      if (dept.includes('wtp') || dept.includes('ro') || site.includes('ro')) {
-        primaryCategory = 'Water Treatment Plants (WTP)';
-      } else if (dept.includes('stp') || site.includes('stp')) {
-        primaryCategory = 'Sewage Treatment Plants (STP)';
-      } else if (dept.includes('zld') || dept.includes('mee') || site.includes('mee')) {
-        primaryCategory = 'Zero Liquid Discharge (ZLD)';
-      } else if (dept.includes('consult') || dept.includes('audit') || role.includes('auditor')) {
-        primaryCategory = 'Environmental Consulting Services';
-      } else if (dept.includes('maint') || dept.includes('elect') || dept.includes('mech')) {
-        primaryCategory = 'Operation and Maintenance (O&M)';
-      }
-    }
-
-    // 4. Score and map courses into 4 tiers
-    const scoredCourses = allCourses.map((c) => {
-      const assignment = assignmentMap.get(c.id) || assignmentMap.get(c.courseId) || assignmentMap.get(c.code);
-      const record = recordsMap.get(c.id) || recordsMap.get(c.courseId) || recordsMap.get(c.code);
-
-      const moduleCount = c.modules?.length || 3;
-      const videoCount =
-        c.modules?.reduce((acc, m) => acc + (m.videos?.length || 0), 0) ||
-        c.abilities?.length ||
-        3;
-
-      let tierRank = 4;
-      let matchScorePct = 85 + Math.floor(((c.rating || 4.7) - 4.5) * 10);
-      let badge = 'Industrial Elective';
-      let badgeColor = '#10b981'; // Emerald Green
-      let isAssignedByManager = false;
-      let assignedByName: string | undefined;
-      let directiveReason: string | undefined;
-      let priority: string | undefined;
-      let dueDate: string | undefined;
-
-      // Tier 1: Explicit Manager Directive
-      if (assignment) {
-        tierRank = 1;
-        matchScorePct = 99;
-        badge = '★ Assigned by Plant Manager';
-        badgeColor = '#eab308'; // Premium Amber Gold
-        isAssignedByManager = true;
-        assignedByName = assignment.assignedByName;
-        directiveReason = assignment.reason;
-        priority = assignment.priority;
-        dueDate = assignment.dueDate;
-      }
-      // Tier 2: Competency Assessment Gap (< 70% or uncompleted)
-      else if (record && (record.status !== 'certified' || (record.overallScorePct && record.overallScorePct < 70))) {
-        tierRank = 2;
-        matchScorePct = 97;
-        badge = 'Skill Gap Focus';
-        badgeColor = '#f97316'; // Orange / Volcano
-      }
-      // Tier 3: Role & Plant Domain Alignment
-      else if (c.category === primaryCategory || c.section === primaryCategory) {
-        tierRank = 3;
-        matchScorePct = 93 + (c.rating && c.rating >= 4.9 ? 2 : 0);
-        badge = 'Role Pathway';
-        badgeColor = '#3b82f6'; // Industrial Blue
-      }
-
-      return {
-        id: c.id,
-        courseId: c.courseId || c.id,
-        title: c.title,
-        code: c.code,
-        category: c.category || c.section,
-        section: c.section || c.category,
-        department: c.department,
-        provider: c.provider || 'Nectar Technical Operations',
-        thumbnailUrl: c.thumbnailUrl || '/courses/etp_plant.jpg',
-        rating: c.rating || 4.8,
-        reviewCount: c.reviewCount || 30,
-        level: c.level || 'Intermediate',
-        durationHours: c.estimatedHours || 4.0,
-        estimatedHours: c.estimatedHours || 4.0,
-        passThreshold: c.passThreshold || 70,
-        matchScorePct,
-        tierRank,
-        badge,
-        badgeColor,
-        isAssignedByManager,
-        assignedByName,
-        directiveReason,
-        priority,
-        dueDate,
-        moduleCount,
-        videoCount,
-        modules: c.modules || [],
-        abilities: c.abilities || [],
-      };
-    });
-
-    // 5. Sort by Tier Rank (1 -> 2 -> 3 -> 4) and then highest Match Score
-    scoredCourses.sort((a, b) => {
-      if (a.tierRank !== b.tierRank) return a.tierRank - b.tierRank;
-      if (b.matchScorePct !== a.matchScorePct) return b.matchScorePct - a.matchScorePct;
-      return (b.rating || 0) - (a.rating || 0);
-    });
-
-    return scoredCourses;
+    if (q.designation) and.push(anyOr('designation', q.designation));
+    if (q.plantType) and.push(anyOr('plantType', q.plantType));
+    if (and.length) filter.$and = and;
+    return this.rolePathModel.find(filter).lean().exec();
   }
 
+  /** Course authoring: assessment content and certificate settings. Only HR or the Director. */
+  async updateCourseContent(
+    id: string,
+    body: {
+      actorId: string;
+      skillMappingQuestions?: unknown[];
+      writtenTestQuestions?: unknown[];
+      microQuizzes?: Record<string, { passThreshold?: number; questions: unknown[] }>;
+      certificateValidityMonths?: number;
+      passThreshold?: number;
+      skills?: string[];
+      audience?: Course['audience'];
+    },
+  ): Promise<Course> {
+    const actor = await this.people.one(body.actorId);
+    if (!actor || !['hr', 'director'].includes(actor.role)) {
+      throw new ForbiddenException('Only HR or the Director can edit course content');
+    }
+    const course = await this.courseModel.findOne({ $or: [{ id }, { code: id }] }).exec();
+    if (!course) throw new NotFoundException(`Course ${id} not found`);
+    const validQ = (qs: unknown[]) =>
+      qs.every((q: any) => q?.id && q?.text && Array.isArray(q.options) && q.options.some((o: any) => o.id === q.correctOptionId));
+    for (const qs of [body.skillMappingQuestions, body.writtenTestQuestions, ...Object.values(body.microQuizzes ?? {}).map((m) => m.questions)]) {
+      if (qs && !validQ(qs)) throw new BadRequestException('Each question needs id, text, options and a correctOptionId that is one of the options');
+    }
+    if (body.skillMappingQuestions) course.skillMappingQuestions = body.skillMappingQuestions as any[];
+    if (body.writtenTestQuestions) course.writtenTestQuestions = body.writtenTestQuestions as any[];
+    if (body.certificateValidityMonths !== undefined) {
+      if (![6, 12].includes(body.certificateValidityMonths)) throw new BadRequestException('Validity is 6 or 12 months');
+      course.certificateValidityMonths = body.certificateValidityMonths;
+    }
+    if (body.passThreshold !== undefined) course.passThreshold = body.passThreshold;
+    if (body.skills) course.skills = body.skills;
+    if (body.audience) course.audience = body.audience;
+    if (body.microQuizzes) {
+      course.abilities = course.abilities.map((a) =>
+        body.microQuizzes![a.id]
+          ? { ...a, microQuiz: { id: `mq-${a.id}`, abilityId: a.id, passThreshold: body.microQuizzes![a.id].passThreshold ?? 70, questions: body.microQuizzes![a.id].questions as any[] } }
+          : a,
+      );
+      course.markModified('abilities');
+    }
+    await course.save();
+    return course.toObject();
+  }
 
   async findCourseById(id: string): Promise<Course> {
     const course = await this.courseModel
@@ -236,6 +269,40 @@ export class TrainingService {
   async findCertificates(employeeId?: string): Promise<Certificate[]> {
     const filter = employeeId ? { employeeId } : {};
     return this.certModel.find(filter).lean().exec();
+  }
+
+  /** Schedule an on-site practical / oral slot (Director or the candidates' manager). */
+  async createSession(data: Partial<TrainingSession> & { actorId: string }): Promise<TrainingSession> {
+    const actor = await this.people.one(data.actorId);
+    if (!actor || !['manager', 'director'].includes(actor.role)) {
+      throw new ForbiddenException('Only managers or the Director can schedule assessments');
+    }
+    if (!data.title?.trim() || !data.scheduledAt || !data.employeeIds?.length) {
+      throw new BadRequestException('title, scheduledAt and employeeIds are required');
+    }
+    const row = await this.sessionModel.create({
+      id: `sess-${Date.now().toString(36)}`,
+      title: data.title.trim(),
+      type: data.type ?? 'PRACTICAL',
+      scheduledBy: actor.id,
+      scheduledByName: actor.name,
+      scheduledAt: data.scheduledAt,
+      venueOrLink: data.venueOrLink ?? '',
+      employeeIds: data.employeeIds,
+      courseId: data.courseId,
+      status: 'scheduled',
+    });
+    await this.notifications.notifyMany(
+      data.employeeIds.map((employeeId) => ({
+        employeeId,
+        kind: 'assessment_scheduled',
+        title: `Assessment scheduled: ${row.title}`,
+        body: `${new Date(row.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} · ${row.venueOrLink || 'Venue to be shared'} · by ${actor.name}`,
+        href: '/training/my-learning',
+        meta: { sessionId: row.id },
+      })),
+    );
+    return row.toObject();
   }
 
   async findSessions(employeeId?: string): Promise<TrainingSession[]> {

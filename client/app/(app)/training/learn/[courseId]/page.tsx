@@ -64,10 +64,13 @@ import {
   checkAndTriggerCertification,
   getAssessmentResults,
   getCertificates,
+  getPerson,
+  useTrainingData,
 } from "@/lib/training/store";
+import { personIdOf } from "@/lib/training/identity";
+import SkillMapGateModal from "@/components/training/SkillMapGateModal";
 import { getSession } from "@/lib/auth";
 import { scopedEmployeeId, selfEmployeeId, normalizeRole } from "@/lib/rbac";
-import { getEmployeeById } from "@/lib/mock-data";
 import { CourseraRecommendationsGrid } from "@/components/training/CourseraRecommendationsGrid";
 import EvaluatorScoringModal from "@/components/training/EvaluatorScoringModal";
 import { VideoPlayerEngine } from "@/lib/training/VideoPlayerEngine";
@@ -167,8 +170,11 @@ function CourseLearningInner() {
   const session = getSession();
   const userRole = normalizeRole(session?.role);
   const isManager = userRole === "manager" || userRole === "director";
-  const employeeId = scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "emp0126";
-  const employee = getEmployeeById(employeeId);
+  const employeeId = personIdOf(session) ?? "";
+  const employee = getPerson(employeeId);
+  // Course, enrollment and results come from the database; re-render when the server answers
+  const { ready: trainingReady, error: trainingError, version: trainingVersion } = useTrainingData();
+  const [skillQuizOpen, setSkillQuizOpen] = useState(false);
 
   // ── Core data state ──────────────────────────────────────────────────────
   const [course, setCourse] = useState<Course | null>(null);
@@ -295,7 +301,7 @@ function CourseLearningInner() {
 
   // ── Initial course load ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!courseId) return;
+    if (!courseId || !trainingReady) return;
     const found = getCourseById(courseId);
     if (!found) return;
     setCourse(found);
@@ -307,7 +313,7 @@ function CourseLearningInner() {
       const { sec, dur } = resumePoint(first, getEnrollment(employeeId, found.id));
       engineRef.current?.switchAbility(sec, dur);
     }
-  }, [courseId, employeeId]);
+  }, [courseId, employeeId, trainingReady]);
 
   // ── Micro-Quiz State ──────────────────────────────────────────────────────
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
@@ -373,6 +379,10 @@ function CourseLearningInner() {
   };
 
   // ── Guard: wait for course data ────────────────────────────────────────────
+  void trainingVersion;
+  if ((!course || !enrollment) && !trainingReady && !trainingError) {
+    return <div style={{ padding: "64px 24px", textAlign: "center", minHeight: "60vh" }}>Loading course…</div>;
+  }
   if (!course || !enrollment) {
     return (
       <div style={{ padding: "64px 24px", textAlign: "center", minHeight: "60vh", background: "#FFFFFF" }}>
@@ -400,7 +410,7 @@ function CourseLearningInner() {
   };
 
   const completedAbilitiesCount = course.abilities.filter(
-    (a) => enrollment.abilityProgress[a.id]?.quizPassed,
+    (a) => enrollment.abilityProgress[a.id]?.completedAt,
   ).length;
   const overallProgress = Math.round(
     (completedAbilitiesCount / course.abilities.length) * 100,
@@ -410,6 +420,11 @@ function CourseLearningInner() {
   const isVideoWatchDone = activeProgress.videoWatchedPct >= 90;
   const assessmentResults = getAssessmentResults(enrollment.id);
   const certificate = getCertificates(employeeId).find((c) => c.courseId === course.id);
+  /** Skill map (online) must be passed before the on-site practical / written test. */
+  const openPracticalGate = () => {
+    if (assessmentResults.skillMap?.passed) setSkillMapOpen(true);
+    else setSkillQuizOpen(true);
+  };
 
   // Submit micro-quiz
   const handleQuizSubmit = () => {
@@ -432,7 +447,7 @@ function CourseLearningInner() {
         msg.success("All module quizzes passed! Gate 1 (Practical Test) is now unlocked.");
         setTimeout(() => {
           setQuizModalOpen(false);
-          setSkillMapOpen(true);
+          openPracticalGate();
         }, 1500);
       }
     } else {
@@ -528,7 +543,7 @@ function CourseLearningInner() {
         msg.warning("Complete the current module's quiz to unlock the next module.");
       }
     } else if (canTakeSkillMapping(enrollment, course)) {
-      setSkillMapOpen(true);
+      openPracticalGate();
     }
   };
 
@@ -735,7 +750,7 @@ function CourseLearningInner() {
                   <div
                     onClick={() => {
                       if (canTakeSkillMapping(enrollment, course)) {
-                        setSkillMapOpen(true);
+                        openPracticalGate();
                       } else {
                         msg.warning("Complete all module video lessons and micro-quizzes to unlock Practical Test.");
                       }
@@ -794,7 +809,7 @@ function CourseLearningInner() {
                       if (assessmentResults.practical) {
                         setWrittenOpen(true);
                       } else {
-                        msg.warning("Pass Gate 1 (Practical Test) first to unlock Written Theory Exam.");
+                        msg.warning("Pass the skill map and the practical first to unlock the written exam.");
                       }
                     }}
                     style={{
@@ -1879,7 +1894,7 @@ function CourseLearningInner() {
               ) : (
                 <Button
                   type="primary"
-                  onClick={() => setSkillMapOpen(true)}
+                  onClick={openPracticalGate}
                   disabled={!canTakeSkillMapping(enrollment, course)}
                   style={{ background: "#16A34A", borderColor: "#16A34A", fontWeight: 700 }}
                 >
@@ -2163,7 +2178,7 @@ function CourseLearningInner() {
                   <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 16 }}>In-Person Plant Practical Assessment Pending</span>
                 </div>
                 <div style={{ fontSize: 13.5, color: "#1E3A8A", lineHeight: 1.6 }}>
-                  This hands-on test is conducted on-site in real life by your <strong>Plant Operations Manager / Technical Evaluator (Rajesh Kulkarni / Anand Dakave)</strong>.
+                  This hands-on test is conducted on site by your <strong>allotted Plant Manager</strong> (or the Director).
                 </div>
                 <div
                   style={{
@@ -2223,6 +2238,9 @@ function CourseLearningInner() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {course.writtenTestQuestions.length === 0 && (
+              <Alert type="warning" showIcon title="The written test questions for this course are not set up yet. HR or the Director can add them." />
+            )}
             {course.writtenTestQuestions.map((q, idx) => (
               <div
                 key={q.id}
@@ -2445,23 +2463,26 @@ function CourseLearningInner() {
                 border: "1px solid #CBD5E1", padding: "8px 14px", marginTop: 12, fontSize: 12.5, textAlign: "left",
               }}
             >
-              <div><strong style={{ color: "#1C4463" }}>NAME :</strong> Mr. Akshay Jamble (Operator)</div>
-              <div><strong style={{ color: "#1C4463" }}>EMP CODE :</strong> NEIPL125</div>
-              <div><strong style={{ color: "#1C4463" }}>TL / ASSESSOR :</strong> Mr. Anand Dakave</div>
+              <div><strong style={{ color: "#1C4463" }}>NAME :</strong> {employee?.name ?? session?.name ?? "—"}{employee?.designation ? ` (${employee.designation})` : ""}</div>
+              <div><strong style={{ color: "#1C4463" }}>EMP CODE :</strong> {employee?.id?.toUpperCase() ?? "—"}</div>
+              <div><strong style={{ color: "#1C4463" }}>TL / ASSESSOR :</strong> {assessmentResults.practical?.evaluatorName ?? "—"}</div>
             </div>
           </div>
 
           {/* Assessment Breakdown Table */}
           {(() => {
-            const sScore = skillMapResult ? skillMapResult.scorePct : 54.14;
-            const pScore = assessmentResults.practical?.overallPct ?? 61.0;
-            const wScore = assessmentResults.written?.scorePct ?? 90.0;
-            const oScore = assessmentResults.oral?.overallPct ?? 63.0;
-            const compScore = Math.round(((sScore + pScore + wScore + oScore) / 4) * 100) / 100;
-            const evalNotes =
-              assessmentResults.practical?.generalNotes ||
-              assessmentResults.oral?.generalNotes ||
-              "Candidate demonstrated verified physical valve alignments and safely managed sudden plant upset simulation. Recommended for shift incharge qualification.";
+            // Real results only. A missing gate shows "—" (never a made-up number).
+            const sScore = assessmentResults.skillMap?.scorePct;
+            const pScore = assessmentResults.practical?.overallPct;
+            const wScore = assessmentResults.written?.scorePct;
+            const oScore = assessmentResults.oral?.overallPct;
+            const allDone = [sScore, pScore, wScore, oScore].every((x) => typeof x === "number");
+            // Same weighting as the server: skill map 25%, written 25%, practical 30%, oral 20%
+            const compScore = allDone ? Math.round((sScore! * 0.25 + wScore! * 0.25 + pScore! * 0.3 + oScore! * 0.2) * 10) / 10 : undefined;
+            const fmt = (x?: number) => (typeof x === "number" ? x.toFixed(2) : "—");
+            const evalNotes = assessmentResults.practical?.generalNotes || assessmentResults.oral?.generalNotes || "No evaluator notes.";
+            const practicalBy = assessmentResults.practical?.evaluatorName ?? "—";
+            const oralBy = assessmentResults.oral?.evaluatorName ?? "—";
 
             return (
               <>
@@ -2482,41 +2503,41 @@ function CourseLearningInner() {
                         <td style={{ padding: "10px 14px", fontWeight: 700, color: "#1C4463", borderRight: "1px solid #CBD5E1" }}>Annexure 1</td>
                         <td style={{ padding: "10px 14px", fontWeight: 600, borderRight: "1px solid #CBD5E1" }}>Skill Mapping</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", color: "#64748B", borderRight: "1px solid #CBD5E1" }}>100%</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{sScore.toFixed(2)}</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{fmt(sScore)}</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", fontStyle: "italic", color: "#2563EB", borderRight: "1px solid #CBD5E1" }}>Verified</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>Anand Dakave</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>{"Online test"}</td>
                       </tr>
                       <tr style={{ borderBottom: "1px solid #CBD5E1" }}>
                         <td style={{ padding: "10px 14px", fontWeight: 700, color: "#1C4463", borderRight: "1px solid #CBD5E1" }}>Annexure 2</td>
                         <td style={{ padding: "10px 14px", fontWeight: 600, borderRight: "1px solid #CBD5E1" }}>Practical Test</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", color: "#64748B", borderRight: "1px solid #CBD5E1" }}>100%</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{pScore.toFixed(2)}</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{fmt(pScore)}</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", fontStyle: "italic", color: "#2563EB", borderRight: "1px solid #CBD5E1" }}>Verified</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>Anand Dakave</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>{practicalBy}</td>
                       </tr>
                       <tr style={{ borderBottom: "1px solid #CBD5E1" }}>
                         <td style={{ padding: "10px 14px", fontWeight: 700, color: "#1C4463", borderRight: "1px solid #CBD5E1" }}>Annexure 3</td>
                         <td style={{ padding: "10px 14px", fontWeight: 600, borderRight: "1px solid #CBD5E1" }}>Written Test</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", color: "#64748B", borderRight: "1px solid #CBD5E1" }}>100%</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{wScore.toFixed(2)}</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{fmt(wScore)}</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", fontStyle: "italic", color: "#2563EB", borderRight: "1px solid #CBD5E1" }}>Verified</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>Anand Dakave</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>{"Online test"}</td>
                       </tr>
                       <tr style={{ borderBottom: "1.5px solid #1C4463" }}>
                         <td style={{ padding: "10px 14px", fontWeight: 700, color: "#1C4463", borderRight: "1px solid #CBD5E1" }}>Annexure 4</td>
                         <td style={{ padding: "10px 14px", fontWeight: 600, borderRight: "1px solid #CBD5E1" }}>Oral</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", color: "#64748B", borderRight: "1px solid #CBD5E1" }}>100%</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{oScore.toFixed(2)}</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 800, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{fmt(oScore)}</td>
                         <td style={{ padding: "10px 14px", textAlign: "center", fontStyle: "italic", color: "#2563EB", borderRight: "1px solid #CBD5E1" }}>Verified</td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>Anand Dakave</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", fontSize: 12, color: "#334155" }}>{oralBy}</td>
                       </tr>
                       {/* Authentic Yellow Highlight Total Row */}
                       <tr style={{ background: "#FEF08A", fontWeight: 800, color: "#0F172A" }}>
                         <td style={{ padding: "12px 14px", borderRight: "1px solid #CBD5E1", textAlign: "right" }} colSpan={2}>Overall Competency Level-</td>
                         <td style={{ padding: "12px 14px", textAlign: "center", borderRight: "1px solid #CBD5E1" }}>100%</td>
-                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 16, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{compScore.toFixed(2)}</td>
-                        <td style={{ padding: "12px 14px", textAlign: "center", fontStyle: "italic", color: "#166534", borderRight: "1px solid #CBD5E1" }}>Qualified</td>
-                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 12 }}>Signed</td>
+                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 16, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{fmt(compScore)}</td>
+                        <td style={{ padding: "12px 14px", textAlign: "center", fontStyle: "italic", color: certificate ? "#166534" : "#B45309", borderRight: "1px solid #CBD5E1" }}>{certificate ? "Qualified" : "Pending"}</td>
+                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 12 }}>{certificate ? "Signed" : "—"}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -2529,7 +2550,7 @@ function CourseLearningInner() {
                     fontSize: 13, color: "#334155", marginBottom: 20,
                   }}
                 >
-                  <strong style={{ color: "#1C4463" }}>Team Leader & Evaluator Assessment Signoff (Mr. Anand Dakave):</strong> {evalNotes}
+                  <strong style={{ color: "#1C4463" }}>Evaluator notes ({practicalBy}):</strong> {evalNotes}
                 </div>
               </>
             );
@@ -2540,18 +2561,17 @@ function CourseLearningInner() {
             <Button
               type="primary"
               icon={<TrophyOutlined />}
+              disabled={!certificate}
               onClick={() => {
-                checkAndTriggerCertification(enrollment.id);
-                bumpEnrollment();
                 setReportOpen(false);
-                setTimeout(() => setCertModalOpen(true), 500);
+                setTimeout(() => setCertModalOpen(true), 300);
               }}
               style={{
                 background: "#16A34A", borderColor: "#16A34A", fontWeight: 700, height: 44, padding: "0 28px",
                 fontSize: 14,
               }}
             >
-              Issue Plant Qualification Certificate <RightOutlined />
+              {certificate ? "View certificate" : "Certificate issued when all 4 gates pass"} <RightOutlined />
             </Button>
           </div>
         </div>
@@ -2641,8 +2661,8 @@ function CourseLearningInner() {
                 </div>
 
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1C4463" }}>Dr. Arundhati Bose</div>
-                  <div style={{ fontSize: 11, color: "#78716C" }}>Director of Environmental Training</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1C4463" }}>{certificate.managerSignatory}</div>
+                  <div style={{ fontSize: 11, color: "#78716C" }}>Signatory</div>
                 </div>
               </div>
 
@@ -2651,17 +2671,7 @@ function CourseLearningInner() {
           ) : (
             <div style={{ textAlign: "center", padding: "40px" }}>
               <TrophyOutlined style={{ fontSize: 48, color: "#EAB308", marginBottom: 16 }} />
-              <p style={{ color: "#64748B" }}>Certificate is ready to be issued upon completing the 5-Gate qualification progression.</p>
-              <Button
-                type="primary"
-                onClick={() => {
-                  checkAndTriggerCertification(enrollment.id);
-                  bumpEnrollment();
-                }}
-                style={{ background: "#1C4463", borderColor: "#1C4463" }}
-              >
-                Verify & Claim Certificate
-              </Button>
+              <p style={{ color: "#64748B" }}>The certificate is issued automatically when the skill map, written test, practical and oral viva are all done.</p>
             </div>
           )}
 
@@ -2679,15 +2689,27 @@ function CourseLearningInner() {
         </div>
       </Modal>
 
+      <SkillMapGateModal
+        open={skillQuizOpen}
+        course={course}
+        enrollmentId={enrollment.id}
+        onClose={() => setSkillQuizOpen(false)}
+        onPassed={() => {
+          setSkillQuizOpen(false);
+          bumpEnrollment();
+          setTimeout(() => setSkillMapOpen(true), 300);
+        }}
+      />
+
       {/* ---------------- 6. IN-PERSON EVALUATOR SCORING MODAL (PRACTICAL / ORAL) ---------------- */}
       {evalScoringType && isManager && (
         <EvaluatorScoringModal
           enrollment={enrollment}
-          candidateName={employee?.name ? `${employee.name} (${employee.designation})` : "Shilpa Hotkar (Process Operator)"}
+          candidateName={employee?.name ? `${employee.name}${employee.designation ? ` (${employee.designation})` : ""}` : employeeId}
           course={course}
           type={evalScoringType}
-          evaluatorName={session?.name ? `${session.name} (Plant Manager)` : "Anand Dakave (ETP Plant Manager)"}
-          evaluatorId={session?.employeeId || "emp0123"}
+          evaluatorName={session?.name}
+          evaluatorId={personIdOf(session) ?? ""}
           onClose={() => setEvalScoringType(null)}
           onSubmitted={() => {
             bumpEnrollment();

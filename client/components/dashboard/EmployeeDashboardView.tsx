@@ -21,10 +21,10 @@ import {
 import type { Employee, Site } from "@/lib/mock-data";
 import { getShiftById } from "@/lib/overtime/data";
 import { formatInrAmount, getSalaryHistory, salaryMonthLabel } from "@/lib/salary";
-import { getCertificatesForEmployee, type ViewCertificateItem } from "@/lib/training/store";
+import { getCertificatesForEmployee, getTrainingItems, useTrainingData, type ViewCertificateItem } from "@/lib/training/store";
 import { getNotificationsForEmployee } from "@/lib/notifications";
 import { getOtAssignments } from "@/lib/overtime";
-import { getEmployeeTraining, getEmployeeSkills } from "@/lib/mock-data";
+import { getEmployeeSkills } from "@/lib/mock-data";
 import { nectarColors } from "@/lib/theme";
 import { rowBetween, rowCenterBetween2, sSerifText16SemiboldInkM0 } from "@/lib/styles";
 import type { CSSProperties } from "react";
@@ -187,9 +187,15 @@ export default function EmployeeDashboardView({
     return getNotificationsForEmployee(employee.id);
   }, [employee.id]);
 
+  const { version: trainingVersion } = useTrainingData();
+  /** Open training from the database, most urgent first (completed items excluded). */
   const trainings = useMemo(() => {
-    return getEmployeeTraining(employee.id);
-  }, [employee.id]);
+    void trainingVersion;
+    const rank = { overdue: 0, "due-soon": 1, scheduled: 2, completed: 3 } as const;
+    return getTrainingItems({ employeeId: employee.id })
+      .filter((t) => t.status !== "completed")
+      .sort((a, b) => rank[a.status] - rank[b.status] || (a.dueDate || "9999").localeCompare(b.dueDate || "9999"));
+  }, [employee.id, trainingVersion]);
 
   const skills = useMemo(() => {
     return getEmployeeSkills(employee);
@@ -700,8 +706,10 @@ export default function EmployeeDashboardView({
                     marginTop: 5, fontSize: 11,
                   }}
                 >
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><ClockCircleOutlined style={{ fontSize: 11 }} /> Due: {trainings[0].dueDate}</span>
-                  <span style={{ color: "#2563EB", fontWeight: 500 }}>Scheduled</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><ClockCircleOutlined style={{ fontSize: 11 }} /> {trainings[0].dueDate ? `Due: ${trainings[0].dueDate}` : "No due date"}</span>
+                  <span style={{ color: trainings[0].status === "overdue" ? "#DC2626" : "#2563EB", fontWeight: 500 }}>
+                    {{ overdue: "Overdue", "due-soon": "Due soon", scheduled: "In progress", completed: "Completed" }[trainings[0].status]}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -717,7 +725,7 @@ export default function EmployeeDashboardView({
           </div>
 
           <div style={rowCenterBetweenMt18}>
-            <span style={{ fontSize: 12, color: nectarColors.muted }}>{trainings.length} assigned modules · 1 pending</span>
+            <span style={{ fontSize: 12, color: nectarColors.muted }}>{trainings.length} open · {trainings.filter((t) => t.status === "overdue").length} overdue</span>
             <Link href="/training" style={{ color: nectarColors.leaf, fontSize: 12, fontWeight: 500 }}>Open Training Hub →</Link>
           </div>
         </div>

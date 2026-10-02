@@ -11,43 +11,59 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import type { TrainingSession } from "@/lib/training/types";
-import { getTrainingSessions, createTrainingSession, getAllCourses } from "@/lib/training/store";
-import { employees } from "@/lib/mock-data";
+import { getTrainingSessions, createTrainingSession, getAllCourses, getPeople, getPersonName, useTrainingData } from "@/lib/training/store";
+import { useViewer } from "@/lib/training/hooks";
 import { nectarColors } from "@/lib/theme";
 import { sWhiteR14BorderShadow } from "@/lib/styles";
 
 interface TrainingScheduleViewProps {
-  isManager?: boolean;
+  /** Show only this employee's sessions (learner view). Omit for the manager / Director view. */
   employeeId?: string;
 }
 
-export default function TrainingScheduleView({
-  isManager = false,
-  employeeId,
-}: TrainingScheduleViewProps) {
+/** On-site practical / oral assessment slots (database). Managers and the Director can schedule. */
+export default function TrainingScheduleView({ employeeId }: TrainingScheduleViewProps) {
   const { message } = App.useApp();
-  const [sessions, setSessions] = useState<TrainingSession[]>(() =>
-    getTrainingSessions(isManager ? undefined : employeeId),
-  );
+  const viewer = useViewer();
+  const { ready } = useTrainingData();
+  const isManager = !employeeId && (viewer.role === "manager" || viewer.role === "director");
+  const sessions = getTrainingSessions(employeeId);
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
   const allCourses = getAllCourses();
+  const candidates = getPeople().filter((p) => viewer.role === "director" || p.managerId === viewer.personId);
 
-  const handleCreate = (values: any) => {
-    const newSess = createTrainingSession({
-      title: values.title,
-      type: values.type,
-      scheduledBy: "emp0123",
-      scheduledByName: "Rajesh Kulkarni (Plant Manager)",
-      scheduledAt: values.scheduledAt.format("YYYY-MM-DD HH:mm"),
-      venueOrLink: values.venueOrLink,
-      employeeIds: values.employeeIds,
-      courseId: values.courseId,
-    });
-    setSessions(getTrainingSessions(isManager ? undefined : employeeId));
-    setModalOpen(false);
-    form.resetFields();
-    message.success("Training assessment session scheduled on plant calendar!");
+  const handleCreate = async (values: {
+    title: string;
+    type: TrainingSession["type"];
+    scheduledAt: { toISOString: () => string };
+    venueOrLink: string;
+    employeeIds: string[];
+    courseId: string;
+  }) => {
+    if (!viewer.personId) return;
+    setSaving(true);
+    try {
+      await createTrainingSession({
+        actorId: viewer.personId,
+        title: values.title,
+        type: values.type,
+        scheduledBy: viewer.personId,
+        scheduledByName: viewer.session?.name ?? "",
+        scheduledAt: values.scheduledAt.toISOString(),
+        venueOrLink: values.venueOrLink,
+        employeeIds: values.employeeIds,
+        courseId: values.courseId,
+      });
+      setModalOpen(false);
+      form.resetFields();
+      message.success("Assessment scheduled. The candidates have been notified.");
+    } catch (err) {
+      message.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const columns: ColumnsType<TrainingSession> = [
@@ -80,7 +96,9 @@ export default function TrainingScheduleView({
       render: (dt: string) => (
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
           <CalendarOutlined style={{ color: nectarColors.leaf }} />
-          <span style={{ fontWeight: 500, color: nectarColors.ink }}>{dt}</span>
+          <span style={{ fontWeight: 500, color: nectarColors.ink }}>
+            {isNaN(Date.parse(dt)) ? dt : new Date(dt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
+          </span>
         </div>
       ),
     },
@@ -100,9 +118,7 @@ export default function TrainingScheduleView({
       dataIndex: "employeeIds",
       key: "employeeIds",
       render: (ids: string[]) => {
-        const names = ids
-          .map((id) => employees.find((e) => e.id === id)?.name || id)
-          .join(", ");
+        const names = ids.map((id) => getPersonName(id) ?? id).join(", ");
         return <span style={{ fontSize: 12, fontWeight: 500 }}>{names}</span>;
       },
     },
@@ -142,7 +158,7 @@ export default function TrainingScheduleView({
         )}
       </div>
 
-      <Table rowKey="id" columns={columns} dataSource={sessions} pagination={false} />
+      <Table rowKey="id" columns={columns} dataSource={sessions} pagination={false} loading={!ready} scroll={{ x: 800 }} locale={{ emptyText: "No assessments scheduled" }} />
 
       {/* Schedule Modal */}
       <Modal
@@ -174,7 +190,7 @@ export default function TrainingScheduleView({
           >
             <Select
               mode="multiple"
-              options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.designation})` }))}
+              options={candidates.map((e) => ({ value: e.id, label: `${e.name} (${e.designation ?? ""})` }))}
             />
           </Form.Item>
 
@@ -190,7 +206,7 @@ export default function TrainingScheduleView({
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ background: nectarColors.leaf }}>Confirm Schedule</Button>
+            <Button type="primary" htmlType="submit" loading={saving} style={{ background: nectarColors.leaf }}>Confirm Schedule</Button>
           </div>
         </Form>
       </Modal>

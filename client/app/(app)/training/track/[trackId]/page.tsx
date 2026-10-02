@@ -36,15 +36,18 @@ import {
 import {
   getSpecializationTrackById,
   getCourseById,
-  getMentorProfiles,
-  registerForDropInClinic,
+  getEnrollmentsForEmployee,
+  enrollInCourse,
+  useTrainingData,
 } from "@/lib/training/store";
 import { getSession } from "@/lib/auth";
-import { scopedEmployeeId, selfEmployeeId } from "@/lib/rbac";
-import { getEmployeeById } from "@/lib/mock-data";
+import { personIdOf } from "@/lib/training/identity";
+import { getEvents } from "@/lib/api/training";
+import EventCard from "@/components/training/ui/EventCard";
+import uiStyles from "@/components/training/ui/training.module.css";
 import { CourseraRecommendationsGrid } from "@/components/training/CourseraRecommendationsGrid";
 import { nectarColors } from "@/lib/theme";
-import type { SpecializationTrack, Course, MentorProfile } from "@/lib/training/types";
+import type { SpecializationTrack, Course, TrainingEvent } from "@/lib/training/types";
 import type { CSSProperties } from "react";
 
 const sText11BoldUpperColorBgPadR4: CSSProperties = {
@@ -88,15 +91,13 @@ export default function SpecializationTrackPage() {
   const trackId = Array.isArray(params.trackId) ? params.trackId[0] : params.trackId;
 
   const session = getSession();
-  const employeeId = scopedEmployeeId(session) ?? selfEmployeeId(session) ?? "emp0126";
-  const employee = getEmployeeById(employeeId);
+  const employeeId = personIdOf(session) ?? "";
+  const { version } = useTrainingData();
 
   const [track, setTrack] = useState<SpecializationTrack | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [mentor, setMentor] = useState<MentorProfile | null>(null);
-  const [selectedClinicId, setSelectedClinicId] = useState<string>("");
-  const [clinicNotes, setClinicNotes] = useState<string>("");
-  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
+  const [events, setEvents] = useState<TrainingEvent[]>([]);
+  const [enrolling, setEnrolling] = useState(false);
   const [activeSubNav, setActiveSubNav] = useState<string>("about");
 
   useEffect(() => {
@@ -104,22 +105,20 @@ export default function SpecializationTrackPage() {
     const foundTrack = getSpecializationTrackById(trackId);
     if (foundTrack) {
       setTrack(foundTrack);
-
-      // Resolve courses in this specialization
-      const resolvedCourses = foundTrack.courseIds
-        .map((cid) => getCourseById(cid))
-        .filter((c): c is Course => !!c);
-      setCourses(resolvedCourses);
-
-      // Resolve lead mentor
-      const mentors = getMentorProfiles();
-      const leadMentor = mentors.find((m) => m.id === foundTrack.leadMentorId) || mentors[0];
-      setMentor(leadMentor);
-      if (leadMentor && leadMentor.publishedClinics.length > 0) {
-        setSelectedClinicId(leadMentor.publishedClinics[0].id);
-      }
+      // Courses come from the database; ids the database doesn't have are skipped
+      setCourses(foundTrack.courseIds.map((cid) => getCourseById(cid)).filter((c): c is Course => !!c));
     }
-  }, [trackId]);
+  }, [trackId, version]);
+
+  // Upcoming events (replaces the old mock "drop-in clinics")
+  useEffect(() => {
+    if (!employeeId) return;
+    getEvents({ viewerId: employeeId, view: "upcoming" })
+      .then((list) => setEvents(list.filter((e) => e.status === "published").slice(0, 4)))
+      .catch(() => setEvents([]));
+  }, [employeeId]);
+
+  const isEnrolled = courses.length > 0 && getEnrollmentsForEmployee(employeeId).some((e) => courses.some((c) => c.id === e.courseId));
 
   if (!track) {
     return (
@@ -131,22 +130,25 @@ export default function SpecializationTrackPage() {
     );
   }
 
-  const handleEnroll = () => {
-    setIsEnrolled(true);
-    message.success(`You are now enrolled in ${track.title}! You can start any course in the series.`);
-  };
-
-  const handleBookClinic = () => {
-    if (!mentor || !selectedClinicId) {
-      message.warning("Please select an available office hours clinic slot.");
+  /** Enrolling in a specialization enrolls you in its first course (in the database). */
+  const handleEnroll = async () => {
+    if (isEnrolled) {
+      router.push(`/training/learn/${courses[0].id}`);
       return;
     }
-    const res = registerForDropInClinic(mentor.id, employee?.id || "EMP-001", selectedClinicId, clinicNotes);
-    if (res.success) {
-      message.success(res.message);
-      setClinicNotes("");
-    } else {
-      message.error(res.message);
+    if (!courses.length || !employeeId) {
+      message.warning("This specialization has no courses in the catalog yet.");
+      return;
+    }
+    setEnrolling(true);
+    try {
+      await enrollInCourse(employeeId, courses[0].id);
+      message.success(`Enrolled. Start with ${courses[0].code}.`);
+      router.push(`/training/learn/${courses[0].id}`);
+    } catch (err) {
+      message.error((err as Error).message);
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -261,27 +263,6 @@ export default function SpecializationTrackPage() {
               {/* Subtitle */}
               <p style={{ fontSize: 16.5, lineHeight: 1.55, color: "#CBD5E1", margin: "0 0 24px 0", maxWidth: 680 }}>{track.subtitle}</p>
 
-              {/* Instructor / Mentor Credit */}
-              {mentor && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 26 }}>
-                  <div
-                    style={{
-                      width: 44, height: 44, borderRadius: "50%", overflow: "hidden", border: "2px solid #0EA5E9",
-                      position: "relative", background: "#1E293B",
-                    }}
-                  >
-                    <Image src={mentor.photoUrl} alt={mentor.name} fill sizes="44px" style={{ objectFit: "cover" }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: "#94A3B8" }}>Taught by Lead Process Mentor</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>
-                      {mentor.name}{" "}
-                      <span style={{ fontWeight: 400, color: "#93C5FD", fontSize: 12.5 }}>— {mentor.role}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Ratings, Learners, and Credential strip */}
               <div
                 style={{
@@ -313,6 +294,7 @@ export default function SpecializationTrackPage() {
                   type="primary"
                   size="large"
                   onClick={handleEnroll}
+                  loading={enrolling}
                   style={{
                     height: 52,
                     padding: "0 36px",
@@ -326,7 +308,7 @@ export default function SpecializationTrackPage() {
                     boxShadow: "0 10px 24px rgba(14, 165, 233, 0.35)",
                   }}
                 >
-                  {isEnrolled ? "✓ Enrolled in Specialization" : "Enroll in Specialization (Free for NEIPL)"}
+                  {isEnrolled ? "✓ Enrolled · Continue" : "Enroll in Specialization"}
                 </Button>
 
                 {courses.length > 0 && (
@@ -421,7 +403,7 @@ export default function SpecializationTrackPage() {
             { id: "outcomes", label: "What You'll Learn" },
             { id: "courses", label: `Courses (${track.courseIds.length})` },
             { id: "project", label: "Applied Project" },
-            { id: "mentors", label: "Mentors & Clinics" },
+            { id: "mentors", label: "Upcoming events" },
             { id: "certificate", label: "Certificate" },
             { id: "recommendations-section", label: "Recommended Programs" },
           ].map((item) => (
@@ -717,110 +699,19 @@ export default function SpecializationTrackPage() {
         </section>
 
         {/* SECTION: SENIOR PROCESS MENTOR & DROP-IN CLINICS */}
-        {mentor && (
-          <section id="mentors" style={{ marginBottom: 56, scrollMarginTop: 80 }}>
-            <div style={{ marginBottom: 20 }}>
-              <span style={sText11BoldUpperColorBgPadR4}>PLANT OPERATIONS FACULTY</span>
-              <h2 style={sText24Color}>Lead Mentor & Drop-In Office Hours</h2>
-              <p style={{ fontSize: 14, color: "#64748B", margin: 0 }}>
-                Every Specialization includes direct drop-in clinic access with senior NEIPL process
-                engineers for viva coaching, plant incident troubleshooting, and question resolution.
-              </p>
-            </div>
+        <section id="mentors" style={{ marginBottom: 56, scrollMarginTop: 80 }}>
+          <div style={{ marginBottom: 20 }}>
+            <span style={sText11BoldUpperColorBgPadR4}>LIVE</span>
+            <h2 style={sText24Color}>Upcoming events with our mentors</h2>
+            <p style={{ color: "#64748B", margin: 0 }}>Masterclasses and plant seminars you can join while doing this specialization.</p>
+          </div>
+          {events.length ? (
+            <div className={uiStyles.grid}>{events.map((e) => <EventCard key={e.id} event={e} />)}</div>
+          ) : (
+            <p style={{ color: "#64748B" }}>No upcoming events right now. <Link href="/training/events">See all events</Link></p>
+          )}
+        </section>
 
-            <div style={sWhitePadR16BorderShadow}>
-              <Row gutter={[32, 28]} align="middle">
-                {/* Mentor Avatar & Bio */}
-                <Col xs={24} md={10}>
-                  <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
-                    <div
-                      style={{
-                        width: 90, height: 90, borderRadius: "50%", overflow: "hidden", border: "3px solid #1C4463",
-                        position: "relative", flexShrink: 0,
-                      }}
-                    >
-                      <Image src={mentor.photoUrl} alt={mentor.name} fill sizes="90px" style={{ objectFit: "cover" }} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: 19, fontWeight: 800, color: "#0F172A", margin: 0 }}>{mentor.name}</h3>
-                      <div style={{ fontSize: 13, color: "#1C4463", fontWeight: 600, marginTop: 2 }}>{mentor.role}</div>
-                      <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{mentor.department}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, fontSize: 12 }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <StarFilled style={{ color: "#EAB308" }} />
-                          <strong>{mentor.rating.toFixed(1)}</strong>
-                        </span>
-                        <span>•</span>
-                        <span>{mentor.sessionCount} clinics conducted</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 18, fontSize: 13, lineHeight: 1.5, color: "#475569", background: "#F8FAFC",
-                      padding: "12px 16px", borderRadius: 8,
-                    }}
-                  >
-                    <strong>Specialization Focus:</strong> {mentor.specialty}
-                  </div>
-                </Col>
-
-                {/* Drop-in Office Hours Booking Widget */}
-                <Col xs={24} md={14}>
-                  <div
-                    style={{ background: "#F8FAFC", borderRadius: 12, padding: "24px", border: "1px solid #E2E8F0" }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 14, fontWeight: 700, color: "#0F172A", marginBottom: 12, display: "flex",
-                        alignItems: "center", gap: 6,
-                      }}
-                    >
-                      <CalendarOutlined style={{ color: "#1C4463" }} />
-                      Reserve an Upcoming Drop-In Clinic Slot
-                    </div>
-
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={sText12SemiboldColorMb6}>Available Time Windows:</label>
-                      <Select
-                        value={selectedClinicId}
-                        onChange={(val) => setSelectedClinicId(val)}
-                        style={{ width: "100%" }}
-                        options={mentor.publishedClinics.map((c) => ({
-                          value: c.id,
-                          label: `${c.dayTime} — ${c.location} (${c.capacity - c.registeredCount} seats left)`,
-                        }))}
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={sText12SemiboldColorMb6}>Operational Question / Viva Topic (Optional):</label>
-                      <Input
-                        placeholder="e.g., Clarifier MLSS calculation or MBR chemical cleaning steps..."
-                        value={clinicNotes}
-                        onChange={(e) => setClinicNotes(e.target.value)}
-                      />
-                    </div>
-
-                    <Button
-                      type="primary"
-                      onClick={handleBookClinic}
-                      style={{
-                        background: "#1C4463", borderColor: "#1C4463", fontWeight: 700, height: 40, padding: "0 20px",
-                        borderRadius: 6,
-                      }}
-                    >
-                      Confirm Drop-In Slot Reservation
-                    </Button>
-                  </div>
-                </Col>
-              </Row>
-            </div>
-          </section>
-        )}
-
-        {/* SECTION: CERTIFICATE PREVIEW */}
         <section id="certificate" style={{ marginBottom: 56, scrollMarginTop: 80 }}>
           <div style={sWhitePadR16BorderShadow}>
             <Row gutter={[32, 24]} align="middle">
@@ -861,9 +752,9 @@ export default function SpecializationTrackPage() {
                     position: "relative",
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#1C4463", letterSpacing: "0.06em" }}>NECTA ENVIRO OPERATIONS ACADEMY</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#1C4463", letterSpacing: "0.06em" }}>NECTAR ENVIRO OPERATIONS ACADEMY</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", marginTop: 6, marginBottom: 8 }}>Certificate of Specialization Mastery</div>
-                  <div style={{ fontSize: 11, color: "#64748B", marginBottom: 12 }}>Awarded to: <strong>{employee?.name || "Employee"}</strong></div>
+                  <div style={{ fontSize: 11, color: "#64748B", marginBottom: 12 }}>Awarded to: <strong>{session?.name ?? "—"}</strong></div>
                   <div
                     style={{
                       display: "inline-block", border: "1px dashed #0284C7", padding: "4px 10px", borderRadius: 4,
