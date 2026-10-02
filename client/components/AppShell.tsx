@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import gsap from "gsap";
 import {
+  App,
   Avatar,
   Badge,
   Dropdown,
@@ -12,6 +13,7 @@ import {
   Menu,
   Modal,
   Spin,
+  Tag,
   Typography,
   theme,
 } from "antd";
@@ -33,9 +35,10 @@ import {
   SafetyCertificateOutlined,
   WalletOutlined,
   BellOutlined,
+  VideoCameraOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
-import { getSession, logout, type SessionUser } from "@/lib/auth";
+import { getSession, logout, type SessionUser, type UserRole } from "@/lib/auth";
 import { resetDemoLocalData } from "@/lib/demo-reset";
 import { getEmployeeById, getSiteById } from "@/lib/mock-data";
 import { getUnreadCount } from "@/lib/notifications";
@@ -62,7 +65,22 @@ const FLYOUT_TITLES: Record<string, string> = {
   shifts: "Shifts",
   overtime: "OverTime",
   academy: "Academy",
+  "academic-records": "Academic Records",
 };
+
+/** HR / Manager / Director see Training + Certifications as records; everyone else as Academy. */
+function academyNavGroup(role: UserRole): NonNullable<MenuProps["items"]>[number] {
+  const isRecords = role === "hr" || role === "manager" || role === "director";
+  return {
+    key: isRecords ? "academic-records" : "academy",
+    icon: <BookOutlined />,
+    label: isRecords ? "Academic Records" : "Academy",
+    children: [
+      { key: "/training", icon: <ReadOutlined />, label: "Training" },
+      { key: "/certifications", icon: <SafetyCertificateOutlined />, label: "Certifications" },
+    ],
+  };
+}
 
 function readSiderCollapsed(): boolean {
   if (typeof window === "undefined") return false;
@@ -100,13 +118,7 @@ function GsapFlyoutCard({
       gsap.fromTo(
         cardRef.current,
         { opacity: 0, x: -12, scale: 0.94 },
-        {
-          opacity: 1,
-          x: 0,
-          scale: 1,
-          duration: 0.28,
-          ease: "power3.out",
-        }
+        { opacity: 1, x: 0, scale: 1, duration: 0.28, ease: "power3.out" }
       );
     }
   }, []);
@@ -168,12 +180,26 @@ const pageTitles: Record<string, string> = {
   "/notifications": "Notifications",
   "/certifications": "Certifications",
   "/salary": "Salary history",
+  "/meetings": "Meetings",
+};
+
+/** Visible to every role; feature not built yet. */
+const meetingsNavItem: NonNullable<MenuProps["items"]>[number] = {
+  key: "/meetings",
+  icon: <VideoCameraOutlined />,
+  label: (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      Meetings
+      <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
+    </span>
+  ),
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { token } = theme.useToken();
+  const { message } = App.useApp();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -223,14 +249,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         gsap.fromTo(
           items,
           { opacity: 0, x: -12 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.32,
-            stagger: 0.02,
-            ease: "power2.out",
-            clearProps: "transform,opacity",
-          }
+          { opacity: 1, x: 0, duration: 0.32, stagger: 0.02, ease: "power2.out", clearProps: "transform,opacity" }
         );
       }
     }
@@ -246,14 +265,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         gsap.fromTo(
           openSubItems,
           { opacity: 0, y: -6 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.28,
-            stagger: 0.035,
-            ease: "power2.out",
-            clearProps: "transform,opacity",
-          }
+          { opacity: 1, y: 0, duration: 0.28, stagger: 0.035, ease: "power2.out", clearProps: "transform,opacity" }
         );
       }
     }
@@ -274,11 +286,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ".ant-menu-item, .ant-menu-submenu-title"
       );
       if (target && !target.classList.contains("ant-menu-item-selected")) {
-        gsap.to(target, {
-          x: 4,
-          duration: 0.22,
-          ease: "power2.out",
-        });
+        gsap.to(target, { x: 4, duration: 0.22, ease: "power2.out" });
       }
     };
 
@@ -287,11 +295,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ".ant-menu-item, .ant-menu-submenu-title"
       );
       if (target) {
-        gsap.to(target, {
-          x: 0,
-          duration: 0.25,
-          ease: "power2.out",
-        });
+        gsap.to(target, { x: 0, duration: 0.25, ease: "power2.out" });
       }
     };
 
@@ -335,12 +339,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/shifts") && canViewShiftsNav(user)) {
       extras.push("shifts");
     }
-    const role = normalizeRole(user?.role);
-    if (
-      role === "employee" &&
-      (pathname.startsWith("/training") || pathname.startsWith("/certifications"))
-    ) {
-      extras.push("academy");
+    if (pathname.startsWith("/training") || pathname.startsWith("/certifications")) {
+      const group = academyNavGroup(normalizeRole(user?.role));
+      if (group?.key) extras.push(String(group.key));
     }
     if (!extras.length) return;
     const id = requestAnimationFrame(() => {
@@ -423,13 +424,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         gsap.fromTo(
           activeItem,
           { scale: 0.96, opacity: 0.85 },
-          {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: "back.out(1.8)",
-            clearProps: "transform,opacity",
-          }
+          { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.8)", clearProps: "transform,opacity" }
         );
       }
     }
@@ -472,24 +467,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             { key: "/leave/requests", label: "My requests" },
           ],
         },
-        {
-          key: "academy",
-          icon: <BookOutlined />,
-          label: "Academy",
-          children: [
-            { key: "/training", icon: <ReadOutlined />, label: "Training" },
-            {
-              key: "/certifications",
-              icon: <SafetyCertificateOutlined />,
-              label: "Certifications",
-            },
-          ],
-        },
-        {
-          key: "/salary",
-          icon: <WalletOutlined />,
-          label: "Salary history",
-        },
+        academyNavGroup(role),
+        { key: "/salary", icon: <WalletOutlined />, label: "Salary history" },
+        meetingsNavItem,
       ] as MenuProps["items"];
     }
 
@@ -509,45 +489,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ];
 
     if (canViewSitesNav(user)) {
-      items.push({
-        key: "/sites",
-        icon: <EnvironmentOutlined />,
-        label: "Sites",
-      });
+      items.push({ key: "/sites", icon: <EnvironmentOutlined />, label: "Sites" });
     }
 
-    items.push(
-      { key: "/training", icon: <ReadOutlined />, label: "Training" },
-      {
-        key: "/certifications",
-        icon: <SafetyCertificateOutlined />,
-        label: "Certifications",
-      },
-    );
+    items.push(academyNavGroup(role));
 
     if (canViewShiftsNav(user) && shiftKids.length) {
-      items.push({
-        key: "shifts",
-        icon: <ScheduleOutlined />,
-        label: "Shifts",
-        children: shiftKids,
-      });
+      items.push({ key: "shifts", icon: <ScheduleOutlined />, label: "Shifts", children: shiftKids });
     }
 
     if (canViewRelieverPoolNav(user)) {
-      items.push({
-        key: "/reliever-pool",
-        icon: <ClusterOutlined />,
-        label: "Reliever Pool",
-      });
+      items.push({ key: "/reliever-pool", icon: <ClusterOutlined />, label: "Reliever Pool" });
     }
 
-    items.push({
-      key: "leave",
-      icon: <CalendarOutlined />,
-      label: "Leave",
-      children: leaveKids,
-    });
+    items.push({ key: "leave", icon: <CalendarOutlined />, label: "Leave", children: leaveKids });
 
     if (canViewOtModule(user)) {
       items.push({
@@ -563,6 +518,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       });
     }
 
+    items.push(meetingsNavItem);
+
     return items;
   }, [user]);
 
@@ -577,26 +534,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const userMenu: MenuProps["items"] = [
     ...(profileHref
       ? [
-          {
-            key: "my-profile",
-            icon: <UserOutlined />,
-            label: "My Profile",
-            onClick: () => router.push(profileHref),
-          },
+          { key: "my-profile", icon: <UserOutlined />, label: "My Profile", onClick: () => router.push(profileHref) },
           { type: "divider" as const },
         ]
       : []),
-    {
-      key: "settings",
-      icon: <SettingOutlined />,
-      label: "Settings",
-      onClick: () => setSettingsOpen(true),
-    },
-    {
-      key: "role",
-      label: `Role: ${roleLabel(user?.role)}`,
-      disabled: true,
-    },
+    { key: "settings", icon: <SettingOutlined />, label: "Settings", onClick: () => setSettingsOpen(true) },
+    { key: "role", label: `Role: ${roleLabel(user?.role)}`, disabled: true },
     {
       key: "logout",
       icon: <LogoutOutlined />,
@@ -610,16 +553,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: nectarColors.sand,
-        }}
-      >
-        <Spin size="large" />
-      </div>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: nectarColors.sand }}><Spin size="large" /></div>
     );
   }
 
@@ -637,43 +571,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         collapsedWidth={72}
         trigger={null}
         className={`nectar-sider${collapsed ? " nectar-sider-collapsed" : ""}`}
-        style={{
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          overflow: collapsed ? "visible" : "auto",
-          zIndex: 20,
-        }}
+        style={{ position: "sticky", top: 0, height: "100vh", overflow: collapsed ? "visible" : "auto", zIndex: 20 }}
       >
         <div ref={siderRef}>
         <Link
           href="/dashboard"
           style={{
-            display: "flex",
-            alignItems: "center",
-            padding: collapsed ? "20px 8px" : "20px 20px",
-            textDecoration: "none",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-            justifyContent: collapsed ? "center" : "flex-start",
-            overflow: "hidden",
-            height: 68,
+            display: "flex", alignItems: "center", padding: collapsed ? "20px 8px" : "20px 20px",
+            textDecoration: "none", borderBottom: "1px solid rgba(255,255,255,0.08)",
+            justifyContent: collapsed ? "center" : "flex-start", overflow: "hidden", height: 68,
           }}
         >
           {collapsed ? (
             <div
               ref={logoShortRef}
               style={{
-                color: nectarColors.white,
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: "0.05em",
-                background: "rgba(28, 68, 99, 0.4)",
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                display: "grid",
-                placeItems: "center",
-                border: "1px solid rgba(255,255,255,0.12)",
+                color: nectarColors.white, fontSize: 14, fontWeight: 700, letterSpacing: "0.05em",
+                background: "rgba(28, 68, 99, 0.4)", width: 36, height: 36, borderRadius: 8, display: "grid",
+                placeItems: "center", border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
               NE
@@ -682,23 +597,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div ref={logoFullRef} style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
-                  color: nectarColors.white,
-                  fontSize: 16,
-                  lineHeight: 1.2,
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
+                  fontFamily: "var(--font-dm-sans), system-ui, sans-serif", color: nectarColors.white, fontSize: 16,
+                  lineHeight: 1.2, fontWeight: 600, whiteSpace: "nowrap",
                 }}
               >
                 Nectar Enviro
               </div>
               <div
-                style={{
-                  color: "rgba(255,255,255,0.55)",
-                  fontSize: 11,
-                  letterSpacing: "0.02em",
-                  whiteSpace: "nowrap",
-                }}
+                style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: "0.02em", whiteSpace: "nowrap" }}
               >
                 Ops Console
               </div>
@@ -724,11 +630,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           triggerSubMenuAction="hover"
           tooltip={{ placement: "right" }}
           items={navItemsFiltered}
-          classNames={{
-            popup: {
-              root: "nectar-sider-flyout",
-            },
-          }}
+          classNames={{ popup: { root: "nectar-sider-flyout" } }}
           popupRender={(node, info) => {
             const path = info.keys ?? [];
             const key = String(path[path.length - 1] ?? path[0] ?? "");
@@ -738,9 +640,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 (info.item as { label?: unknown } | undefined)?.label,
               );
             return (
-              <GsapFlyoutCard title={title}>
-                {node as ReactElement}
-              </GsapFlyoutCard>
+              <GsapFlyoutCard title={title}>{node as ReactElement}</GsapFlyoutCard>
             );
           }}
           onClick={({ key }) => {
@@ -748,8 +648,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               key === "overtime" ||
               key === "leave" ||
               key === "shifts" ||
-              key === "academy"
+              key === "academy" ||
+              key === "academic-records"
             ) {
+              return;
+            }
+            if (key === "/meetings") {
+              message.info("Meetings — coming soon. This feature is under development.");
               return;
             }
             router.push(key);
@@ -763,12 +668,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Layout>
         <Header
           style={{
-            padding: "0 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            background: nectarColors.white,
+            padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
+            borderBottom: `1px solid ${token.colorBorderSecondary}`, background: nectarColors.white,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -778,25 +679,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={handleToggleCollapse}
               style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: 18,
-                color: nectarColors.ink,
-                display: "grid",
-                placeItems: "center",
-                padding: 4,
+                border: "none", background: "transparent", cursor: "pointer", fontSize: 18, color: nectarColors.ink,
+                display: "grid", placeItems: "center", padding: 4,
               }}
             >
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </button>
             <Typography.Title
               level={4}
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                color: nectarColors.ink,
-              }}
+              style={{ margin: 0, fontFamily: "var(--font-fraunces), Georgia, serif", color: nectarColors.ink }}
             >
               {headerTitle}
             </Typography.Title>
@@ -809,43 +700,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 aria-label="Notifications"
                 onClick={() => router.push("/notifications")}
                 style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  display: "grid",
-                  placeItems: "center",
-                  padding: 6,
-                  color: nectarColors.ink,
-                  fontSize: 18,
-                  borderRadius: 8,
+                  border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center",
+                  padding: 6, color: nectarColors.ink, fontSize: 18, borderRadius: 8,
                 }}
               >
-                <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-                  <BellOutlined style={{ fontSize: 18, color: nectarColors.ink }} />
-                </Badge>
+                <Badge count={unreadCount} size="small" offset={[-2, 2]}><BellOutlined style={{ fontSize: 18, color: nectarColors.ink }} /></Badge>
               </button>
             ) : null}
             <Dropdown menu={{ items: userMenu }} placement="bottomRight">
               <button
                 type="button"
                 style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "4px 0",
+                  border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center",
+                  gap: 10, padding: "4px 0",
                 }}
               >
-                <Avatar
-                  size="small"
-                  icon={<UserOutlined />}
-                  style={{ background: nectarColors.leaf }}
-                />
-                <span style={{ color: nectarColors.ink, fontSize: 14 }}>
-                  {user?.name}
-                </span>
+                <Avatar size="small" icon={<UserOutlined />} style={{ background: nectarColors.leaf }} />
+                <span style={{ color: nectarColors.ink, fontSize: 14 }}>{user?.name}</span>
               </button>
             </Dropdown>
           </div>

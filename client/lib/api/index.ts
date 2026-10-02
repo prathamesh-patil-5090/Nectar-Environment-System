@@ -5,3 +5,4 @@ export * from './leaves';
 export * from './shifts';
 export * from './training';
 export * from './relievers';
+export * from './meetings';

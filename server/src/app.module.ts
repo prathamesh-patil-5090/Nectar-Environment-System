@@ -9,6 +9,7 @@ import { TrainingModule } from './modules/training/training.module';
 import { RelieversModule } from './modules/relievers/relievers.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { HealthModule } from './modules/health/health.module';
+import { MeetingsModule } from './modules/meetings/meetings.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { HealthModule } from './modules/health/health.module';
     ShiftsModule,
     TrainingModule,
     RelieversModule,
+    MeetingsModule,
     HealthModule,
   ],
 })
