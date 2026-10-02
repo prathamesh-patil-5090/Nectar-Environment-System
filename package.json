@@ -9,7 +9,8 @@
     "server": "npm run start:dev --prefix server",
     "install:all": "npm install && npm install --prefix client && npm install --prefix server",
     "build": "npm run build --prefix client && npm run build --prefix server",
-    "seed": "npx ts-node server/db/seeds/index.ts"
+    "seed": "npx ts-node server/db/seeds/index.ts",
+    "seed:credentials": "npx tsx client/scripts/seed-demo-credentials.ts"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -6,6 +6,18 @@ import {
 } from "@/lib/reliever/pool";
 import { leaveImpactFromEngine } from "@/lib/shift-impact/engine";
 import { registerCoverageApi, registerLeaveApi } from "@/lib/shift-impact/registry";
+import { assertCanSiteApproveLeaveOrThrow } from "@/lib/manpower-conflict/gates";
+import { registerManpowerSources } from "@/lib/manpower-conflict/sources";
+import { assertCanAssignContestedCandidate } from "@/lib/reliever-competition/gates";
+import {
+  assertCanAcceptOtOrThrow,
+  approveOtDecision,
+  ensurePendingOtDecision,
+} from "@/lib/ot-decision";
+import {
+  detectConflicts,
+  validateScheduleAssignments,
+} from "@/lib/shift/store";
 import { registerCoveringLeaveCheck } from "./coverage";
 import type {
   LeaveImpact,
@@ -328,6 +340,50 @@ const seed: LeaveRequest[] = [
         "Employee rejected consent",
         "I did not ask for leave — please cancel",
         "2026-09-22T14:00:00Z",
+      ),
+    ],
+  },
+  {
+    id: "lv8",
+    employeeId: "emp0128",
+    employeeName: "Mohee Vinchu",
+    siteId: "s-etp",
+    department: "Operations",
+    shiftId: "sh-morning",
+    mode: "planned",
+    leaveType: "casual",
+    status: "EXTENSION_REQUIRED",
+    entrySource: "employee",
+    startDate: "2026-09-18",
+    endDate: "2026-09-20",
+    expectedReturnDate: "2026-09-21",
+    actualReturnDate: "2026-09-23",
+    reason: "Wedding travel — delayed return",
+    requestedByName: "Mohee Vinchu",
+    enteredByName: "Mohee Vinchu",
+    enteredByRole: "employee",
+    supervisorName: "Neetesh Diwathe",
+    siteInChargeName: "Bidhichand Rajbhar",
+    managerName: "Anand Dakave",
+    replacementRequired: true,
+    assignedRelieverId: "rv1",
+    coverSource: "local_pool",
+    replacementPlan: "Sanjay Kamble arranged from local reliever pool",
+    potentialOtHours: 0,
+    potentialOtCost: 0,
+    leaveBalanceDays: 4,
+    daysRequested: 3,
+    createdAt: "2026-09-15T10:00:00Z",
+    updatedAt: "2026-09-23T08:00:00Z",
+    timeline: [
+      event("Mohee Vinchu", "employee", "Leave requested", undefined, "2026-09-15T10:00:00Z"),
+      event("Anand Dakave", "management", "Leave approved", "Cover assigned", "2026-09-16T11:00:00Z"),
+      event(
+        "Neetesh Diwathe",
+        "supervisor",
+        "Late return — extension required",
+        "Actual return 2026-09-23",
+        "2026-09-23T08:00:00Z",
       ),
     ],
   },
@@ -762,12 +818,24 @@ export function siteApprove(
     relieverId?: string;
     otFallback?: boolean;
     approveAnyway?: boolean;
+    competitionCleared?: boolean;
+    /** Manager remark clearing OT soft block */
+    otRemark?: string;
+    otActorRole?: "sic" | "manager" | "director";
+    otAssigneeEmployeeId?: string;
   },
 ) {
   const leave = requireLeave(id);
   const next: LeaveStatus =
     leave.mode === "emergency" ? "SITE_VERIFIED" : "SITE_APPROVED";
   assertLeaveTransition(leave, next);
+
+  // Hard gate: cover/OT required for vacancies; schedule attention cannot be OT'd away
+  assertCanSiteApproveLeaveOrThrow(id, {
+    relieverId: opts?.relieverId,
+    otFallback: opts?.otFallback,
+    arrangeReplacement: opts?.arrangeReplacement,
+  });
 
   const impact = computeLeaveImpact(leave.employeeId, leave.startDate, leave.endDate);
   let replacementPlan = leave.replacementPlan;
@@ -798,9 +866,53 @@ export function siteApprove(
   };
 
   if (opts?.relieverId || opts?.otFallback) {
+    if (opts.otFallback) {
+      const role = opts.otActorRole ?? "sic";
+      assertCanAcceptOtOrThrow({
+        siteId: leave.siteId,
+        date: leave.startDate,
+        shiftId: leave.shiftId,
+        leaveId: leave.id,
+        trigger: "leave_cover",
+        remark: opts.otRemark,
+        actorRole: role,
+      });
+      if (
+        opts.otRemark &&
+        (role === "manager" || role === "director")
+      ) {
+        const pending = ensurePendingOtDecision({
+          siteId: leave.siteId,
+          date: leave.startDate,
+          shiftId: leave.shiftId,
+          leaveId: leave.id,
+          trigger: "leave_cover",
+        });
+        approveOtDecision({
+          decisionId: pending.id,
+          actor,
+          remark: opts.otRemark,
+          employeeId: opts.otAssigneeEmployeeId,
+        });
+      }
+    }
+    if (opts.relieverId) {
+      const gate = assertCanAssignContestedCandidate({
+        leaveId: leave.id,
+        candidateId: opts.relieverId,
+        from: leave.startDate,
+        to: leave.endDate,
+        siteId: leave.siteId,
+        competitionCleared: opts.competitionCleared,
+      });
+      if (!gate.ok) {
+        throw new Error(gate.reasons.join(" "));
+      }
+    }
     const cover = assignChosenRelieverForLeave(
       coverInput,
       opts.relieverId ? { relieverId: opts.relieverId } : { ot: true },
+      { competitionCleared: true },
     );
     replacementPlan = cover.plan;
     coverSource = cover.coverSource;
@@ -962,12 +1074,53 @@ export function adminFinalizeLeave(
   return finalizeApprove(id, actor);
 }
 
-export function confirmReturn(id: string, actor: string, actualReturnDate: string) {
-  const leave = requireLeave(id);
+export function confirmReturn(
+  id: string,
+  actor: string,
+  actualReturnDate: string,
+  opts?: {
+    remark?: string;
+    requireManagerForExtension?: boolean;
+  },
+) {
+  const leave = getLeaveById(id);
+  if (!leave) throw new Error("Not found");
   const planned = new Date(leave.expectedReturnDate + "T00:00:00Z").getTime();
   const actual = new Date(actualReturnDate + "T00:00:00Z").getTime();
   // "late" needs APPROVED, so it never overlaps the EXTENSION_REQUIRED close-out below
   const late = leave.status === "APPROVED" && actual > planned;
+
+  if (leave.status === "EXTENSION_REQUIRED") {
+    if (opts?.requireManagerForExtension !== false) {
+      if (!opts?.remark?.trim()) {
+        throw new Error(
+          "Manager remark is required to close an extension (Lifecycle soft block).",
+        );
+      }
+    }
+    assertLeaveTransition(leave, "CLOSED");
+    releaseRelieverForLeave(id);
+    return updateLeave(
+      id,
+      {
+        actualReturnDate,
+        status: "CLOSED",
+        assignedRelieverId: undefined,
+        assignedCoverEmployeeId: undefined,
+        replacementPlan: leave.replacementPlan
+          ? `${leave.replacementPlan} · replacement released`
+          : "Temporary replacement released",
+      },
+      event(
+        actor,
+        "management",
+        "Extension closed — return confirmed",
+        opts?.remark?.trim()
+          ? `${opts.remark.trim()} · Actual return ${actualReturnDate}`
+          : `Actual return ${actualReturnDate}`,
+      ),
+    );
+  }
 
   if (late) {
     assertLeaveTransition(leave, "EXTENSION_REQUIRED");
@@ -986,7 +1139,6 @@ export function confirmReturn(id: string, actor: string, actualReturnDate: strin
     );
   }
 
-  const closingExtension = leave.status === "EXTENSION_REQUIRED";
   assertLeaveTransition(leave, "CLOSED");
   releaseRelieverForLeave(id);
   return updateLeave(
@@ -995,6 +1147,7 @@ export function confirmReturn(id: string, actor: string, actualReturnDate: strin
       actualReturnDate,
       status: "CLOSED",
       assignedRelieverId: undefined,
+      assignedCoverEmployeeId: undefined,
       replacementPlan: leave.replacementPlan
         ? `${leave.replacementPlan} · replacement released`
         : "Temporary replacement released",
@@ -1002,9 +1155,33 @@ export function confirmReturn(id: string, actor: string, actualReturnDate: strin
     event(
       actor,
       "supervisor",
-      closingExtension ? "Extension closed — return confirmed" : "Return to duty confirmed",
+      "Return to duty confirmed",
       `Actual return ${actualReturnDate}`,
     ),
+  );
+}
+
+/** Clear cover after no-show / unavailable without closing the leave. */
+export function markCoverDisrupted(
+  id: string,
+  actor: string,
+  kind: string,
+  note: string,
+) {
+  const leave = getLeaveById(id);
+  if (!leave) throw new Error("Not found");
+  return updateLeave(
+    id,
+    {
+      assignedRelieverId: undefined,
+      assignedCoverEmployeeId: undefined,
+      coverSource: undefined,
+      replacementRequired: true,
+      replacementPlan: leave.replacementPlan
+        ? `${leave.replacementPlan} · cover disrupted (${kind})`
+        : `Cover disrupted (${kind})`,
+    },
+    event(actor, "site_incharge", "Cover disruption reported", note),
   );
 }
 
@@ -1094,3 +1271,11 @@ export async function syncLeavesWithApi(): Promise<void> {
 }
 
 export { dayCount };
+
+registerManpowerSources({
+  detectConflicts,
+  validateScheduleAssignments,
+  getLeaveById: (id) => getLeaveById(id),
+  getLeaveRequests: (siteId) => getLeaveRequests(siteId),
+  getPlantOverlappingLeaves: (leaveId) => getPlantOverlappingLeaves(leaveId),
+});

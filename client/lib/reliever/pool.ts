@@ -3,6 +3,7 @@ import { shifts } from "@/lib/overtime/data";
 import { listCoverOptionsForSite } from "@/lib/shift-impact/engine";
 import { registerPoolApi } from "@/lib/shift-impact/registry";
 import { inferRequiredSkills } from "@/lib/shift-impact/skills";
+import { registerCompetitionSources } from "@/lib/reliever-competition/sources";
 import type { ShiftCode } from "@/lib/shift/types";
 import { persistJson } from "@/lib/storage";
 
@@ -688,6 +689,7 @@ export function assignChosenRelieverForLeave(
     | { relieverId: string }
     | { coverEmployeeId: string }
     | { ot: true },
+  gateOpts?: { competitionCleared?: boolean },
 ): {
   outcome: "local_assigned" | "pool_assigned" | "ot_fallback" | "employee_assigned";
   relieverId?: string;
@@ -1000,5 +1002,31 @@ registerPoolApi({
     plantType: s.plantType,
     headcount: s.headcount,
   })),
+});
+
+registerCompetitionSources({
+  getAbsences: () =>
+    getAbsences().map((a) => ({
+      id: a.id,
+      employeeId: a.employeeId,
+      employeeName: a.employeeName,
+      siteId: a.siteId,
+      date: a.date,
+      shiftId: a.shiftId,
+      requiredSkills: a.requiredSkills,
+      status: a.status,
+    })),
+  getRelievers: () =>
+    getRelievers().map((r) => ({
+      id: r.id,
+      employeeId: r.employeeId,
+      name: r.name,
+      homeSiteId: r.homeSiteId,
+      skills: r.skills,
+      plantTypes: r.plantTypes,
+      availability: r.availability,
+      assignedSiteId: r.assignedSiteId,
+      assignedAbsenceId: r.assignedAbsenceId,
+    })),
 });
 

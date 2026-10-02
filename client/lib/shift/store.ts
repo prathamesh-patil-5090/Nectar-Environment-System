@@ -2,6 +2,13 @@ import { employees, getEmployeeById, sites } from "@/lib/mock-data";
 import { employeeHasCoveringLeave } from "@/lib/leave/coverage";
 import { computeShiftImpact } from "@/lib/shift-impact/engine";
 import { registerShiftApi } from "@/lib/shift-impact/registry";
+import { assertCanPublishRotationOrThrow } from "@/lib/manpower-conflict/gates";
+import { getManpowerConflictReport } from "@/lib/manpower-conflict/engine";
+import {
+  assertCanAcceptOtOrThrow,
+  approveOtDecision,
+  ensurePendingOtDecision,
+} from "@/lib/ot-decision";
 import { nectarColors } from "@/lib/theme";
 import type {
   EmployeeRotationRow,
@@ -515,21 +522,64 @@ export function detectConflicts(siteId?: string): ShiftConflict[] {
       }
     }
 
+    // Double booking: more than one non-OFF planned row same date
+    const byDate = new Map<string, PlannedShiftDay[]>();
+    for (const d of sorted) {
+      if (d.plannedCode === "OFF") continue;
+      const listForDate = byDate.get(d.date) ?? [];
+      listForDate.push(d);
+      byDate.set(d.date, listForDate);
+    }
+    for (const [date, rows] of byDate) {
+      if (rows.length < 2) continue;
+      const codes = rows.map((r) => r.plannedCode).join("+");
+      conflicts.push({
+        id: `cf-dbl-${employeeId}-${date}`,
+        type: "double_booking",
+        employeeId,
+        employeeName: emp?.name ?? employeeId,
+        siteId: rows[0]!.siteId,
+        date,
+        severity: "attention",
+        message: `Double booking: ${codes} on ${date}.`,
+      });
+    }
+
     for (const d of sorted) {
       const row = rotationRows.find((r) => r.employeeId === employeeId);
-      if (!row) continue;
-      const dow = new Date(d.date + "T00:00:00Z").getUTCDay();
-      if (dow === row.weeklyOffDay && d.plannedCode !== "OFF") {
-        conflicts.push({
-          id: `cf-off-${employeeId}-${d.date}`,
-          type: "weekly_off",
-          employeeId,
-          employeeName: emp?.name ?? employeeId,
-          siteId: d.siteId,
-          date: d.date,
-          severity: "watch",
-          message: `Weekly-off conflict: work (${d.plannedCode}) scheduled on configured weekly off.`,
-        });
+      if (row) {
+        const dow = new Date(d.date + "T00:00:00Z").getUTCDay();
+        if (dow === row.weeklyOffDay && d.plannedCode !== "OFF") {
+          conflicts.push({
+            id: `cf-off-${employeeId}-${d.date}`,
+            type: "weekly_off",
+            employeeId,
+            employeeName: emp?.name ?? employeeId,
+            siteId: d.siteId,
+            date: d.date,
+            severity: "watch",
+            message: `Weekly-off conflict: work (${d.plannedCode}) scheduled on configured weekly off.`,
+          });
+        }
+      }
+
+      if (d.plannedCode !== "OFF") {
+        try {
+          if (employeeHasCoveringLeave(employeeId, d.date)) {
+            conflicts.push({
+              id: `cf-leave-${employeeId}-${d.date}`,
+              type: "leave",
+              employeeId,
+              employeeName: emp?.name ?? employeeId,
+              siteId: d.siteId,
+              date: d.date,
+              severity: "attention",
+              message: `Leave on roster: planned ${d.plannedCode} while leave covers ${d.date}.`,
+            });
+          }
+        } catch {
+          // Coverage check not registered yet during early init
+        }
       }
     }
   }
@@ -569,6 +619,42 @@ export function getRotationPreviewById(id: string) {
   ensureShiftHydrated();
   const p = rotationPreviews.find((x) => x.id === id);
   return p ? normalizePreviewStatus(p) : undefined;
+}
+
+/**
+ * Apply a draft's assignments onto plannedDays / rotationRows and mark active.
+ * Prefer adminDecideRotation — this remains for tests / internal use.
+ */
+export function activateRotationPreview(
+  id: string,
+  opts?: { acknowledgeOt?: boolean },
+) {
+  ensureShiftHydrated();
+  const preview = rotationPreviews.find((p) => p.id === id);
+  if (!preview) throw new Error("Rotation draft not found");
+  const status = normalizePreviewStatus(preview).status;
+  if (
+    status !== "pending_manager" &&
+    status !== "pending_director" &&
+    status !== "draft"
+  ) {
+    throw new Error("Only a pending draft can be published");
+  }
+  assertCanPublishRotationOrThrow(
+    preview.siteId,
+    preview.fromDate,
+    preview.toDate,
+    {
+      acknowledgeOt: opts?.acknowledgeOt,
+      assignments: preview.assignments,
+    },
+  );
+  applyPreviewToLiveRoster(preview);
+  rotationPreviews = rotationPreviews.map((p) =>
+    p.id === id ? { ...normalizePreviewStatus(p), status: "active" } : p,
+  );
+  persistShiftStore();
+  return rotationPreviews.find((p) => p.id === id);
 }
 
 function applyPreviewToLiveRoster(preview: RotationPreview) {
@@ -710,7 +796,12 @@ export function managerDecideRotation(
  */
 export function adminDecideRotation(
   id: string,
-  input: { by: string; remark: string; outcome: "approved" | "rejected" },
+  input: {
+    by: string;
+    remark: string;
+    outcome: "approved" | "rejected";
+    acknowledgeOt?: boolean;
+  },
 ) {
   ensureShiftHydrated();
   const preview = getRotationPreviewById(id);
@@ -744,6 +835,31 @@ export function adminDecideRotation(
     throw new Error(
       `A schedule for ${monthKey} is already published for this site`,
     );
+  }
+
+  assertCanPublishRotationOrThrow(preview.siteId, preview.fromDate, preview.toDate, {
+    acknowledgeOt: input.acknowledgeOt,
+    assignments: preview.assignments,
+  });
+
+  if (input.acknowledgeOt) {
+    assertCanAcceptOtOrThrow({
+      siteId: preview.siteId,
+      date: preview.fromDate,
+      trigger: "rotation_publish",
+      remark,
+      actorRole: "director",
+    });
+    const pending = ensurePendingOtDecision({
+      siteId: preview.siteId,
+      date: preview.fromDate,
+      trigger: "rotation_publish",
+    });
+    approveOtDecision({
+      decisionId: pending.id,
+      actor: input.by,
+      remark,
+    });
   }
 
   applyPreviewToLiveRoster(preview);
@@ -941,19 +1057,20 @@ export function validateScheduleAssignments(
     }
     for (const d of sorted) {
       const row = rotationRows.find((r) => r.employeeId === employeeId);
-      if (!row) continue;
-      const dow = new Date(d.date + "T00:00:00Z").getUTCDay();
-      if (dow === row.weeklyOffDay && d.code !== "OFF") {
-        conflicts.push({
-          id: `cf-off-${employeeId}-${d.date}`,
-          type: "weekly_off",
-          employeeId,
-          employeeName: name,
-          siteId,
-          date: d.date,
-          severity: "watch",
-          message: `Work (${d.code}) scheduled on weekly off.`,
-        });
+      if (row) {
+        const dow = new Date(d.date + "T00:00:00Z").getUTCDay();
+        if (dow === row.weeklyOffDay && d.code !== "OFF") {
+          conflicts.push({
+            id: `cf-off-${employeeId}-${d.date}`,
+            type: "weekly_off",
+            employeeId,
+            employeeName: name,
+            siteId,
+            date: d.date,
+            severity: "watch",
+            message: `Work (${d.code}) scheduled on weekly off.`,
+          });
+        }
       }
       if (d.code !== "OFF" && employeeHasCoveringLeave(employeeId, d.date)) {
         conflicts.push({
@@ -967,6 +1084,27 @@ export function validateScheduleAssignments(
           message: `Employee has leave covering ${d.date}.`,
         });
       }
+    }
+
+    const byDate = new Map<string, RotationAssignmentCell[]>();
+    for (const d of sorted) {
+      if (d.code === "OFF") continue;
+      const listForDate = byDate.get(d.date) ?? [];
+      listForDate.push(d);
+      byDate.set(d.date, listForDate);
+    }
+    for (const [date, rows] of byDate) {
+      if (rows.length < 2) continue;
+      conflicts.push({
+        id: `cf-dbl-${employeeId}-${date}`,
+        type: "double_booking",
+        employeeId,
+        employeeName: name,
+        siteId,
+        date,
+        severity: "attention",
+        message: `Double booking: ${rows.map((r) => r.code).join("+")} on ${date}.`,
+      });
     }
   }
   return conflicts;
@@ -1066,11 +1204,35 @@ export function resetShiftStore() {
 }
 
 export function createChangeRequest(
-  input: Omit<ShiftChangeRequest, "id" | "status" | "createdAt">,
+  input: Omit<ShiftChangeRequest, "id" | "status" | "createdAt" | "manpowerOk" | "potentialOtHours"> &
+    Partial<Pick<ShiftChangeRequest, "manpowerOk" | "potentialOtHours">>,
 ) {
   ensureShiftHydrated();
+  let manpowerOk = input.manpowerOk;
+  let potentialOtHours = input.potentialOtHours;
+  if (manpowerOk === undefined || potentialOtHours === undefined) {
+    try {
+      const report = getManpowerConflictReport({
+        siteId: input.siteId,
+        from: input.date,
+        to: input.date,
+      });
+      const uncovered = report.uncoveredCount;
+      if (manpowerOk === undefined) {
+        manpowerOk = uncovered === 0 && report.attentionCount === 0;
+      }
+      if (potentialOtHours === undefined) {
+        potentialOtHours = uncovered * 8;
+      }
+    } catch {
+      manpowerOk = input.manpowerOk ?? true;
+      potentialOtHours = input.potentialOtHours ?? 0;
+    }
+  }
   const row: ShiftChangeRequest = {
     ...input,
+    manpowerOk: Boolean(manpowerOk),
+    potentialOtHours: potentialOtHours ?? 0,
     id: `scr-${Date.now().toString(36)}`,
     status: "PENDING",
     createdAt: new Date().toISOString(),

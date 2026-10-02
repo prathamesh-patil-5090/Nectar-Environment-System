@@ -11,6 +11,7 @@ export type LeaveRow = {
   startDate: string;
   endDate: string;
   status: string;
+  mode?: "planned" | "emergency";
   assignedRelieverId?: string;
   assignedCoverEmployeeId?: string;
   coverSource?: string;

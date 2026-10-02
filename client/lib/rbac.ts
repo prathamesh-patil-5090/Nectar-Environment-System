@@ -76,6 +76,7 @@ export const canEnterLeaveForOthers = allow(
 );
 export const canSupervisorVerifyLeave = allow("director", "manager", "supervisor", "shift_incharge");
 export const canSiteApproveLeave = allow("director", "manager", "site_incharge", "shift_incharge");
+export const canResolveOtDecisions = allow("director", "manager");
 /** Plant manager (or Director acting as manager) after the shift is covered */
 export const canManagerDecideLeave = allow("director", "manager");
 /** Final leave sign-off — Director only */
@@ -153,6 +154,7 @@ export const canViewSitesNav = allow(
  * Supervisors stay out of day-to-day shift planning nav.
  */
 export const canViewShiftsNav = allow("director", "manager", "shift_incharge", "site_incharge");
+export const canResolveRelieverCompetition = allow("director", "manager");
 /** Reliever pool — Supervisor (availability) + SIC + Manager + Director */
 export const canViewRelieverPoolNav = canManageRelieverPool;
 
@@ -169,6 +171,7 @@ export function visibleShiftNavKeys(user: SessionUser | null): string[] | null {
     "/shifts/rotation",
     "/shifts/change-requests",
     "/shifts/reliever-allocation",
+    "/shifts/manpower",
     "/shifts/deviations",
   ];
 }

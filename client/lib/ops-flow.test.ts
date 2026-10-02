@@ -269,7 +269,9 @@ describe("leave approval chain", () => {
     expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
       "assigned",
     );
-    const closed = confirmReturn(created.id, "Amit Supervisor", "2026-10-04");
+    const closed = confirmReturn(created.id, "Anand Dakave", "2026-10-04", {
+      remark: "Extension closed — employee back on duty",
+    });
     expect(closed.status).toBe("CLOSED");
     expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
       "available",
@@ -480,6 +482,7 @@ describe("monthly schedule draft and publish", () => {
       by: "Admin",
       remark: "Publish",
       outcome: "approved",
+      acknowledgeOt: true,
     });
   }
 
@@ -538,6 +541,7 @@ describe("monthly schedule draft and publish", () => {
       by: "Admin",
       remark: "Live",
       outcome: "approved",
+      acknowledgeOt: true,
     });
 
     expect(

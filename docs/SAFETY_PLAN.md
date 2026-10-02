@@ -1,18 +1,21 @@
 # Safety Section — Implementation Plan
 
-Source: handwritten requirement notes (4 pages, refined 27/09/2026). Fits the existing architecture: Next client with localStorage stores + fire-and-forget API sync, NestJS + Mongoose server, `safety_incharge` role already in `client/lib/auth.ts`, placeholder meetings module.
+Source: handwritten requirement notes (4 pages, refined 27/09/2026).  
+Updated to fit the **current** employee + leave + OT + shift stack (client localStorage engines + Nest/Mongoose sync). `safety_incharge` already exists in `client/lib/auth.ts` / RBAC.
 
 ## Table of contents
 
 1. [Requirements from the notes](#1-requirements-from-the-notes)
-2. [Data model](#2-data-model)
-3. [Files to add or change](#3-files-to-add-or-change)
-4. [Permissions](#4-permissions)
-5. [Notifications and "notify until solved"](#5-notifications-and-notify-until-solved)
-6. [Media, meet calls, reports](#6-media-meet-calls-reports)
-7. [Delivery phases](#7-delivery-phases)
-8. [Related items from the same notes](#8-related-items-from-the-same-notes-separate-track)
-9. [Open questions for the client](#9-open-questions-for-the-client)
+2. [Fit with the current system](#2-fit-with-the-current-system)
+3. [Data model](#3-data-model)
+4. [Leave ↔ Safety integration](#4-leave--safety-integration)
+5. [Files to add or change](#5-files-to-add-or-change)
+6. [Permissions](#6-permissions)
+7. [Notifications and "notify until solved"](#7-notifications-and-notify-until-solved)
+8. [Media, meet calls, reports](#8-media-meet-calls-reports)
+9. [Delivery phases](#9-delivery-phases)
+10. [Related items from the same notes](#10-related-items-from-the-same-notes-separate-track)
+11. [Open questions for the client](#11-open-questions-for-the-client)
 
 ---
 
@@ -25,9 +28,52 @@ Source: handwritten requirement notes (4 pages, refined 27/09/2026). Fits the ex
 | p2 | Photo/video upload, meet calling, **emergency alert to every assigned person**, detailed report making. |
 | p2 | Sections: incident & near-miss history, emergency protocols, and **breakdowns** — why the plant isn't working, when it broke, what broke, how, how many people worked OT to fix it, how many days it took. |
 | p4 | A safety protocol page, safety training module, every incident (big or small) stored and **visible to all**. |
-| p1, p2, p4 | Not safety, but on the same pages: shift attendance automation, 6‑month certificates, assessment delegation. See §8. |
+| p1, p2, p4 | Not safety, but on the same pages: shift attendance automation, 6‑month certificates, assessment delegation. See §10. |
 
-## 2. Data model
+---
+
+## 2. Fit with the current system
+
+Safety is a **sibling module** to leave (same architecture), not a rewrite of leave. Leave today is an **ops coverage pipeline**; return is ops close only. This plan reuses those patterns and adds explicit hooks so Safety and leave do not drift apart.
+
+### What we reuse as-is
+
+| Current piece | Path / behaviour | Safety use |
+|---|---|---|
+| Emp identity + hierarchy | `employee.schema` / `employee.types` — `id`, `siteId`, `managerId`, `shiftInChargeId`, `supervisorId`, `trainingStatus` | People pickers, stakeholders, soft training flags |
+| Sites | `s-etp` / `s-ro` / `s-mee`, plant managers | Scope lists; auto-fill site manager |
+| Leave state machine | `client/lib/leave/store.ts` + `server/.../leave-transitions.ts` | Copy pattern for Safety transitions |
+| Leave store + API sync | localStorage + fire-and-forget Nest | Same for `client/lib/safety/store.ts` |
+| Leave lifecycle | `client/lib/leave-lifecycle/` — due / early / late return, cover disruption | Soft-block return when clearance required |
+| Manpower / cover gates | `client/lib/manpower-conflict/` | Soft-block OT / re-roster if open critical incident involves the person |
+| OT decision | `client/lib/ot-decision/` — triggers include `leave_cover` | Breakdown `otEntries[]` + optional trigger `breakdown_repair` |
+| Shift roster | `client/lib/shift/store.ts` | Emergency recipients = rostered at site today |
+| Reliever release on return | `confirmReturn` releases cover | Clearance gate **before** cover release when required |
+| Training | `/training`, courses, certs | `/safety/training` = filter to Safety track (no new engine) |
+| RBAC | `client/lib/rbac.ts` — org-wide for director / hr / **safety_incharge** | New `// ── Safety` block |
+| Demo users | `DEMO_USERS` + Mongo `users` (`nectar2026`) | Seed a visible Safety In-charge login if not already on login UI |
+| Final sign-off pattern | Leave finalize = **Director only** | Safety **Close** = Safety In-charge *or* Director (mirror leave Q) |
+
+### What leave does **not** do today (gaps this plan closes only where we wire §4)
+
+- No fit-to-work / medical / safety clearance on return.
+- No Safety In-charge step on any leave transition.
+- `trainingStatus` is unused by leave create/return.
+- Sick leave is a balance type only — not linked to incidents.
+- `AppNotification` is `employeeId`-keyed; Director / HR / Safety In-charge often have **no** `employeeId`.
+
+### Architecture rule
+
+| Layer | Responsibility |
+|---|---|
+| Client engines + stores | UX, transitions, soft-blocks, seed demos (same as leave / OT / lifecycle) |
+| Nest schemas + CRUD | Persist `SafetyEvent` / `SafetyProtocol`; reject illegal transitions |
+| Nest scheduler | Repeat “notify until solved” (new; leave has no cron today) |
+| Do **not** put Safety business rules only on the server while leave stays client-led — keep parity |
+
+---
+
+## 3. Data model
 
 Shared between client (`client/lib/safety/types.ts`) and server (`server/db/schemas/`).
 
@@ -38,22 +84,29 @@ One collection, discriminated by `type: "incident" | "near_miss" | "breakdown"`.
 - `id, siteId, title, description, location, occurredAt, reportedAt`
 - `category`: `first_aid | medical | lost_time | fatal | plant_problem | fire | chemical | electrical | other`
 - `severity`: `low | medium | high | critical` (fatal is always critical)
-- `reportedBy {id, name, role}`
-- `informedBy[]` — employee ids of the people who informed
-- `involved[]` — employee ids of the people it happened to
-- `stakeholders[]` — auto-filled from the site (site in-charge, manager, HR, safety in-charge, director); editable
+- `reportedBy {id, name, role}` — `id` is demo user / employee id when available
+- `informedBy[]` — employee ids
+- `involved[]` — employee ids
+- `stakeholders[]` — auto-filled from site hierarchy + org roles (site in-charge, manager, HR, safety in-charge, director); editable
 - `media[] {id, url, kind: "image" | "video", uploadedBy, at}`
 - `status`: `REPORTED → ACKNOWLEDGED → INVESTIGATING → ACTION_PENDING → RESOLVED → CLOSED`, plus `REOPENED`
 - `rootCause`, `correctiveActions[] {text, ownerId, dueDate, done}`
-- `timeline[]` — audit trail of every status change, comment, call and notification
+- `timeline[]` — audit trail (status, comment, call, notification)
 - `isEmergency`, `meetLink`, `lastNotifiedAt`, `notifyCount`
-- `promotedFrom?` — set when a near-miss is escalated into an incident
+- `promotedFrom?` — near-miss escalated to incident
+
+**Cross-links to current modules (new vs original notes):**
+
+- `linkedLeaveIds[]` — leave requests opened/linked for involved people (esp. sick / lost_time)
+- `requiresReturnClearance` — default `true` when `category` ∈ `medical | lost_time | fatal` or severity ≥ `high`
+- `clearance[] { employeeId, status: "pending" \| "cleared" \| "waived", clearedBy, at, remark }`
+- `otDecisionIds[]` / breakdown `otEntries[]` — link to OT decision records when repair OT is assigned
 
 **Breakdown extension:**
 
 - `equipment, whatFailed, why, how`
 - `failedAt, restoredAt` → computed `downtimeDays`
-- `otEntries[] {employeeId, hours}` → computed headcount and OT man-hours
+- `otEntries[] {employeeId, hours, otDecisionId?}` → headcount + OT man-hours
 
 ### `SafetyProtocol`
 
@@ -61,67 +114,126 @@ One collection, discriminated by `type: "incident" | "near_miss" | "breakdown"`.
 - `siteIds[]` or all sites
 - `version, updatedBy, updatedAt`
 
-## 3. Files to add or change
+### Employee / leave field additions (minimal)
+
+| Where | Field | Why |
+|---|---|---|
+| Leave request | `safetyClearance?: { eventId?, status, clearedBy?, at? }` | Gate `CLOSED` when required |
+| Leave request | `linkedSafetyEventIds?: string[]` | Trace sick/LTA ↔ incident |
+| Employee (optional later) | keep using existing `trainingStatus` | Soft-warn on clearance if `overdue` |
+
+Do **not** invent a parallel employee roster — always resolve people via existing employee ids (`emp0123`… seeded).
+
+---
+
+## 4. Leave ↔ Safety integration
+
+Keep leave’s approval chain unchanged. Add **soft then hard** gates only at return / re-entry — same soft-block style as manpower / OT (Manager remark / ack where appropriate).
+
+### Triggers
+
+| Event | Behaviour |
+|---|---|
+| Safety incident created with `involved[]` + `medical` / `lost_time` / `fatal` | Prompt Manager to open/link **sick** (or appropriate) leave if none covers today; set `requiresReturnClearance` |
+| Leave `confirmReturn` / lifecycle due-return | If open clearance pending for that `employeeId` → **block** `CLOSED` until Safety In-charge / Manager clears (or Director waives with remark) |
+| Clearance granted | Allow existing `confirmReturn` path; then release reliever / cover as today |
+| Open `critical` incident involving employee | Manpower / OT soft-block: prefer not to assign that person OT or cover until incident `RESOLVED` (ack + remark to override — same as OT soft-block pattern) |
+| Breakdown OT | Prefer creating OT via `ot-decision` with trigger `breakdown_repair`; store `otDecisionId` on `otEntries[]` |
+
+### Who clears return
+
+| Role | Can clear? |
+|---|---|
+| safety_incharge | Yes (primary) |
+| manager (site) | Yes for non-fatal / non-critical |
+| director | Yes + waive |
+| supervisor / shift / site in-charge | Confirm return ops only — **cannot** clear medical/lost_time without Safety / Manager |
+
+Mirror leave: ops roles confirm presence; Safety owns fitness for duty when `requiresReturnClearance`.
+
+### Lifecycle UI
+
+- `/leave/lifecycle` and leave detail: show banner “Safety clearance pending” with link to `/safety/incidents/[id]`.
+- `/safety/incidents/[id]`: “Linked leave” chips → `/leave/requests/[id]`.
+
+---
+
+## 5. Files to add or change
 
 ### Client
 
 | File | Change |
 |---|---|
-| `client/lib/safety/types.ts` | Types from §2 |
-| `client/lib/safety/store.ts` | localStorage store + `syncSafetyWithApi()`, same pattern as the leave store |
-| `client/lib/safety/transitions.ts` | Status transition map, mirrors the leave state machine |
-| `client/lib/safety/recipients.ts` | Resolves who gets notified (§5) |
+| `client/lib/safety/types.ts` | Types from §3 |
+| `client/lib/safety/store.ts` | localStorage + `syncSafetyWithApi()` (leave store pattern) |
+| `client/lib/safety/transitions.ts` | Status map; reject illegal jumps |
+| `client/lib/safety/recipients.ts` | Resolve notify list (§7); use site hierarchy + roster |
+| `client/lib/safety/gates.ts` | `employeeNeedsSafetyClearance`, `canCloseLeave` — used by leave store / lifecycle |
 | `client/lib/api/safety.ts` | API calls |
-| `client/lib/sync.ts` | Add `syncSafetyWithApi` to `hydrateAllStoresFromApi` |
-| `client/lib/rbac.ts` | New `// ── Safety` block (§4) |
-| `client/lib/notifications.ts` | New kinds: `safety_incident`, `safety_emergency`, `safety_reminder` |
-| `client/components/AppShell.tsx` | **Safety** submenu, visible to every role |
-| `client/components/safety/*` | `ReportWizard`, `EventTimeline`, `PeoplePicker` (searchable, site-scoped — sites have 2–60 people), `MediaUploader`, `SeverityTag`, `BreakdownPanel` |
+| `client/lib/leave/store.ts` | `confirmReturn` checks safety gate; link helpers |
+| `client/lib/leave-lifecycle/*` | Surface clearance soft-blocks on due-return cases |
+| `client/lib/manpower-conflict/gates.ts` | Soft-block assign when critical open incident |
+| `client/lib/ot-decision/*` | Optional trigger `breakdown_repair`; respect safety soft-block |
+| `client/lib/sync.ts` | Hydrate safety store |
+| `client/lib/rbac.ts` | `// ── Safety` block (§6) |
+| `client/lib/notifications.ts` | Kinds + **`recipientRole?` / `recipientUserId?`** (Director/HR/Safety) |
+| `client/lib/auth.ts` | Ensure Safety In-charge is on demo login if required for QA |
+| `client/components/AppShell.tsx` | **Safety** submenu (all roles can view) |
+| `client/components/safety/*` | ReportWizard, EventTimeline, PeoplePicker (site-scoped), MediaUploader, SeverityTag, BreakdownPanel, ClearancePanel |
 
 ### Routes — `client/app/(app)/safety/…`
 
 | Route | Purpose |
 |---|---|
-| `/safety` | Overview: open items, days since last lost‑time incident per site, near‑miss trend, active breakdowns |
-| `/safety/report` | Wizard: type → details → people → media → emergency toggle → submit |
-| `/safety/incidents` | Incident & near‑miss history; filters for site, type, severity, status, date |
-| `/safety/incidents/[id]` | Detail: timeline, people, media, corrective actions, status actions, "Start call", "Download report" |
-| `/safety/breakdowns` | Breakdown log with downtime and OT man-hours |
+| `/safety` | Overview: open items, days since last LTI per site, near-miss trend, active breakdowns, pending clearances |
+| `/safety/report` | Wizard: type → details → people → media → emergency → submit |
+| `/safety/incidents` | History; filters site / type / severity / status / date |
+| `/safety/incidents/[id]` | Detail + timeline + clearance + linked leave + call + PDF |
+| `/safety/breakdowns` | Downtime + OT man-hours |
 | `/safety/breakdowns/[id]` | Breakdown detail |
-| `/safety/protocols` | Emergency protocols — readable by all, editable by Safety In-charge and Director |
-| `/safety/training` | Link into `/training` filtered to a new **Safety** track (no new training engine) |
+| `/safety/protocols` | Readable by all; edit Safety In-charge + Director |
+| `/safety/training` | Link `/training` filtered to Safety track |
 
 ### Server
 
 | File | Change |
 |---|---|
-| `server/db/schemas/safety-event.schema.ts` | `SafetyEvent` schema |
-| `server/db/schemas/safety-protocol.schema.ts` | `SafetyProtocol` schema |
-| `server/db/seeds/safety.seed.ts` | Demo data, registered in `seeds/index.ts` |
-| `server/src/modules/safety/safety.{module,controller,service}.ts` | CRUD + transitions |
-| `server/src/modules/safety/safety-transitions.ts` | Rejects illegal status jumps, like `leave-transitions.ts` |
-| `server/src/modules/safety/safety-reminder.scheduler.ts` | Repeat-notification cron (§5) |
+| `server/db/schemas/safety-event.schema.ts` | `SafetyEvent` |
+| `server/db/schemas/safety-protocol.schema.ts` | `SafetyProtocol` |
+| `server/db/schemas/leave-request.schema.ts` | Optional `safetyClearance`, `linkedSafetyEventIds` |
+| `server/db/seeds/safety.seed.ts` | Demo incidents / near-misses / breakdowns **linked to seeded emp + leave ids** |
+| `server/src/modules/safety/*` | CRUD + transitions + reminder scheduler |
 | `server/src/app.module.ts` | Register `SafetyModule` |
-| Media endpoint (`multer`) | **No upload infrastructure exists yet.** Media is server-only — never localStorage data URLs (~5 MB quota). |
+| Media (`multer`) | Server-only storage; never localStorage data URLs |
 
-## 4. Permissions
+---
+
+## 6. Permissions
+
+Align with existing leave RBAC tone (site-scoped plant roles; org-wide director / hr / safety_incharge).
 
 | Action | Roles |
 |---|---|
-| View safety section, history, protocols | **All** ("visible to all") |
-| Report a near-miss | **All**, including employees |
-| Raise an incident or breakdown | manager, director, safety_incharge, site_incharge, shift_incharge |
-| Acknowledge / investigate / add corrective actions | safety_incharge, manager, site_incharge |
+| View safety section, history, protocols | **All** |
+| Report near-miss | **All** (including employee) |
+| Raise incident or breakdown | manager, director, safety_incharge, site_incharge, shift_incharge |
+| Acknowledge / investigate / corrective actions | safety_incharge, manager, site_incharge |
 | Resolve | safety_incharge, manager, director |
 | Close / reopen | safety_incharge, director |
+| Grant return clearance (non-critical) | safety_incharge, manager |
+| Grant / waive clearance (critical / fatal) | safety_incharge, director |
 | Edit protocols | safety_incharge, director |
-| Trigger emergency broadcast | Anyone, when reporting with `isEmergency` |
+| Emergency broadcast | Anyone reporting with `isEmergency` |
 
-## 5. Notifications and "notify until solved"
+**Default for open Q2:** Shift / Site In-charge **can** raise incidents (night coverage) — matches leave `entrySource` flexibility for supervisors on emergency absence.
 
-- **Recipients** (`recipients.ts`): involved people, people who informed, the site's in-charge, manager and safety in-charge, plus HR and Director. For an emergency, add everyone rostered at that site today (from the shift store).
-- **Gap to fix:** `AppNotification` targets `employeeId`, but Director and HR logins have none. Add `recipientRole?` (or a user key) so role-targeted alerts reach them.
-- **Repeat reminders** (server-side, `@nestjs/schedule`): re-notify every event not yet `RESOLVED`, interval by severity:
+---
+
+## 7. Notifications and "notify until solved"
+
+- **Recipients** (`recipients.ts`): involved, informedBy, site manager + site/shift in-charge from employee/site graph, safety_incharge, HR, Director. Emergency: union with **today’s roster** at `siteId` from shift store.
+- **Must fix (current gap):** extend `AppNotification` with `recipientRole?` and/or `recipientUserId?` so Director / HR / Safety In-charge get alerts without `employeeId`.
+- **Repeat reminders** (`@nestjs/schedule` — new infra): while status ∉ `RESOLVED | CLOSED`:
 
   | Severity | Re-notify every |
   |---|---|
@@ -129,42 +241,59 @@ One collection, discriminated by `type: "incident" | "near_miss" | "breakdown"`.
   | high | 4 h |
   | medium / low | 24 h |
 
-  Each reminder increments `notifyCount`; after N reminders, escalate to the Director. Offline fallback: the client computes overdue reminders on load.
-- **Emergency:** pinned red banner in AppShell until each recipient acknowledges.
+  Increment `notifyCount`; after N reminders escalate to Director. Client offline fallback: compute overdue on hydrate (same spirit as leave lifecycle due-return).
+- **Emergency:** pinned AppShell banner until each recipient acknowledges.
+- **Clearance pending:** notify safety_incharge + site manager when leave return is attempted or lifecycle marks due-return.
 
-## 6. Media, meet calls, reports
+---
 
-- **Upload:** images up to ~10 MB (compressed on the client), video up to ~50 MB. Local disk first, behind a storage interface so S3/GridFS can replace it later.
-- **Meet calling:** phase 1 generates a Jitsi room link (`meet.jit.si/neipl-safety-<id>`) — no infrastructure needed — and logs it on the timeline. Later: wire into the meetings module / Google Meet.
-- **Detailed report:** print-optimised detail view, exported to PDF the same way as the OT reports.
+## 8. Media, meet calls, reports
 
-## 7. Delivery phases
+- **Upload:** images ~10 MB (client compress), video ~50 MB. Disk behind a storage interface (S3/GridFS later). No localStorage media.
+- **Meet:** phase 1 Jitsi `meet.jit.si/neipl-safety-<id>`; log on timeline. Later: meetings module / Google Meet.
+- **Report PDF:** same approach as OT report export.
+
+---
+
+## 9. Delivery phases
 
 | # | Phase | Done when |
 |---|---|---|
-| 0 | Types, RBAC, nav, seed data (2–3 incidents, near-misses, breakdowns per demo site) | Safety menu visible; pages render seed data |
-| 1 | Report wizard, history list, detail page, state machine (client store + server CRUD) | Near-miss → incident promotion works; illegal transitions rejected on client and server |
-| 2 | Recipients, role-targeted notifications, emergency broadcast, reminder cron | Open critical incidents re-notify on schedule; emergency banner clears on acknowledgement |
-| 3 | Media upload, meet link, PDF report | Photos/video attach and play; report downloads |
-| 4 | Breakdowns, OT entries cross-linked to the OT module | Downtime days and OT man-hours show on the breakdown and on site OT |
-| 5 | Protocols page, Safety training track | Protocols editable by Safety In-charge; safety courses filtered |
-| 6 | Dashboard and Sites widgets (days since LTI, open items); `PAGES_AND_FEATURES.md` section | KPIs on `/dashboard` and `/sites/[id]` |
+| 0 | Types, RBAC, nav, seed (2–3 events per site, **use real emp ids**; optional linked leave) | Safety menu + seed render |
+| 1 | Report wizard, history, detail, transitions (client + server) | Near-miss → incident; illegal transitions rejected |
+| 2 | Recipients, role-targeted notifications, emergency banner, reminder cron | Critical re-notify; banner clears on ack |
+| 3 | **Leave/lifecycle gates** — clearance on return, linked leave, lifecycle banners, manpower/OT soft-blocks | Cannot `CLOSED` sick/LTA return while clearance pending; soft-block OT/cover |
+| 4 | Media, meet link, PDF | Attach + play + download |
+| 5 | Breakdowns + OT decision cross-link (`breakdown_repair`) | Downtime + OT hours on breakdown and site OT |
+| 6 | Protocols + Safety training track filter | Editable protocols; filtered courses |
+| 7 | Dashboard / Sites widgets (days since LTI, open items, pending clearances); update `PAGES_AND_FEATURES.md` | KPIs on `/dashboard` and `/sites/[id]` |
 
-Phases 0–1 need no new infrastructure. Phases 2–3 need the scheduler and media upload — settle §9 before starting them.
+Phases 0–1 need no new infra. Phase 2 needs scheduler + notification model fix. Phase 3 is the **emp/leave alignment** slice — ship before treating Safety as “done” for plant ops.
 
-**Tests:** unit tests for transitions (like `leave-policy.engine.spec.ts`), recipient resolver and reminder intervals; one e2e: report near-miss → promote → close.
+**Tests:** transitions (like leave-policy / leave-lifecycle tests); recipient resolver; clearance gate on `confirmReturn`; reminder intervals; e2e: near-miss → promote → link leave → clear → close leave → close incident.
 
-## 8. Related items from the same notes (separate track)
+---
 
-- **Shift attendance automation** (p1, p2): schedules are planned 1–2 months ahead by the Manager / Shift In-charge. A daily job compares `actualCode` with the plan; if manual input is empty it **auto-fills from the schedule** with `source: "auto"`. Manual entries are editable for **12 h**, auto-filled entries correctable for **18 h**, then locked. Touches `client/lib/shift/store.ts` and the deviations page.
-- **Certificates:** add `validityMonths: 12 | 6` per course, replacing the hard-coded 1 year in `client/lib/training/store.ts`. 6‑month certificates get a "Renew via quick test" flow.
-- **Assessment delegation:** Director assigns Manager assessors; a Manager can delegate to HR or Site In-charge. Extend `assignedBy*` with a `delegatedFrom` chain.
+## 10. Related items from the same notes (separate track)
 
-## 9. Open questions for the client
+- **Shift attendance automation** (p1, p2): planned roster vs actual; auto-fill `source: "auto"`; edit windows 12 h manual / 18 h auto then lock. Touches `client/lib/shift/store.ts` + deviations. Coordinate with Safety emergency roster lookups so “who was on shift” stays accurate.
+- **Certificates:** `validityMonths: 12 | 6` on courses (today hard-coded ~1 year). 6‑month → “Renew via quick test”. Clearance may soft-warn if Safety cert `overdue`.
+- **Assessment delegation:** Director → Manager assessors; Manager delegates to HR / Site In-charge (`delegatedFrom` chain).
 
-1. **"Visible to all" vs. sensitive cases** — should employees see names on fatal/death incidents, or a redacted version?
-2. **Who raises incidents** — notes say Manager. Should Shift / Site In-charge also be able to, e.g. on night shifts with no Manager present?
-3. **Reminder intervals and escalation ceiling** — are the §5 numbers acceptable?
-4. **Meet calling** — is a Jitsi link fine, or Google Meet / Teams required?
-5. **Video storage** — on-prem or cloud preference? Retention period?
-6. **Final close** — Safety In-charge or Director (like the leave final sign-off)?
+---
+
+## 11. Open questions for the client
+
+1. **"Visible to all" vs sensitive cases** — redact names on fatal/death for employees, or full visibility?
+2. **Reminder intervals / escalation N** — are §7 numbers OK?
+3. **Meet calling** — Jitsi OK, or Google Meet / Teams required?
+4. **Video storage** — on-prem vs cloud; retention?
+5. **Clearance strictness** — hard-block return for all `sick` leaves, or only when a linked Safety event sets `requiresReturnClearance`? *(Recommendation: only when linked / category requires it — avoid blocking every casual sick day.)*
+6. **Waive policy** — Director-only waive with mandatory remark (recommended; mirrors leave extension remark)?
+
+**Resolved from current system (no longer blocking):**
+
+- Who raises incidents on night shift → **include shift/site in-charge** (§6).
+- Final Safety close → **safety_incharge or director** (leave finalize stays director-only; Safety close is broader).
+- People model → **existing employee ids + site hierarchy**, not a new staff directory.
+- OT on breakdowns → **ot-decision module**, not a parallel OT ledger.

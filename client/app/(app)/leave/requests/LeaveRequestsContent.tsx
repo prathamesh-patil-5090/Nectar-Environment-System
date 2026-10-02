@@ -39,6 +39,7 @@ import {
   type LeaveType,
 } from "@/lib/leave";
 import { validateLeave, type LeavePolicyResult } from "@/lib/api/leaves";
+import { assertCanSiteApproveLeave } from "@/lib/manpower-conflict";
 import { pushNotification } from "@/lib/notifications";
 import {
   canConfirmLeaveReturn,
@@ -144,11 +145,25 @@ export default function LeaveRequestsContent() {
       render: (_, r) => {
         const overlaps =
           !personalOnly && getPlantOverlappingLeaves(r.id).length > 0;
+        const gate =
+          !personalOnly &&
+          ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED"].includes(r.status)
+            ? assertCanSiteApproveLeave(r.id, {})
+            : null;
+        const hasConflict = Boolean(gate && !gate.ok);
         return (
           <span>
             {r.startDate} → {r.endDate}
             {overlaps ? (
               <Tag color={nectarColors.alert} style={{ marginLeft: 8, marginInlineEnd: 0 }}>plant overlap</Tag>
+            ) : null}
+            {hasConflict ? (
+              <Tag
+                color="#D97706"
+                style={{ marginLeft: 8, marginInlineEnd: 0 }}
+              >
+                conflict
+              </Tag>
             ) : null}
           </span>
         );

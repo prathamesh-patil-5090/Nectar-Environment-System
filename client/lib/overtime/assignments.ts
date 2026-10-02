@@ -113,6 +113,12 @@ export function ensureOtAssignmentSeed(): void {
   if (missing.length) writeAll([...missing, ...existing]);
 }
 
+/** Restore demo OT assignments (drops manager-created assigns in this browser). */
+export function resetOtAssignments(): void {
+  if (typeof window === "undefined") return;
+  writeAll(DEMO_OT.map((a) => ({ ...a })));
+}
+
 export function getOtAssignments(opts?: {
   siteId?: string;
   employeeId?: string;

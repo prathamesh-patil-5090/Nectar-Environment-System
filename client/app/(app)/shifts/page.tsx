@@ -7,12 +7,14 @@ import KpiStat from "@/components/KpiStat";
 import { getSession } from "@/lib/auth";
 import { getSiteName, sites } from "@/lib/mock-data";
 import {
-  detectConflicts,
   getOtByShiftCause,
   getRotationPreviews,
   getShiftDashboardKpis,
   getShiftInsights,
+  TODAY,
+  addDays,
 } from "@/lib/shift";
+import { getManpowerConflictReport } from "@/lib/manpower-conflict";
 import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { gridGap16, gridGap162, rowWrapGap1BgR8 } from "@/lib/styles";
@@ -36,7 +38,11 @@ export default function ShiftsDashboardPage() {
   }, [tick, siteId]);
   const conflicts = useMemo(() => {
     void tick;
-    return detectConflicts(siteId).slice(0, 5);
+    return getManpowerConflictReport({
+      siteId,
+      from: TODAY,
+      to: addDays(TODAY, 10),
+    }).issues.slice(0, 8);
   }, [siteId, tick]);
   const insights = useMemo(() => {
     void tick;
@@ -103,22 +109,47 @@ export default function ShiftsDashboardPage() {
           />
         </Panel>
 
-        <Panel title="Conflicts">
+        <Panel title="Manpower + Conflict">
           {conflicts.length === 0 ? (
-            <div style={{ color: nectarColors.muted, fontSize: 13 }}>No rest / weekly-off conflicts in the next window.</div>
+            <div style={{ color: nectarColors.muted, fontSize: 13 }}>
+              No shortages or conflicts in the next window.{" "}
+              <Link href="/shifts/manpower">Open hub</Link>
+            </div>
           ) : (
-            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {conflicts.map((c) => (
-                <li
-                  key={c.id}
-                  style={{ padding: "10px 0", borderBottom: `1px solid ${nectarColors.sand}`, fontSize: 13 }}
-                >
-                  <Tag color={c.severity === "attention" ? nectarColors.alert : "#D97706"}>{c.type}</Tag>
-                  <strong>{c.employeeName}</strong>
-                  <div style={{ color: nectarColors.muted }}>{c.message}</div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {conflicts.map((c) => (
+                  <li
+                    key={c.id}
+                    style={{
+                      padding: "10px 0",
+                      borderBottom: `1px solid ${nectarColors.sand}`,
+                      fontSize: 13,
+                    }}
+                  >
+                    <Tag
+                      color={
+                        c.severity === "attention"
+                          ? nectarColors.alert
+                          : "#D97706"
+                      }
+                    >
+                      {c.kind.replaceAll("_", " ")}
+                    </Tag>
+                    <strong>{c.title}</strong>
+                    <div style={{ color: nectarColors.muted }}>{c.message}</div>
+                    {c.href ? (
+                      <Link href={c.href} style={{ fontSize: 12 }}>
+                        Open
+                      </Link>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ marginTop: 8 }}>
+                <Link href="/shifts/manpower">View all on Manpower + Conflict</Link>
+              </div>
+            </>
           )}
         </Panel>
       </div>

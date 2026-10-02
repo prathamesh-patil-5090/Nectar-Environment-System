@@ -23,7 +23,6 @@ import { getEmployeeById, getSiteName } from "@/lib/mock-data";
 import {
   cancelLeave,
   computeLeaveImpact,
-  confirmReturn,
   employeeConsentLeave,
   escalateLeave,
   getLeaveById,
@@ -37,14 +36,25 @@ import {
   supervisorVerify,
 } from "@/lib/leave";
 import {
+  confirmReturnLifecycle,
+  getLifecycleReport,
+  reportCoverDisruption,
+} from "@/lib/leave-lifecycle";
+import {
   candidateDisplaySource,
   computeShiftImpact,
 } from "@/lib/shift-impact";
+import {
+  assertCanSiteApproveLeave,
+  getManpowerConflictReport,
+  leaveRequiresCoverChoice,
+} from "@/lib/manpower-conflict";
 import { pushNotification } from "@/lib/notifications";
 import {
   canConfirmLeaveReturn,
   canManagerDecideLeave,
   canAdminFinalizeLeave,
+  canManageRelieverPool,
   canSiteApproveLeave,
   canSupervisorVerifyLeave,
   canWithdrawLeaveRequest,
@@ -55,6 +65,14 @@ import {
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
+import {
+  detectContests,
+  hasCompetitionAck,
+} from "@/lib/reliever-competition";
+import {
+  evaluateOtDecision,
+  findClearingOtDecision,
+} from "@/lib/ot-decision";
 import { rowBetweenWrapGap12, sSerifText18Ink, sSerifText18InkMb122, sSerifText18Mb12, sSerifText26Ink, sWhitePadR10 } from "@/lib/styles";
 import type { CSSProperties } from "react";
 
@@ -112,6 +130,8 @@ export default function LeaveDetailPage({
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawNote, setWithdrawNote] = useState("");
   const [coverChoice, setCoverChoice] = useState<string>();
+  const [otRemark, setOtRemark] = useState("");
+  const [extensionRemark, setExtensionRemark] = useState("");
 
   const leave = useMemo(() => {
     void tick;
@@ -135,10 +155,80 @@ export default function LeaveDetailPage({
     });
   }, [leave, tick]);
 
+  const manpowerReport = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return getManpowerConflictReport({
+      siteId: leave.siteId,
+      from: leave.startDate,
+      to: leave.endDate,
+      focusLeaveId: leave.id,
+    });
+  }, [leave, tick]);
+
+  const leaveGate = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return assertCanSiteApproveLeave(leave.id, {
+      relieverId: coverChoice && coverChoice !== "ot" ? coverChoice : undefined,
+      otFallback: coverChoice === "ot",
+    });
+  }, [leave, tick, coverChoice]);
+
+  const needsCoverChoice = useMemo(() => {
+    void tick;
+    if (!leave) return false;
+    return leaveRequiresCoverChoice(leave.id);
+  }, [leave, tick]);
+
   const replacementOptions = useMemo(() => {
     void tick;
     if (!leave) return { local: [], cluster: [] };
     return listReplacementOptions(leave.siteId, { date: leave.startDate, excludeEmployeeId: leave.employeeId });
+  }, [leave, tick]);
+
+  const leaveContests = useMemo(() => {
+    void tick;
+    if (!leave) return [];
+    return detectContests({
+      siteId: leave.siteId,
+      from: leave.startDate,
+      to: leave.endDate,
+    }).filter((c) =>
+      c.claims.some(
+        (cl) => cl.leaveId === leave.id || cl.absenceId === leave.id,
+      ),
+    );
+  }, [leave, tick]);
+
+  const otEval = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return evaluateOtDecision({
+      siteId: leave.siteId,
+      date: leave.startDate,
+      shiftId: leave.shiftId,
+      leaveId: leave.id,
+      trigger: "leave_cover",
+    });
+  }, [leave, tick]);
+
+  const otCleared = useMemo(() => {
+    void tick;
+    if (!leave) return false;
+    return Boolean(
+      findClearingOtDecision({
+        siteId: leave.siteId,
+        date: leave.startDate,
+        leaveId: leave.id,
+      }),
+    );
+  }, [leave, tick]);
+
+  const lifecycleCases = useMemo(() => {
+    void tick;
+    if (!leave) return [];
+    return getLifecycleReport({ leaveId: leave.id }).cases;
   }, [leave, tick]);
 
   const plantOverlaps = useMemo(() => {
@@ -294,6 +384,22 @@ export default function LeaveDetailPage({
             </InfoTile>
             <InfoTile label="Expected return">{leave.expectedReturnDate}</InfoTile>
             <InfoTile label="Actual return">{leave.actualReturnDate ?? "—"}</InfoTile>
+            <InfoTile label="Lifecycle" wide>
+              {lifecycleCases.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {lifecycleCases.slice(0, 3).map((c) => (
+                    <div key={c.id} style={{ fontSize: 13 }}>
+                      <Tag>{c.kind.replaceAll("_", " ")}</Tag> {c.message}
+                    </div>
+                  ))}
+                  <Link href={`/leave/lifecycle?leaveId=${leave.id}`}>
+                    Open Lifecycle queue
+                  </Link>
+                </div>
+              ) : (
+                "No active lifecycle flags"
+              )}
+            </InfoTile>
             <InfoTile label="Leave balance">{leave.leaveBalanceDays} days</InfoTile>
             <InfoTile label="Supervisor">{leave.supervisorName}</InfoTile>
             <InfoTile label="Shift In-Charge">{leave.siteInChargeName}</InfoTile>
@@ -376,6 +482,90 @@ export default function LeaveDetailPage({
 
       <ShiftImpactPanel impact={impact} report={shiftReport ?? undefined} />
 
+      {manpowerReport && manpowerReport.issues.length > 0 ? (
+        <div
+          style={{
+            background: nectarColors.white,
+            padding: 16,
+            borderRadius: 10,
+            border:
+              (leaveGate && !leaveGate.ok) || manpowerReport.attentionCount > 0
+                ? "1px solid rgba(196, 92, 38, 0.4)"
+                : "1px solid rgba(28, 68, 99, 0.12)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 8,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-fraunces), Georgia, serif",
+                fontSize: 18,
+              }}
+            >
+              Manpower conflicts
+            </div>
+            <Space size={4} wrap>
+              <Tag color={manpowerReport.attentionCount ? nectarColors.alert : undefined}>
+                {manpowerReport.attentionCount} attention
+              </Tag>
+              {canSite ? (
+                <Tag color={leaveGate?.ok ? nectarColors.mint : nectarColors.alert}>
+                  {leaveGate?.ok
+                    ? "Site-approve clear"
+                    : "Site-approve blocked"}
+                </Tag>
+              ) : null}
+            </Space>
+          </div>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              fontSize: 13,
+              color: nectarColors.ink,
+              lineHeight: 1.55,
+            }}
+          >
+            {manpowerReport.issues
+              .filter((i) => i.severity === "attention" || i.kind === "plant_overlap")
+              .slice(0, 8)
+              .map((i) => (
+                <li key={i.id}>
+                  <Tag
+                    color={
+                      i.severity === "attention" ? nectarColors.alert : "#D97706"
+                    }
+                    style={{ marginRight: 6 }}
+                  >
+                    {i.kind.replaceAll("_", " ")}
+                  </Tag>
+                  {i.message}
+                </li>
+              ))}
+          </ul>
+          {needsCoverChoice && canSite ? (
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: 12,
+                color: nectarColors.muted,
+              }}
+            >
+              Assign cover or accept OT below before site approval. Leave-on-roster
+            is expected until the leave is approved; rest / double-booking still
+            block and need a schedule edit.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {(() => {
         const awaitingCover = [
           "REQUESTED",
@@ -443,28 +633,121 @@ export default function LeaveDetailPage({
                   onChange={(e) => setCoverChoice(e.target.value)}
                   style={{ display: "flex", flexDirection: "column", gap: 8 }}
                 >
-                  {people.map((person) => (
-                    <Radio key={person.relieverId} value={person.relieverId}>
-                      {person.name} · {person.label}
-                      {person.kind === "employee" ? " · employee" : " · pool"}
-                      {person.phone ? ` · ${person.phone}` : ""}
-                    </Radio>
-                  ))}
-                  <Radio value="ot">No one — accept overtime</Radio>
+                  {people.map((person) => {
+                    const contest = leaveContests.find(
+                      (c) =>
+                        c.candidateId === person.relieverId ||
+                        c.employeeId === person.relieverId,
+                    );
+                    const cleared =
+                      contest &&
+                      hasCompetitionAck(leave.id, person.relieverId);
+                    return (
+                      <Radio key={person.relieverId} value={person.relieverId}>
+                        {person.name} · {person.label}
+                        {person.kind === "employee" ? " · employee" : " · pool"}
+                        {person.phone ? ` · ${person.phone}` : ""}
+                        {contest ? (
+                          <Tag
+                            color={cleared ? nectarColors.sky : nectarColors.alert}
+                            style={{ marginLeft: 8 }}
+                          >
+                            {cleared
+                              ? "Contested · acknowledged"
+                              : "Contested — needs Manager"}
+                          </Tag>
+                        ) : null}
+                      </Radio>
+                    );
+                  })}
+                  <Radio value="ot">
+                    No one — accept overtime
+                    {otEval?.needsManagerRemark && !otCleared ? (
+                      <Tag color={nectarColors.alert} style={{ marginLeft: 8 }}>
+                        Needs Manager OT decision
+                      </Tag>
+                    ) : null}
+                    {otCleared ? (
+                      <Tag color={nectarColors.mint} style={{ marginLeft: 8 }}>
+                        OT approved
+                      </Tag>
+                    ) : null}
+                  </Radio>
                 </Radio.Group>
+                {coverChoice === "ot" && otEval ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: 12,
+                      borderRadius: 8,
+                      background: nectarColors.sand,
+                      fontSize: 13,
+                    }}
+                  >
+                    <div>
+                      {otEval.hours}h · ₹{otEval.cost}
+                      {otEval.flags.length
+                        ? ` · ${otEval.flags.map((f) => f.replaceAll("_", " ")).join(", ")}`
+                        : ""}
+                    </div>
+                    <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
+                      {otEval.message}{" "}
+                      <Link href={`/overtime/decisions?leaveId=${leave.id}`}>
+                        OT Decisions
+                      </Link>
+                    </p>
+                    {canManager && otEval.needsManagerRemark && !otCleared ? (
+                      <Input.TextArea
+                        style={{ marginTop: 8 }}
+                        rows={2}
+                        placeholder="Manager remark to clear OT soft block"
+                        value={otRemark}
+                        onChange={(e) => setOtRemark(e.target.value)}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+                {leaveContests.length > 0 ? (
+                  <p
+                    style={{
+                      margin: "10px 0 0",
+                      fontSize: 12,
+                      color: nectarColors.muted,
+                    }}
+                  >
+                    Contested cover must be Awarded or Acknowledged on{" "}
+                    <Link href={`/reliever-pool/competition?leaveId=${leave.id}`}>
+                      Reliever Competition
+                    </Link>{" "}
+                    before Cover this shift succeeds.
+                  </p>
+                ) : null}
                 <Space wrap style={{ marginTop: 12 }}>
                   <Button
                     type="primary"
                     disabled={!coverChoice}
                     onClick={() => {
                       if (!coverChoice) return;
+                      const otActorRole =
+                        role === "director"
+                          ? "director"
+                          : role === "manager"
+                            ? "manager"
+                            : "sic";
                       run(
                         () =>
                           siteApprove(
                             leave.id,
                             actor,
                             coverChoice === "ot"
-                              ? { otFallback: true }
+                              ? {
+                                  otFallback: true,
+                                  otRemark:
+                                    canManager && otRemark.trim()
+                                      ? otRemark.trim()
+                                      : undefined,
+                                  otActorRole,
+                                }
                               : { relieverId: coverChoice },
                           ),
                         coverChoice === "ot"
@@ -551,7 +834,17 @@ export default function LeaveDetailPage({
             canAdmin && leave.status === "MANAGER_APPROVED";
           const showReturn =
             canReturn &&
-            ["APPROVED", "EXTENSION_REQUIRED"].includes(leave.status);
+            leave.status === "APPROVED";
+          const showCloseExtension =
+            canManager && leave.status === "EXTENSION_REQUIRED";
+          const showDisrupt =
+            (canManager || canManageRelieverPool(session)) &&
+            ["APPROVED", "EXTENSION_REQUIRED"].includes(leave.status) &&
+            Boolean(
+              leave.assignedRelieverId ||
+                leave.assignedCoverEmployeeId ||
+                leave.coverSource === "ot_fallback",
+            );
           const showReject =
             (canVerify && ["REQUESTED", "ABSENT"].includes(leave.status)) ||
             (canSite &&
@@ -569,6 +862,8 @@ export default function LeaveDetailPage({
             showManager ||
             showAdmin ||
             showReturn ||
+            showCloseExtension ||
+            showDisrupt ||
             showReject ||
             showWithdraw;
 
@@ -709,11 +1004,19 @@ export default function LeaveDetailPage({
                 onClick={() =>
                   run(
                     () =>
-                      confirmReturn(
-                        leave.id,
+                      confirmReturnLifecycle({
+                        leaveId: leave.id,
                         actor,
-                        returnDate.format("YYYY-MM-DD"),
-                      ),
+                        actualReturnDate: returnDate.format("YYYY-MM-DD"),
+                        actorRole:
+                          role === "director"
+                            ? "director"
+                            : role === "manager"
+                              ? "manager"
+                              : role === "supervisor"
+                                ? "supervisor"
+                                : "shift_incharge",
+                      }),
                     "Return recorded",
                   )
                 }
@@ -721,6 +1024,57 @@ export default function LeaveDetailPage({
                 Confirm return to duty
               </Button>
             </>
+          ) : null}
+          {showCloseExtension ? (
+            <>
+              <DatePicker value={returnDate} onChange={(d) => d && setReturnDate(d)} />
+              <Input.TextArea
+                rows={2}
+                placeholder="Manager remark to close extension (required)"
+                value={extensionRemark}
+                onChange={(e) => setExtensionRemark(e.target.value)}
+                style={{ minWidth: 220 }}
+              />
+              <Button
+                type="primary"
+                onClick={() =>
+                  run(
+                    () =>
+                      confirmReturnLifecycle({
+                        leaveId: leave.id,
+                        actor,
+                        actualReturnDate: returnDate.format("YYYY-MM-DD"),
+                        remark: extensionRemark,
+                        actorRole: role === "director" ? "director" : "manager",
+                      }),
+                    "Extension closed",
+                  )
+                }
+              >
+                Close extension
+              </Button>
+            </>
+          ) : null}
+          {showDisrupt ? (
+            <Button
+              danger
+              onClick={() => {
+                const note = window.prompt("Cover disruption note (required)");
+                if (!note?.trim()) return;
+                run(
+                  () =>
+                    reportCoverDisruption({
+                      leaveId: leave.id,
+                      kind: "no_show",
+                      note: note.trim(),
+                      actor,
+                    }),
+                  "Cover disruption recorded",
+                );
+              }}
+            >
+              Report cover no-show
+            </Button>
           ) : null}
           </Space>
 

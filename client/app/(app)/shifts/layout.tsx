@@ -11,9 +11,26 @@ const SHIFT_TABS = [
   { key: "/shifts/master", label: "Shift Master", href: "/shifts/master" },
   { key: "/shifts/schedule", label: "Schedule", href: "/shifts/schedule" },
   { key: "/shifts/rotation", label: "Rotation", href: "/shifts/rotation" },
-  { key: "/shifts/change-requests", label: "Change Requests", href: "/shifts/change-requests" },
-  { key: "/shifts/reliever-allocation", label: "Reliever Allocation", href: "/shifts/reliever-allocation" },
-  { key: "/shifts/deviations", label: "Deviations", href: "/shifts/deviations" },
+  {
+    key: "/shifts/change-requests",
+    label: "Change Requests",
+    href: "/shifts/change-requests",
+  },
+  {
+    key: "/shifts/reliever-allocation",
+    label: "Reliever Allocation",
+    href: "/shifts/reliever-allocation",
+  },
+  {
+    key: "/shifts/manpower",
+    label: "Manpower + Conflict",
+    href: "/shifts/manpower",
+  },
+  {
+    key: "/shifts/deviations",
+    label: "Deviations",
+    href: "/shifts/deviations",
+  },
 ];
 
 export default function ShiftsLayout({
