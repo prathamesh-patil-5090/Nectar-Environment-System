@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# visual regression (playwright) — baseline stays local
+/.next-e2e/
+/e2e/__screenshots__/
+/e2e/results/
+/e2e/report/
