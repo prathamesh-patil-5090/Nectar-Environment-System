@@ -22,6 +22,11 @@ const SHIFT_TABS = [
     href: "/shifts/reliever-allocation",
   },
   {
+    key: "/shifts/manpower",
+    label: "Manpower + Conflict",
+    href: "/shifts/manpower",
+  },
+  {
     key: "/shifts/deviations",
     label: "Deviations",
     href: "/shifts/deviations",

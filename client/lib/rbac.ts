@@ -77,6 +77,11 @@ export function canViewOtModule(user: SessionUser | null): boolean {
   return role !== "employee";
 }
 
+export function canResolveOtDecisions(user: SessionUser | null): boolean {
+  const role = normalizeRole(user?.role);
+  return role === "director" || role === "manager";
+}
+
 export function canAssignOt(user: SessionUser | null): boolean {
   const role = normalizeRole(user?.role);
   return role === "director" || role === "manager";
@@ -314,6 +319,13 @@ export function canViewShiftsNav(user: SessionUser | null): boolean {
   );
 }
 
+export function canResolveRelieverCompetition(
+  user: SessionUser | null,
+): boolean {
+  const role = normalizeRole(user?.role);
+  return role === "director" || role === "manager";
+}
+
 /** Reliever pool — Supervisor (availability) + SIC + Manager + Director */
 export function canViewRelieverPoolNav(user: SessionUser | null): boolean {
   return canManageRelieverPool(user);
@@ -332,6 +344,7 @@ export function visibleShiftNavKeys(user: SessionUser | null): string[] | null {
     "/shifts/rotation",
     "/shifts/change-requests",
     "/shifts/reliever-allocation",
+    "/shifts/manpower",
     "/shifts/deviations",
   ];
 }

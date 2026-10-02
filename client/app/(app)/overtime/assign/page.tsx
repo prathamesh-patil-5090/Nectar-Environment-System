@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   App,
+  Alert,
   Button,
   DatePicker,
   Form,
@@ -14,6 +15,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
+import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { employees, getSiteName } from "@/lib/mock-data";
 import {
@@ -21,6 +23,7 @@ import {
   getOtAssignments,
   type OtAssignment,
 } from "@/lib/overtime";
+import { getOtDecisions } from "@/lib/ot-decision";
 import { canAssignOt, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
@@ -31,6 +34,14 @@ export default function OtAssignPage() {
   const canAssign = canAssignOt(session);
   const [tick, setTick] = useState(0);
   const [form] = Form.useForm();
+
+  const approvedSuggestions = useMemo(() => {
+    void tick;
+    return getOtDecisions({
+      siteId: siteScope,
+      status: "approved",
+    }).filter((d) => d.chosenEmployeeId);
+  }, [siteScope, tick]);
 
   const plantEmployees = useMemo(
     () =>
@@ -103,8 +114,41 @@ export default function OtAssignPage() {
       <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
         {siteScope
           ? `Assign and notify OT for ${getSiteName(siteScope)} staff.`
-          : "Assign and notify OT across plants (director)."}
+          : "Assign and notify OT across plants (director)."}{" "}
+        Gap-driven OT: prefer{" "}
+        <Link href="/overtime/decisions">OT Decisions</Link>.
       </p>
+
+      {approvedSuggestions.length > 0 ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Approved OT decisions with assignees"
+          description={
+            <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+              {approvedSuggestions.slice(0, 5).map((d) => (
+                <li key={d.id}>
+                  {d.chosenEmployeeName} · {d.date} · {d.hours}h · {d.title}{" "}
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      form.setFieldsValue({
+                        employeeId: d.chosenEmployeeId,
+                        date: dayjs(d.date),
+                        hours: d.hours,
+                        reason: d.remark ?? d.title,
+                      });
+                    }}
+                  >
+                    Prefill
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          }
+        />
+      ) : null}
 
       {canAssign ? (
         <div

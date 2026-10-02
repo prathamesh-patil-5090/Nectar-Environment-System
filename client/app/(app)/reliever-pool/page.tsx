@@ -304,6 +304,14 @@ export default function RelieverPoolPage() {
           OT only as last resort. Supervisors manage availability; workers do
           not need the app.
         </p>
+        <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <Link href="/reliever-pool/competition">
+            <Button type="default">Reliever Competition</Button>
+          </Link>
+          <Link href="/leave/lifecycle">
+            <Button type="default">Lifecycle / Coverage</Button>
+          </Link>
+        </div>
         <div
           style={{
             marginTop: 14,

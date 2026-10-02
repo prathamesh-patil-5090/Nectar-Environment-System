@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   App,
   Button,
+  Checkbox,
   DatePicker,
   Drawer,
   Input,
@@ -37,6 +38,7 @@ import {
   type RotationPreview,
   type ShiftCode,
 } from "@/lib/shift";
+import { assertCanPublishRotation } from "@/lib/manpower-conflict";
 import {
   canAdminFinalizeRotation,
   canGenerateRotation,
@@ -279,6 +281,17 @@ export default function ShiftRotationPage() {
     outcome: "approved" | "rejected",
   ) => {
     let remark = "";
+    let acknowledgeOt = false;
+    const publishGate =
+      stage === "director" && outcome === "approved"
+        ? assertCanPublishRotation(
+            preview.siteId,
+            preview.fromDate,
+            preview.toDate,
+            { assignments: preview.assignments },
+          )
+        : null;
+
     modal.confirm({
       title:
         outcome === "approved"
@@ -286,14 +299,43 @@ export default function ShiftRotationPage() {
             ? "Approve and send to Director"
             : "Approve and publish live"
           : "Reject draft",
+      width: 480,
       content: (
-        <Input.TextArea
-          rows={3}
-          placeholder="Remark (required)"
-          onChange={(e) => {
-            remark = e.target.value;
-          }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {publishGate && !publishGate.ok ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="Publish blockers"
+              description={
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {publishGate.reasons.slice(0, 5).map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              }
+            />
+          ) : null}
+          <Input.TextArea
+            rows={3}
+            placeholder="Remark (required)"
+            onChange={(e) => {
+              remark = e.target.value;
+            }}
+          />
+          {stage === "director" &&
+          outcome === "approved" &&
+          publishGate?.otAcknowledgeWouldClear ? (
+            <Checkbox
+              onChange={(e) => {
+                acknowledgeOt = e.target.checked;
+              }}
+            >
+              Accept OT for uncovered shift gaps (Director remark clears soft
+              policy flags)
+            </Checkbox>
+          ) : null}
+        </div>
       ),
       okText: outcome === "approved" ? "Confirm approve" : "Confirm reject",
       okButtonProps: { danger: outcome === "rejected" },
@@ -308,7 +350,13 @@ export default function ShiftRotationPage() {
                 : "Draft rejected.",
             );
           } else {
-            adminDecideRotation(preview.id, { by, remark, outcome });
+            adminDecideRotation(preview.id, {
+              by,
+              remark,
+              outcome,
+              acknowledgeOt:
+                outcome === "approved" ? acknowledgeOt : undefined,
+            });
             message.success(
               outcome === "approved"
                 ? "Published to the live roster."

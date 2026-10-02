@@ -74,7 +74,8 @@ export default function LeaveManagementPage() {
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Exceptions and workforce impact — not routine approvals. Drill from
-          site → leave → OT impact.
+          site → leave → OT impact. Active returns and cover issues:{" "}
+          <Link href="/leave/lifecycle">Lifecycle / Coverage</Link>.
           {siteScope ? ` Scoped to ${getSiteName(siteScope)}.` : ""}
         </p>
       </div>

@@ -41,6 +41,8 @@ import { getEmployeeById, getSiteById } from "@/lib/mock-data";
 import { getUnreadCount } from "@/lib/notifications";
 import {
   canAssignOt,
+  canConfirmLeaveReturn,
+  canManageRelieverPool,
   canViewLeaveManagement,
   canViewOtModule,
   canViewRelieverPoolNav,
@@ -62,6 +64,7 @@ const FLYOUT_TITLES: Record<string, string> = {
   shifts: "Shifts",
   overtime: "OverTime",
   academy: "Academy",
+  "reliever-pool": "Reliever Pool",
 };
 
 function readSiderCollapsed(): boolean {
@@ -124,11 +127,13 @@ const overtimeChildren = [
   { key: "/overtime/employees", label: "Employees" },
   { key: "/overtime/sites", label: "Sites" },
   { key: "/overtime/analysis", label: "Analysis & reports" },
+  { key: "/overtime/decisions", label: "Decisions" },
 ];
 
 const leaveChildren = [
   { key: "/leave", label: "Overview" },
   { key: "/leave/requests", label: "Requests" },
+  { key: "/leave/lifecycle", label: "Lifecycle / Coverage" },
   { key: "/leave/management", label: "Management" },
 ];
 
@@ -139,6 +144,7 @@ const shiftChildren = [
   { key: "/shifts/rotation", label: "Rotation" },
   { key: "/shifts/change-requests", label: "Change Requests" },
   { key: "/shifts/reliever-allocation", label: "Reliever Allocation" },
+  { key: "/shifts/manpower", label: "Manpower + Conflict" },
   { key: "/shifts/deviations", label: "Deviations" },
 ];
 
@@ -150,8 +156,10 @@ const pageTitles: Record<string, string> = {
   "/sites": "Sites",
   "/training": "Training",
   "/reliever-pool": "Reliever Pool",
+  "/reliever-pool/competition": "Reliever Competition",
   "/leave": "Leave Overview",
   "/leave/requests": "Leave Requests",
+  "/leave/lifecycle": "Leave · Lifecycle / Coverage",
   "/leave/management": "Leave · Management",
   "/shifts": "Shift Rotation",
   "/shifts/master": "Shift Master",
@@ -159,11 +167,13 @@ const pageTitles: Record<string, string> = {
   "/shifts/rotation": "Shift Rotation",
   "/shifts/change-requests": "Shift Change Requests",
   "/shifts/reliever-allocation": "Reliever Allocation",
+  "/shifts/manpower": "Manpower + Conflict",
   "/shifts/deviations": "Shift Deviations",
   "/overtime/overview": "OT Overview",
   "/overtime/employees": "Employee OT",
   "/overtime/sites": "Site OT",
   "/overtime/analysis": "OT Analysis & Reports",
+  "/overtime/decisions": "OT Decisions",
   "/overtime/assign": "Assign OT",
   "/notifications": "Notifications",
   "/certifications": "Certifications",
@@ -332,6 +342,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const extras: string[] = [];
     if (pathname.startsWith("/leave")) extras.push("leave");
     if (pathname.startsWith("/overtime")) extras.push("overtime");
+    if (pathname.startsWith("/reliever-pool")) extras.push("reliever-pool");
     if (pathname.startsWith("/shifts") && canViewShiftsNav(user)) {
       extras.push("shifts");
     }
@@ -364,6 +375,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/leave/requests") || pathname.startsWith("/leave/pending")) {
       return "/leave/requests";
     }
+    if (pathname.startsWith("/leave/lifecycle")) {
+      return "/leave/lifecycle";
+    }
     if (pathname.startsWith("/leave/management")) {
       return "/leave/management";
     }
@@ -380,6 +394,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return match?.key ?? "/shifts";
     }
 
+    // 2b. Reliever pool
+    if (pathname.startsWith("/reliever-pool/competition")) {
+      return "/reliever-pool/competition";
+    }
+    if (pathname === "/reliever-pool" || pathname.startsWith("/reliever-pool")) {
+      return "/reliever-pool";
+    }
+
     // 3. Overtime routes
     if (pathname.startsWith("/overtime/employees")) {
       return "/overtime/employees";
@@ -389,6 +411,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/overtime/analysis") || pathname.startsWith("/overtime/reports")) {
       return "/overtime/analysis";
+    }
+    if (pathname.startsWith("/overtime/decisions")) {
+      return "/overtime/decisions";
     }
     if (pathname.startsWith("/overtime/assign")) {
       return "/overtime/assign";
@@ -443,6 +468,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/leave/requests/")) {
       return "Leave detail";
     }
+    if (pathname.startsWith("/reliever-pool/competition")) {
+      return "Reliever Competition";
+    }
     if (pathname.startsWith("/overtime/employees/")) {
       const id = pathname.split("/")[3];
       return getEmployeeById(id)?.name
@@ -495,6 +523,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const leaveKids = leaveChildren.filter((c) => {
       if (c.key === "/leave/management") return canViewLeaveManagement(user);
+      if (c.key === "/leave/lifecycle") {
+        return (
+          canViewLeaveManagement(user) ||
+          canConfirmLeaveReturn(user) ||
+          canManageRelieverPool(user)
+        );
+      }
       return true;
     });
 
@@ -536,9 +571,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     if (canViewRelieverPoolNav(user)) {
       items.push({
-        key: "/reliever-pool",
+        key: "reliever-pool",
         icon: <ClusterOutlined />,
         label: "Reliever Pool",
+        children: [
+          { key: "/reliever-pool", label: "Pool" },
+          { key: "/reliever-pool/competition", label: "Competition" },
+        ],
       });
     }
 
@@ -748,6 +787,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               key === "overtime" ||
               key === "leave" ||
               key === "shifts" ||
+              key === "reliever-pool" ||
               key === "academy"
             ) {
               return;
