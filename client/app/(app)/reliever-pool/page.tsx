@@ -41,6 +41,7 @@ import {
 } from "@/lib/shift-impact";
 import { canManageRelieverPool, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { gridGap162, rowCenterBetweenWrapGap12, rowWrapGap1BgR8, sWhitePadR12BorderShadow } from "@/lib/styles";
 
 const IMPACT_TODAY = "2026-09-23";
 
@@ -92,11 +93,7 @@ export default function RelieverPoolPage() {
 
   const impactVacancies = useMemo(() => {
     void tick;
-    const report = computeShiftImpact({
-      siteId: siteScope,
-      from: IMPACT_TODAY,
-      to: IMPACT_TODAY,
-    });
+    const report = computeShiftImpact({ siteId: siteScope, from: IMPACT_TODAY, to: IMPACT_TODAY });
     return report.vacancies.filter((v) => {
       if (v.status !== "open") return false;
       if (siteScope && v.siteId !== siteScope) return false;
@@ -146,11 +143,7 @@ export default function RelieverPoolPage() {
   };
 
   const absenceColumns: ColumnsType<AbsenceRecord> = [
-    {
-      title: "Date",
-      dataIndex: "date",
-      width: 110,
-    },
+    { title: "Date", dataIndex: "date", width: 110 },
     {
       title: "Absent employee",
       dataIndex: "employeeName",
@@ -158,24 +151,14 @@ export default function RelieverPoolPage() {
         <Link href={`/employees/${row.employeeId}`}>{name}</Link>
       ),
     },
-    {
-      title: "Site",
-      dataIndex: "siteId",
-      render: (id) => sites.find((s) => s.id === id)?.name ?? id,
-    },
-    {
-      title: "Shift",
-      dataIndex: "shiftId",
-      render: (id) => shifts.find((s) => s.id === id)?.name ?? id,
-    },
+    { title: "Site", dataIndex: "siteId", render: (id) => sites.find((s) => s.id === id)?.name ?? id },
+    { title: "Shift", dataIndex: "shiftId", render: (id) => shifts.find((s) => s.id === id)?.name ?? id },
     {
       title: "Skills needed",
       dataIndex: "requiredSkills",
       render: (skills: string[]) =>
         skills.map((s) => (
-          <Tag key={s} style={{ marginBottom: 2 }}>
-            {s}
-          </Tag>
+          <Tag key={s} style={{ marginBottom: 2 }}>{s}</Tag>
         )),
     },
     {
@@ -199,29 +182,19 @@ export default function RelieverPoolPage() {
       render: (_, row) =>
         row.status === "open" ? (
           canManage ? (
-            <Button type="primary" size="small" onClick={() => assign(row.id)}>
-              Find replacement
-            </Button>
+            <Button type="primary" size="small" onClick={() => assign(row.id)}>Find replacement</Button>
           ) : (
-            <span style={{ fontSize: 12, color: nectarColors.muted }}>
-              View only
-            </span>
+            <span style={{ fontSize: 12, color: nectarColors.muted }}>View only</span>
           )
         ) : (
-          <span style={{ fontSize: 12, color: nectarColors.muted }}>
-            {row.resolutionNote ?? "—"}
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted }}>{row.resolutionNote ?? "—"}</span>
         ),
     },
   ];
 
   const relieverColumns: ColumnsType<Reliever> = [
     { title: "Reliever", dataIndex: "name" },
-    {
-      title: "Cluster",
-      dataIndex: "clusterId",
-      render: (id) => getClusterById(id)?.name ?? id,
-    },
+    { title: "Cluster", dataIndex: "clusterId", render: (id) => getClusterById(id)?.name ?? id },
     {
       title: "Home site",
       dataIndex: "homeSiteId",
@@ -233,9 +206,7 @@ export default function RelieverPoolPage() {
       dataIndex: "skills",
       render: (skills: string[]) =>
         skills.map((s) => (
-          <Tag key={s} style={{ marginBottom: 2 }}>
-            {s}
-          </Tag>
+          <Tag key={s} style={{ marginBottom: 2 }}>{s}</Tag>
         )),
     },
     {
@@ -260,13 +231,9 @@ export default function RelieverPoolPage() {
       key: "toggle",
       render: (_, row) =>
         !canManage ? (
-          <span style={{ fontSize: 12, color: nectarColors.muted }}>
-            View only
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted }}>View only</span>
         ) : row.availability === "assigned" ? (
-          <span style={{ fontSize: 12, color: nectarColors.muted }}>
-            On assignment
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted }}>On assignment</span>
         ) : (
           <Button size="small" onClick={() => toggleAvailability(row)}>
             {row.availability === "available"
@@ -279,21 +246,10 @@ export default function RelieverPoolPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div
-        style={{
-          background: nectarColors.white,
-          borderRadius: 12,
-          padding: 20,
-          border: "1px solid #E2E8F0",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
+      <div style={sWhitePadR12BorderShadow}>
         <div
           style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-            color: nectarColors.ink,
-            marginBottom: 6,
+            fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 22, color: nectarColors.ink, marginBottom: 6,
           }}
         >
           Dynamic Reliever Pool
@@ -305,14 +261,7 @@ export default function RelieverPoolPage() {
           not need the app.
         </p>
         <div
-          style={{
-            marginTop: 14,
-            display: "flex",
-            gap: 16,
-            flexWrap: "wrap",
-            fontSize: 13,
-            color: nectarColors.ink,
-          }}
+          style={{ marginTop: 14, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: nectarColors.ink }}
         >
           <FlowStep n="1" label="Absence detected" />
           <FlowStep n="2" label="Local reliever" />
@@ -322,29 +271,12 @@ export default function RelieverPoolPage() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 1,
-          background: "rgba(28, 68, 99, 0.06)",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div style={rowWrapGap1BgR8}>
         <KpiStat label="Clusters" value={kpis.clusters} hint={`${kpis.sitesCovered} sites`} />
         <KpiStat label="Pool size" value={kpis.poolSize} tone="info" />
-        <KpiStat
-          label="Available now"
-          value={kpis.available}
-          tone="positive"
-        />
+        <KpiStat label="Available now" value={kpis.available} tone="positive" />
         <KpiStat label="On assignment" value={kpis.assigned} tone="info" />
-        <KpiStat
-          label="Open absences"
-          value={kpis.openAbsences}
-          tone="alert"
-        />
+        <KpiStat label="Open absences" value={kpis.openAbsences} tone="alert" />
         <KpiStat
           label="OT avoided"
           value={`${kpis.otAvoidanceRate}%`}
@@ -353,24 +285,13 @@ export default function RelieverPoolPage() {
         />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
+      <div style={rowCenterBetweenWrapGap12}>
         <Select
           allowClear
           placeholder="All clusters"
           style={{ minWidth: 240 }}
           value={clusterId}
-          options={siteClusters.map((c) => ({
-            value: c.id,
-            label: `${c.name} (${c.siteIds.length} sites)`,
-          }))}
+          options={siteClusters.map((c) => ({ value: c.id, label: `${c.name} (${c.siteIds.length} sites)` }))}
           onChange={setClusterId}
         />
         <div style={{ fontSize: 13, color: nectarColors.muted }}>
@@ -379,10 +300,7 @@ export default function RelieverPoolPage() {
         </div>
       </div>
 
-      <Panel
-        title="Shift Impact vacancies"
-        icon={<ClusterOutlined style={{ color: nectarColors.leaf }} />}
-      >
+      <Panel title="Shift Impact vacancies" icon={<ClusterOutlined style={{ color: nectarColors.leaf }} />}>
         <p style={{ margin: "0 0 12px", fontSize: 13, color: nectarColors.muted }}>
           Leave days and roster gaps needing cover from employees or the pool.{" "}
           <Link href="/shifts/reliever-allocation">Full allocation view</Link>
@@ -394,36 +312,22 @@ export default function RelieverPoolPage() {
           dataSource={impactVacancies}
           locale={{ emptyText: "No open shift vacancies today" }}
           columns={[
-            {
-              title: "When",
-              key: "when",
-              render: (_, r) => `${r.date} · ${r.shiftCode}`,
-            },
+            { title: "When", key: "when", render: (_, r) => `${r.date} · ${r.shiftCode}` },
             {
               title: "Site",
               dataIndex: "siteId",
               render: (id: string) =>
                 sites.find((s) => s.id === id)?.name ?? id,
             },
-            {
-              title: "Source",
-              dataIndex: "source",
-              render: (s: string) => (s === "leave" ? "Leave" : "Roster gap"),
-            },
-            {
-              title: "Absent",
-              dataIndex: "absentEmployeeName",
-              render: (n?: string) => n ?? "—",
-            },
+            { title: "Source", dataIndex: "source", render: (s: string) => (s === "leave" ? "Leave" : "Roster gap") },
+            { title: "Absent", dataIndex: "absentEmployeeName", render: (n?: string) => n ?? "—" },
             {
               title: "Top candidates",
               key: "cand",
               render: (_, r) =>
                 r.candidates.length ? (
                   r.candidates.slice(0, 2).map((c) => (
-                    <Tag key={c.id} color={nectarColors.leaf}>
-                      {c.name} · {candidateDisplaySource(c.source)}
-                    </Tag>
+                    <Tag key={c.id} color={nectarColors.leaf}>{c.name} · {candidateDisplaySource(c.source)}</Tag>
                   ))
                 ) : (
                   <Tag color={nectarColors.alert}>OT risk</Tag>
@@ -441,10 +345,7 @@ export default function RelieverPoolPage() {
         />
       </Panel>
 
-      <Panel
-        title="Open absences & replacement"
-        icon={<WarningOutlined style={{ color: nectarColors.alert }} />}
-      >
+      <Panel title="Open absences & replacement" icon={<WarningOutlined style={{ color: nectarColors.alert }} />}>
         <Table
           rowKey="id"
           size="middle"
@@ -455,18 +356,8 @@ export default function RelieverPoolPage() {
         />
       </Panel>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr 1fr",
-          gap: 16,
-        }}
-        className="nectar-ot-two"
-      >
-        <Panel
-          title="Reliever availability"
-          icon={<TeamOutlined style={{ color: nectarColors.leaf }} />}
-        >
+      <div style={gridGap162} className="nectar-ot-two">
+        <Panel title="Reliever availability" icon={<TeamOutlined style={{ color: nectarColors.leaf }} />}>
           <Table
             rowKey="id"
             size="small"
@@ -477,10 +368,7 @@ export default function RelieverPoolPage() {
           />
         </Panel>
 
-        <Panel
-          title="Supervisor activity"
-          icon={<CheckCircleOutlined style={{ color: nectarColors.sky }} />}
-        >
+        <Panel title="Supervisor activity" icon={<CheckCircleOutlined style={{ color: nectarColors.sky }} />}>
           <Timeline
             items={events.map((e) => ({
               color:
@@ -495,9 +383,7 @@ export default function RelieverPoolPage() {
                     {e.step.replace(/_/g, " ")}
                     {e.channel ? ` · ${e.channel}` : ""}
                   </div>
-                  <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                    {e.message}
-                  </div>
+                  <div style={{ fontSize: 12, color: nectarColors.muted }}>{e.message}</div>
                 </div>
               ),
             }))}
@@ -505,10 +391,7 @@ export default function RelieverPoolPage() {
         </Panel>
       </div>
 
-      <Panel
-        title="Site manpower requirement"
-        icon={<ClusterOutlined style={{ color: nectarColors.leaf }} />}
-      >
+      <Panel title="Site manpower requirement" icon={<ClusterOutlined style={{ color: nectarColors.leaf }} />}>
         <Table
           rowKey="siteId"
           size="small"
@@ -535,43 +418,22 @@ export default function RelieverPoolPage() {
         />
       </Panel>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
         {siteClusters.map((c) => (
           <div
             key={c.id}
             style={{
-              background: nectarColors.white,
-              borderRadius: 10,
-              padding: 16,
-              border: "1px solid rgba(28, 68, 99, 0.08)",
+              background: nectarColors.white, borderRadius: 10, padding: 16, border: "1px solid rgba(28, 68, 99, 0.08)",
             }}
           >
-            <div
-              style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 16,
-                marginBottom: 4,
-              }}
-            >
-              {c.name}
-            </div>
-            <div style={{ fontSize: 12, color: nectarColors.muted, marginBottom: 10 }}>
-              {c.region}
-            </div>
+            <div style={{ fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 16, marginBottom: 4 }}>{c.name}</div>
+            <div style={{ fontSize: 12, color: nectarColors.muted, marginBottom: 10 }}>{c.region}</div>
             <div style={{ fontSize: 12, color: nectarColors.ink }}>
               {c.siteIds
                 .map((id) => sites.find((s) => s.id === id)?.name ?? id)
                 .join(" · ")}
             </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>
-              Shared reliever slots: {c.sharedRelieverSlots}
-            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>Shared reliever slots: {c.sharedRelieverSlots}</div>
           </div>
         ))}
       </div>
@@ -592,14 +454,8 @@ function FlowStep({
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <span
         style={{
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          background: muted ? "rgba(196,92,38,0.15)" : "#1C4463",
-          color: muted ? nectarColors.alert : "#FFFFFF",
-          display: "grid",
-          placeItems: "center",
-          fontSize: 11,
+          width: 22, height: 22, borderRadius: "50%", background: muted ? "rgba(196,92,38,0.15)" : "#1C4463",
+          color: muted ? nectarColors.alert : "#FFFFFF", display: "grid", placeItems: "center", fontSize: 11,
           fontWeight: 700,
         }}
       >
@@ -622,21 +478,13 @@ function Panel({
   return (
     <div
       style={{
-        background: nectarColors.white,
-        padding: 20,
-        borderRadius: 10,
-        border: "1px solid rgba(28, 68, 99, 0.06)",
+        background: nectarColors.white, padding: 20, borderRadius: 10, border: "1px solid rgba(28, 68, 99, 0.06)",
       }}
     >
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 14,
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          color: nectarColors.ink,
+          display: "flex", alignItems: "center", gap: 8, marginBottom: 14,
+          fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, color: nectarColors.ink,
         }}
       >
         {icon}

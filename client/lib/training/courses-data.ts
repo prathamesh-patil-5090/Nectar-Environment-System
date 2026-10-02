@@ -168,7 +168,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-etp-op",
     description:
       "Chemical precipitation stoichiometry: optimizing coagulant dosing (alum, polyaluminium chloride, ferric chloride) and polymeric flocculants using laboratory jar test rigs.",
-    thumbnailUrl: "/courses/etp_plant.jpg",
+    thumbnailUrl: "/courses/jar_test_floc.jpg",
     provider: "Nectar Technical Operations",
     rating: 4.8,
     reviewCount: 31,
@@ -234,7 +234,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-etp-op",
     description:
       "Advanced biological treatment: controlling Sludge Volume Index (SVI), calculating Food-to-Microorganism (F/M) ratios, preventing filamentous bulking, and optimizing RAS/WAS mass balances.",
-    thumbnailUrl: "/courses/etp_plant.jpg",
+    thumbnailUrl: "/courses/aeration_blowers.jpg",
     provider: "Nectar Environmental Academy",
     rating: 4.9,
     reviewCount: 54,
@@ -300,7 +300,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-etp-op",
     description:
       "Hydraulic loading rate on clarifiers, center well flocculating feed, scum baffle cleaning, filter press cake dryness, and decanter centrifuge torque control.",
-    thumbnailUrl: "/courses/etp_plant.jpg",
+    thumbnailUrl: "/courses/sludge_press.jpg",
     provider: "Nectar Technical Operations",
     rating: 4.7,
     reviewCount: 29,
@@ -436,7 +436,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-wtp-tech",
     description:
       "Standard operating procedures for spiral-wound thin film composite RO membranes: SDI index monitoring, antiscalant dosing stoichiometry, salt rejection normalization, and two-stage chemical CIP.",
-    thumbnailUrl: "/courses/ro_plant.jpg",
+    thumbnailUrl: "/courses/ro_membrane.jpg",
     provider: "Nectar Membrane Engineering Unit",
     rating: 4.9,
     reviewCount: 48,
@@ -502,7 +502,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-wtp-tech",
     description:
       "ASTM D4516 normalization equations: temperature correction factor (TCF), salt passage trending, delta-P profiling across stages, and autopsy analysis of foulants on membrane leaves.",
-    thumbnailUrl: "/courses/ro_plant.jpg",
+    thumbnailUrl: "/courses/ro_membrane.jpg",
     provider: "Nectar Membrane Engineering Unit",
     rating: 4.8,
     reviewCount: 33,
@@ -552,7 +552,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-wtp-tech",
     description:
       "Media filter hydraulics: gravel underdrains, anthracite and quartz sand stratification, air scouring backwash cycles, iodine value of granular activated carbon (GAC), and dechlorination.",
-    thumbnailUrl: "/courses/wtp_plant.jpg",
+    thumbnailUrl: "/courses/water_lab_testing.jpg",
     provider: "Nectar Technical Operations",
     rating: 4.7,
     reviewCount: 27,
@@ -602,7 +602,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-wtp-tech",
     description:
       "Strong acid cation (SAC) and strong base anion (SBA) resin chemistry, regeneration with hydrochloric acid (HCl) and sodium hydroxide (NaOH), and ultra-pure mixed bed polishing (<0.1 uS/cm).",
-    thumbnailUrl: "/courses/wtp_plant.jpg",
+    thumbnailUrl: "/courses/edi_purification.jpg",
     provider: "Nectar Technical Operations",
     rating: 4.8,
     reviewCount: 35,
@@ -652,7 +652,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-wtp-tech",
     description:
       "Hollow fiber PVDF ultrafiltration membranes: TMP (Transmembrane Pressure) trending, backpulse with chlorine, Chemically Enhanced Backwash (CEB), and automated bubble point integrity testing.",
-    thumbnailUrl: "/courses/ro_plant.jpg",
+    thumbnailUrl: "/courses/ro_membrane.jpg",
     provider: "Nectar Membrane Engineering Unit",
     rating: 4.9,
     reviewCount: 39,
@@ -706,7 +706,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-stp-op",
     description:
       "Moving Bed Biofilm Reactor (MBBR) fluidization: carrier filling fraction (30-60%), biofilm thickness control, coarse bubble grid aeration, screen sieves, and total ammoniacal nitrogen oxidation.",
-    thumbnailUrl: "/courses/stp_plant.jpg",
+    thumbnailUrl: "/courses/mbbr_media.jpg",
     provider: "Nectar Municipal & Industrial STP Unit",
     rating: 4.8,
     reviewCount: 38,
@@ -756,7 +756,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-stp-op",
     description:
       "SBR phase programming: Fill-Aeration-Anoxic-Settle-Decant cycles, automated scupper decanter winch mechanisms, DO trajectory tracking, and simultaneous nitrification-denitrification (SND).",
-    thumbnailUrl: "/courses/stp_plant.jpg",
+    thumbnailUrl: "/courses/sbr_reactor.jpg",
     provider: "Nectar Municipal & Industrial STP Unit",
     rating: 4.9,
     reviewCount: 41,
@@ -806,7 +806,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-stp-op",
     description:
       "MBR flat sheet and hollow fiber cassettes: operating with high MLSS (8,000-12,000 mg/L), continuous coarse air scour for cake layer prevention, relax cycles, and sodium hypochlorite recovery cleaning.",
-    thumbnailUrl: "/courses/stp_plant.jpg",
+    thumbnailUrl: "/courses/stp_plant_real.jpg",
     provider: "Nectar Municipal & Industrial STP Unit",
     rating: 4.9,
     reviewCount: 35,
@@ -856,7 +856,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-stp-op",
     description:
       "Pathogen removal engineering: sodium hypochlorite dosing contact tanks (CT values), medium-pressure ultraviolet (UV) lamp sleeve cleaning, quartz wiping mechanisms, and ozone polishing.",
-    thumbnailUrl: "/courses/stp_plant.jpg",
+    thumbnailUrl: "/courses/skid_stp.jpg",
     provider: "Nectar Municipal & Industrial STP Unit",
     rating: 4.7,
     reviewCount: 26,
@@ -910,7 +910,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-zld-eng",
     description:
       "Operation of falling-film and forced-circulation Multiple Effect Evaporators (MEE), barometric condenser vacuum systems, steam economy balancing, and Agitated Thin Film Dryer (ATFD) salt crystallization.",
-    thumbnailUrl: "/courses/mee_plant.jpg",
+    thumbnailUrl: "/courses/multiple_effect_evaporator.jpg",
     provider: "Nectar Thermal & ZLD Division",
     rating: 4.9,
     reviewCount: 52,
@@ -960,7 +960,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-zld-eng",
     description:
       "High-pressure reverse osmosis (HPRO / DTRO) operating up to 120 bar: concentration of RO reject up to 80,000 ppm TDS prior to thermal evaporation, reducing MEE capital and steam footprint.",
-    thumbnailUrl: "/courses/mee_plant.jpg",
+    thumbnailUrl: "/courses/brine_desalination.jpg",
     provider: "Nectar Thermal & ZLD Division",
     rating: 4.8,
     reviewCount: 37,
@@ -1010,7 +1010,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-zld-eng",
     description:
       "Vapor-liquid separation geometry: chevron mist eliminators, wire mesh demisters, entrainment carryover prevention in condensate polishing sumps, and CIP caustic boiling routines.",
-    thumbnailUrl: "/courses/mee_plant.jpg",
+    thumbnailUrl: "/courses/industrial_evaporator.jpg",
     provider: "Nectar Thermal & ZLD Division",
     rating: 4.7,
     reviewCount: 28,
@@ -1060,7 +1060,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-zld-eng",
     description:
       "Fractional crystallization of sodium sulfate (Na2SO4) and sodium chloride (NaCl): cooling crystallizers, basket centrifuges, pusher centrifuges, cake washing cycles, and moisture reduction.",
-    thumbnailUrl: "/courses/mee_plant.jpg",
+    thumbnailUrl: "/courses/industrial_evaporator.jpg",
     provider: "Nectar Thermal & ZLD Division",
     rating: 4.8,
     reviewCount: 30,
@@ -1114,7 +1114,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-env-csl",
     description:
       "Indian regulatory statutory framework: Water (Prevention & Control of Pollution) Act 1974, Air Act 1981, Consent to Establish (CTE), Consent to Operate (CTO) renewal, and Environmental Statement Form V preparation.",
-    thumbnailUrl: "/courses/consulting_plant.jpg",
+    thumbnailUrl: "/courses/environmental_audit.jpg",
     provider: "Nectar Regulatory Compliance Cell",
     rating: 4.9,
     reviewCount: 46,
@@ -1164,7 +1164,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-env-csl",
     description:
       "MoEFCC EIA Notification 2006 protocols: Terms of Reference (ToR), 10 km buffer baseline ambient air quality monitoring (AAQM), groundwater sampling grids, noise contour mapping, and public hearing documentation.",
-    thumbnailUrl: "/courses/consulting_plant.jpg",
+    thumbnailUrl: "/courses/water_lab_testing.jpg",
     provider: "Nectar Regulatory Compliance Cell",
     rating: 4.8,
     reviewCount: 32,
@@ -1214,7 +1214,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-env-csl",
     description:
       "Real-time CPCB/SPCB portal telemetry integration: optical UV-Vis spectrophotometers for COD/BOD, electromagnetic flowmeters, optical pH probes, turbidity sensors, and data logger cloud sync.",
-    thumbnailUrl: "/courses/consulting_plant.jpg",
+    thumbnailUrl: "/courses/ocems_telemetry.jpg",
     provider: "Nectar Regulatory Compliance Cell",
     rating: 4.9,
     reviewCount: 40,
@@ -1264,7 +1264,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-env-csl",
     description:
       "Hazardous & Other Wastes Rules 2016: Schedule I/II/III classification, storage shed containment requirements, color-coded barcoded labeling, Form 10 six-copy manifest handling, and authorized TSDF dispatch.",
-    thumbnailUrl: "/courses/consulting_plant.jpg",
+    thumbnailUrl: "/courses/chemical_safety.jpg",
     provider: "Nectar Regulatory Compliance Cell",
     rating: 4.8,
     reviewCount: 29,
@@ -1318,7 +1318,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-om-tech",
     description:
       "Centrifugal and progressive cavity pumps: reverse dial indicator / laser shaft alignment, cartridge mechanical seal installation with Plan 11/53A flush, cavitation diagnosis, and ISO vibration limits.",
-    thumbnailUrl: "/courses/om_plant.jpg",
+    thumbnailUrl: "/courses/high_pressure_pumps.jpg",
     provider: "Nectar Reliability Engineering Unit",
     rating: 4.9,
     reviewCount: 51,
@@ -1368,7 +1368,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-om-tech",
     description:
       "Failure investigation methodology: 5-Whys, Ishikawa fishbone diagrams, bearing raceway spalling patterns, impeller cavitation pitting vs erosive wear, and corrective action documentation.",
-    thumbnailUrl: "/courses/om_plant.jpg",
+    thumbnailUrl: "/courses/preventive_maintenance.jpg",
     provider: "Nectar Reliability Engineering Unit",
     rating: 4.8,
     reviewCount: 34,
@@ -1418,7 +1418,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-om-tech",
     description:
       "Motor Control Centers (MCC): air circuit breakers (ACB), molded case breakers (MCCB), contactor thermal overload relays, Variable Frequency Drive (VFD) parameter tuning, and thermographic infrared audits.",
-    thumbnailUrl: "/courses/om_plant.jpg",
+    thumbnailUrl: "/courses/electrical_loto.jpg",
     provider: "Nectar Reliability Engineering Unit",
     rating: 4.8,
     reviewCount: 38,
@@ -1468,7 +1468,7 @@ const baseCoursesCatalog = [
     jobCategoryId: "jc-om-tech",
     description:
       "Industrial occupational health & safety: Lockout/Tagout (LOTO) energy isolation, confined space entry inside equalization tanks and clarifiers with 4-gas detectors (O2, H2S, CO, LEL), and chemical PPE.",
-    thumbnailUrl: "/courses/om_plant.jpg",
+    thumbnailUrl: "/courses/confined_space.jpg",
     provider: "Nectar Safety & Compliance Cell",
     rating: 5.0,
     reviewCount: 65,

@@ -1,6 +1,5 @@
 import {
   employees,
-  getEmployeeById,
   type Employee,
 } from "@/lib/mock-data";
 import type { SkillTag } from "@/lib/reliever/pool";
@@ -183,8 +182,4 @@ export function candidateDisplaySource(source: CoverCandidateSource): string {
     default:
       return source;
   }
-}
-
-export function resolveEmployeeName(employeeId: string): string {
-  return getEmployeeById(employeeId)?.name ?? employeeId;
 }

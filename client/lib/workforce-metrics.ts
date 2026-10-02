@@ -19,12 +19,8 @@
 
 import {
   employees,
-  getEmployeeSkills,
   sites,
-  skillLabels,
-  skillMatrix,
   type Employee,
-  type SkillKey,
   type Site,
 } from "@/lib/mock-data";
 import { getAbsences } from "@/lib/reliever/pool";
@@ -189,37 +185,6 @@ export function getSitesWithComputedReadiness(siteId?: string): (Site & {
       const breakdown = computeSiteReadiness(s.id);
       return { ...s, readiness: breakdown.readiness, readinessBreakdown: breakdown };
     });
-}
-
-/**
- * Skill matrix (role × skill) — production meaning:
- * Curated role baselines (or assessment averages). Not recalculated per render.
- * Optional rollup: average of personal skill maps for people in that role.
- */
-export function getSkillMatrixRows() {
-  return skillMatrix.map((row) => ({ ...row }));
-}
-
-/**
- * Personal skill map — production formula already used in getEmployeeSkills:
- *
- *   roleAvg = average(roleBaseline[skill])
- *   delta   = employee.skillScore − roleAvg
- *   score[skill] = clamp(roleBaseline[skill] + delta, 0, 100)
- */
-export function explainEmployeeSkillMap(employee: Employee) {
-  const skills = getEmployeeSkills(employee);
-  const keys = Object.keys(skillLabels) as SkillKey[];
-  const row = skillMatrix.find((r) => r.role === employee.role);
-  const roleAvg = row
-    ? Math.round(keys.reduce((s, k) => s + row[k], 0) / keys.length)
-    : 0;
-  return {
-    skills,
-    roleAvg,
-    delta: employee.skillScore - roleAvg,
-    overallSkillScore: employee.skillScore,
-  };
 }
 
 export function getSkillCoveragePct(siteId?: string): number {

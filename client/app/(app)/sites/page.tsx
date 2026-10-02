@@ -34,38 +34,19 @@ export default function SitesPage() {
   );
 
   const columns: ColumnsType<Row> = [
-    {
-      title: "Site",
-      dataIndex: "name",
-      key: "name",
-      sorter: (a, b) => a.name.localeCompare(b.name),
-    },
+    { title: "Site", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
     {
       title: "Plant type",
       dataIndex: "plantType",
       key: "plantType",
-      filters: ["ETP", "RO", "MEE", "STP", "WTP"].map((t) => ({
-        text: t,
-        value: t,
-      })),
+      filters: ["ETP", "RO", "MEE", "STP", "WTP"].map((t) => ({ text: t, value: t })),
       onFilter: (value, record) => record.plantType === value,
       render: (type: Site["plantType"]) => (
-        <Tag color={plantColor[type]} style={{ border: "none" }}>
-          {type}
-        </Tag>
+        <Tag color={plantColor[type]} style={{ border: "none" }}>{type}</Tag>
       ),
     },
-    {
-      title: "Location",
-      dataIndex: "location",
-      key: "location",
-    },
-    {
-      title: "Headcount",
-      dataIndex: "headcount",
-      key: "headcount",
-      sorter: (a, b) => a.headcount - b.headcount,
-    },
+    { title: "Location", dataIndex: "location", key: "location" },
+    { title: "Headcount", dataIndex: "headcount", key: "headcount", sorter: (a, b) => a.headcount - b.headcount },
     {
       title: "Readiness",
       dataIndex: "readiness",
@@ -77,14 +58,10 @@ export default function SitesPage() {
           <Tooltip
             title={
               <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                <div>
-                  Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})
-                </div>
+                <div>Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})</div>
                 <div>Training {b.trainingPct}%</div>
                 <div>Skills {b.skillPct}%</div>
-                <div>
-                  Cover {b.coveragePct}% · {b.openAbsences} open absences
-                </div>
+                <div>Cover {b.coveragePct}% · {b.openAbsences} open absences</div>
               </div>
             }
           >

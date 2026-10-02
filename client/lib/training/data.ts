@@ -1,7 +1,5 @@
 import type {
   Course,
-  JobCategory,
-  CompetencyArea,
   CourseEnrollment,
   PracticalTestResult,
   OralTestResult,
@@ -11,55 +9,9 @@ import type {
   LearningNeedRecord,
   TrainingSession,
   MentorProfile,
-  CourseRecommendation,
-  RoleProgressionTrack,
   SpecializationTrack,
   MentorLiveSession,
 } from "./types";
-
-// ============================================================================
-// 1. Job Categories & Competency Areas (Canonical Domain Taxonomy)
-// ============================================================================
-
-export const mockJobCategories: JobCategory[] = [
-  {
-    id: "jc-etp-op",
-    name: "ETP & Wastewater Specialist",
-    description: "Operates primary physico-chemical, ASP, MBBR, and MBR industrial wastewater treatment units.",
-  },
-  {
-    id: "jc-stp-op",
-    name: "STP Operations Specialist",
-    description: "Operates Sequencing Batch Reactors (SBR), MBBR bio-carriers, and skid-mounted packaged sewage plants.",
-  },
-  {
-    id: "jc-wtp-tech",
-    name: "WTP & Membrane Specialist",
-    description: "Responsible for industrial Reverse Osmosis (RO), Ultrafiltration (UF), and high-purity EDI water generation.",
-  },
-  {
-    id: "jc-zld-eng",
-    name: "ZLD Thermal Systems Operator",
-    description: "Operates Multiple Effect Evaporators (MEE), Agitated Thin Film Dryers (ATFD), and salt crystallization systems.",
-  },
-  {
-    id: "jc-env-consultant",
-    name: "Environmental Audit & Treatability Analyst",
-    description: "Conducts industrial water audits, laboratory treatability studies, and statutory CTE/CTO environmental filings.",
-  },
-  {
-    id: "jc-onm-lead",
-    name: "O&M Service & Maintenance Lead",
-    description: "Manages deputed site manpower, monthly Water Quality & Quantity (WQ&Q) reporting, and preventive maintenance.",
-  },
-];
-
-export const mockCompetencyAreas: CompetencyArea[] = [
-  { id: "ca-etp-bio", jobCategoryId: "jc-etp-op", name: "Biological Floc & Aeration Dynamics", weightPct: 25 },
-  { id: "ca-etp-chem", jobCategoryId: "jc-etp-op", name: "Physico-Chemical Coagulation & pH Neutralization", weightPct: 25 },
-  { id: "ca-wtp-ro", jobCategoryId: "jc-wtp-tech", name: "RO Membrane Descaling & CIP Flushing", weightPct: 25 },
-  { id: "ca-zld-mee", jobCategoryId: "jc-zld-eng", name: "MEE Vacuum Control & Vapor Economy", weightPct: 25 },
-];
 
 // ============================================================================
 // 2. Canonical Plant Courses (Synchronized with MongoDB Atlas `courses`)
@@ -366,8 +318,6 @@ export const initialCertificates: Certificate[] = [
   },
 ];
 
-export const mockCertificates: Certificate[] = initialCertificates;
-
 // ============================================================================
 // 6. Learning Needs & Training Sessions (Derived Competency Models)
 // ============================================================================
@@ -429,37 +379,6 @@ export const initialTrainingSessions: TrainingSession[] = [
     status: "scheduled",
   },
 ];
-
-// ============================================================================
-// 7. UI Constants & Career Tracks (Static Configuration)
-// ============================================================================
-
-export const mockRecommendations: CourseRecommendation[] = mockCourses.map((c, idx) => ({
-  id: `rec-${c.id}`,
-  courseId: c.courseId || c.id,
-  title: c.title,
-  code: c.code,
-  category: c.section || c.category || "Effluent Treatment Plants (ETP)",
-  provider: c.provider || "Nectar Technical Operations",
-  thumbnailUrl: c.thumbnailUrl || "/courses/etp_plant.jpg",
-  rating: c.rating || 4.8,
-  reviewCount: c.reviewCount || 30,
-  level: (c.level as any) || "Intermediate",
-  durationHours: c.estimatedHours || 4.0,
-  matchScorePct: idx === 0 ? 99 : idx === 1 ? 95 : 92,
-  badge: idx === 0 ? "★ Assigned by Plant Manager" : "Role Pathway",
-  badgeColor: idx === 0 ? "#eab308" : "#3b82f6",
-  isAssignedByManager: idx === 0,
-  assignedByName: idx === 0 ? "Anand Dakave (ETP Plant Manager)" : undefined,
-  directiveReason:
-    idx === 0
-      ? "High SVI and filamentous bulking risk observed in Aeration Basin B. Mandatory operational drill on return sludge pacing."
-      : undefined,
-  priority: idx === 0 ? "critical" : undefined,
-  dueDate: idx === 0 ? "2026-10-15T18:30:00.000Z" : undefined,
-  moduleCount: c.modules?.length || 3,
-  videoCount: c.modules?.reduce((acc, m) => acc + (m.videos?.length || 0), 0) || (c.abilities?.length || 3),
-}));
 
 export const initialMentorLiveSessions: MentorLiveSession[] = [
   {
@@ -744,41 +663,9 @@ export const mockSpecializationTracks: SpecializationTrack[] = [
       keyDeliverables: ["SDI analysis report", "CIP chemical formulation", "Post-clean normalization comparison"],
     },
     leadMentorId: "men-2",
-    bannerImage: "/courses/ro_plant.jpg",
+    bannerImage: "/courses/ro_membrane.jpg",
     recommendedTrackIds: ["track-etp-specialist"],
   },
-];
-
-export const mockRoleTracks: RoleProgressionTrack[] = [];
-
-export interface NectarOralQuestion {
-  sNo: number;
-  section: string;
-  question: string;
-  maxMarks: number;
-}
-
-export const NECTAR_ORAL_VIVA_QUESTIONS: NectarOralQuestion[] = [
-  { sNo: 1, section: "Basic Knowledge", question: "Explain overall plant process (ETP/RO/MEE)", maxMarks: 5 },
-  { sNo: 2, section: "Basic Knowledge", question: "Why water treatment is required?", maxMarks: 5 },
-  { sNo: 3, section: "Basic Knowledge", question: "Difference between RO, ETP and MEE?", maxMarks: 5 },
-  { sNo: 4, section: "Process", question: "Explain complete plant process flow", maxMarks: 5 },
-  { sNo: 5, section: "Process", question: "Role of pre-treatment systems", maxMarks: 5 },
-  { sNo: 6, section: "Process", question: "Role of high-pressure pumps/blowers", maxMarks: 5 },
-  { sNo: 7, section: "Chemical", question: "Purpose of chemicals used (Alum, Antiscalant etc.)", maxMarks: 5 },
-  { sNo: 8, section: "Chemical", question: "Purpose of SMBS / dosing control", maxMarks: 5 },
-  { sNo: 9, section: "Biological", question: "What is biofouling / biological treatment?", maxMarks: 5 },
-  { sNo: 10, section: "Monitoring", question: "What parameters are monitored daily?", maxMarks: 5 },
-  { sNo: 11, section: "Troubleshooting", question: "Action for low flow / plant upset", maxMarks: 5 },
-  { sNo: 12, section: "Troubleshooting", question: "Action for high TDS / COD/BOD", maxMarks: 5 },
-  { sNo: 13, section: "Equipment", question: "Function of major equipment", maxMarks: 5 },
-  { sNo: 14, section: "Equipment", question: "Maintenance practices", maxMarks: 5 },
-  { sNo: 15, section: "Safety", question: "Required PPE and safety practices", maxMarks: 5 },
-  { sNo: 16, section: "Monitoring", question: "Importance of log sheet & reporting", maxMarks: 5 },
-  { sNo: 17, section: "Practical", question: "How to prepare chemical solution", maxMarks: 5 },
-  { sNo: 18, section: "Practical", question: "How to start/stop plant systems", maxMarks: 5 },
-  { sNo: 19, section: "Site Based", question: "Common issues at site and actions", maxMarks: 5 },
-  { sNo: 20, section: "Overall Skill", question: "Leadership and decision making", maxMarks: 5 },
 ];
 
 export interface NectarLniItem {

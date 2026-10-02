@@ -10,6 +10,7 @@ import {
   getShiftInsights,
 } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
+import { gridGap16, sSerifText18Mb12, sSerifText22, sWhitePadR10 } from "@/lib/styles";
 
 export default function ShiftDeviationsPage() {
   const [siteId, setSiteId] = useState<string>();
@@ -21,17 +22,8 @@ export default function ShiftDeviationsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-          }}
-        >
-          Shift deviation
-        </div>
-        <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Planned vs actual shift — linked to OT analysis for unplanned changes.
-        </p>
+        <div style={sSerifText22}>Shift deviation</div>
+        <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>Planned vs actual shift — linked to OT analysis for unplanned changes.</p>
       </div>
 
       <Select
@@ -52,11 +44,7 @@ export default function ShiftDeviationsPage() {
           { title: "Site", dataIndex: "siteName" },
           { title: "Deviations", dataIndex: "deviations" },
           { title: "Employees affected", dataIndex: "employeesAffected" },
-          {
-            title: "OT associated",
-            dataIndex: "otHoursAssociated",
-            render: (h) => `${h} hrs`,
-          },
+          { title: "OT associated", dataIndex: "otHoursAssociated", render: (h) => `${h} hrs` },
         ]}
       />
 
@@ -72,77 +60,24 @@ export default function ShiftDeviationsPage() {
             dataIndex: "employeeId",
             render: (id) => employees.find((e) => e.id === id)?.name ?? id,
           },
-          {
-            title: "Site",
-            dataIndex: "siteId",
-            render: (id) => getSiteName(id),
-          },
-          {
-            title: "Planned",
-            dataIndex: "plannedCode",
-            render: (c) => <Tag>{c}</Tag>,
-          },
-          {
-            title: "Actual",
-            dataIndex: "actualCode",
-            render: (c) => <Tag color={nectarColors.alert}>{c}</Tag>,
-          },
-          {
-            title: "Deviation",
-            key: "d",
-            render: () => <Tag color={nectarColors.alert}>Yes</Tag>,
-          },
+          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
+          { title: "Planned", dataIndex: "plannedCode", render: (c) => <Tag>{c}</Tag> },
+          { title: "Actual", dataIndex: "actualCode", render: (c) => <Tag color={nectarColors.alert}>{c}</Tag> },
+          { title: "Deviation", key: "d", render: () => <Tag color={nectarColors.alert}>Yes</Tag> },
         ]}
       />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-        className="nectar-ot-two"
-      >
-        <div
-          style={{
-            background: nectarColors.white,
-            padding: 20,
-            borderRadius: 10,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              marginBottom: 12,
-            }}
-          >
-            OT after shift changes
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 650, color: nectarColors.alert }}>
-            {insights.otAfterChanges} hrs
-          </div>
+      <div style={gridGap16} className="nectar-ot-two">
+        <div style={sWhitePadR10}>
+          <div style={sSerifText18Mb12}>OT after shift changes</div>
+          <div style={{ fontSize: 28, fontWeight: 650, color: nectarColors.alert }}>{insights.otAfterChanges} hrs</div>
           <p style={{ color: nectarColors.muted, fontSize: 13 }}>
             Observation from unplanned deviations in the selected period — not a
             judgment of cause.
           </p>
         </div>
-        <div
-          style={{
-            background: nectarColors.white,
-            padding: 20,
-            borderRadius: 10,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              marginBottom: 12,
-            }}
-          >
-            Shift with highest OT
-          </div>
+        <div style={sWhitePadR10}>
+          <div style={sSerifText18Mb12}>Shift with highest OT</div>
           <Table
             size="small"
             pagination={false}
@@ -150,11 +85,7 @@ export default function ShiftDeviationsPage() {
             dataSource={[...ot.byShift].sort((a, b) => b.otHours - a.otHours)}
             columns={[
               { title: "Shift", dataIndex: "shift" },
-              {
-                title: "OT Hours",
-                dataIndex: "otHours",
-                render: (h) => `${h} hrs`,
-              },
+              { title: "OT Hours", dataIndex: "otHours", render: (h) => `${h} hrs` },
             ]}
           />
         </div>

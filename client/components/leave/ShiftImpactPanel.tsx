@@ -11,6 +11,7 @@ import {
 } from "@/lib/shift-impact";
 import { getSiteName } from "@/lib/mock-data";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Ink } from "@/lib/styles";
 
 export default function ShiftImpactPanel({
   impact,
@@ -44,30 +45,11 @@ export default function ShiftImpactPanel({
   return (
     <div
       style={{
-        background: nectarColors.white,
-        border: "1px solid rgba(28, 68, 99, 0.12)",
-        borderRadius: 10,
-        padding: 18,
+        background: nectarColors.white, border: "1px solid rgba(28, 68, 99, 0.12)", borderRadius: 10, padding: 18,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            color: nectarColors.ink,
-          }}
-        >
-          Shift impact
-        </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={sSerifText18Ink}>Shift impact</div>
         <Tag color={riskColor} style={{ border: "none", margin: 0 }}>
           {impact.risk === "none"
             ? "OT risk: None"
@@ -85,9 +67,7 @@ export default function ShiftImpactPanel({
 
       {affected.length > 0 ? (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
-            Planned shifts affected ({affected.length})
-          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Planned shifts affected ({affected.length})</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {affected.map((d) => (
               <Tag
@@ -106,32 +86,20 @@ export default function ShiftImpactPanel({
 
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: 10,
+          display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10,
           marginBottom: focusVacancies.length ? 16 : 0,
         }}
       >
         <Metric label="Current manpower" value={String(impact.currentManpower)} />
         <Metric label="Required manpower" value={String(impact.requiredManpower)} />
-        <Metric
-          label="Available pool"
-          value={String(impact.availableRelievers)}
-        />
-        <Metric
-          label="Nearby / cluster"
-          value={String(impact.nearbyAvailableWorkers)}
-        />
+        <Metric label="Available pool" value={String(impact.availableRelievers)} />
+        <Metric label="Nearby / cluster" value={String(impact.nearbyAvailableWorkers)} />
         <Metric
           label="Uncovered shifts"
           value={String(report?.uncoveredCount ?? 0)}
           alert={(report?.uncoveredCount ?? 0) > 0}
         />
-        <Metric
-          label="Potential OT"
-          value={`${impact.potentialOtHours} hrs`}
-          alert={impact.potentialOtHours > 0}
-        />
+        <Metric label="Potential OT" value={`${impact.potentialOtHours} hrs`} alert={impact.potentialOtHours > 0} />
         <Metric
           label="Est. OT cost"
           value={
@@ -144,19 +112,11 @@ export default function ShiftImpactPanel({
       </div>
 
       {focusVacancies.length > 0 ? (
-        <VacancyList
-          title="Coverage needed"
-          vacancies={focusVacancies}
-        />
+        <VacancyList title="Coverage needed" vacancies={focusVacancies} />
       ) : null}
 
       {competing.length > 0 ? (
-        <div style={{ marginTop: 14 }}>
-          <VacancyList
-            title="Competing plant overlaps"
-            vacancies={competing}
-          />
-        </div>
+        <div style={{ marginTop: 14 }}><VacancyList title="Competing plant overlaps" vacancies={competing} /></div>
       ) : null}
     </div>
   );
@@ -171,35 +131,19 @@ function VacancyList({
 }) {
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-        {title}
-      </div>
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {vacancies.map((v) => (
           <div
             key={v.id}
             style={{
-              padding: "10px 12px",
-              borderRadius: 8,
-              background: nectarColors.sand,
+              padding: "10px 12px", borderRadius: 8, background: nectarColors.sand,
               border: "1px solid rgba(11, 26, 36, 0.06)",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "6px 10px",
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                {v.date} · {v.shiftCode} · {getSiteName(v.siteId)}
-              </span>
-              <Tag style={{ margin: 0 }}>
-                {v.source === "leave" ? "Leave" : "Roster gap"}
-              </Tag>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 10px", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>{v.date} · {v.shiftCode} · {getSiteName(v.siteId)}</span>
+              <Tag style={{ margin: 0 }}>{v.source === "leave" ? "Leave" : "Roster gap"}</Tag>
               <Tag
                 color={
                   v.status === "open"
@@ -213,17 +157,10 @@ function VacancyList({
                 {v.status}
               </Tag>
               {v.absentEmployeeName ? (
-                <span style={{ fontSize: 12, color: nectarColors.muted }}>
-                  Absent: {v.absentEmployeeName}
-                </span>
+                <span style={{ fontSize: 12, color: nectarColors.muted }}>Absent: {v.absentEmployeeName}</span>
               ) : null}
               {v.leaveId && v.leaveId !== vacancies[0]?.leaveId ? (
-                <Link
-                  href={`/leave/requests/${v.leaveId}`}
-                  style={{ fontSize: 12, color: nectarColors.leaf }}
-                >
-                  Open leave
-                </Link>
+                <Link href={`/leave/requests/${v.leaveId}`} style={{ fontSize: 12, color: nectarColors.leaf }}>Open leave</Link>
               ) : null}
             </div>
             {v.status === "open" ? (
@@ -234,23 +171,17 @@ function VacancyList({
                     {v.candidates.slice(0, 3).map((c, i) => (
                       <span key={c.id}>
                         {i > 0 ? " · " : ""}
-                        <strong style={{ color: nectarColors.ink }}>
-                          {c.name}
-                        </strong>{" "}
+                        <strong style={{ color: nectarColors.ink }}>{c.name}</strong>{" "}
                         ({candidateDisplaySource(c.source)})
                       </span>
                     ))}
                   </>
                 ) : (
-                  <span style={{ color: nectarColors.alert }}>
-                    No employee or pool match — OT last resort
-                  </span>
+                  <span style={{ color: nectarColors.alert }}>No employee or pool match — OT last resort</span>
                 )}
               </div>
             ) : v.chosenCoverName ? (
-              <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                Covered: {v.chosenCoverName}
-              </div>
+              <div style={{ fontSize: 12, color: nectarColors.muted }}>Covered: {v.chosenCoverName}</div>
             ) : null}
           </div>
         ))}
@@ -269,23 +200,9 @@ function Metric({
   alert?: boolean;
 }) {
   return (
-    <div
-      style={{
-        background: nectarColors.sand,
-        borderRadius: 8,
-        padding: "10px 12px",
-      }}
-    >
+    <div style={{ background: nectarColors.sand, borderRadius: 8, padding: "10px 12px" }}>
       <div style={{ fontSize: 11, color: nectarColors.muted }}>{label}</div>
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 650,
-          color: alert ? nectarColors.alert : nectarColors.ink,
-        }}
-      >
-        {value}
-      </div>
+      <div style={{ fontSize: 18, fontWeight: 650, color: alert ? nectarColors.alert : nectarColors.ink }}>{value}</div>
     </div>
   );
 }

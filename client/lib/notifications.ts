@@ -1,3 +1,4 @@
+import { readJson, writeJson } from "@/lib/storage";
 /**
  * Simple in-app notifications (localStorage) for leave consent, leave decisions, OT assign.
  */
@@ -148,20 +149,11 @@ const DEMO_SEED: AppNotification[] = [
   },
 ];
 
-function readAll(): AppNotification[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as AppNotification[];
-  } catch {
-    return [];
-  }
+function readAll() {
+  return readJson<AppNotification[]>(NOTIFICATIONS_STORAGE_KEY, []);
 }
-
 function writeAll(rows: AppNotification[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(rows));
+  writeJson(NOTIFICATIONS_STORAGE_KEY, rows);
 }
 
 /** Merge demo seeds once per browser (stable ids — won't duplicate) */
@@ -173,13 +165,6 @@ export function ensureNotificationSeed(): void {
   if (missing.length) {
     writeAll([...missing, ...existing]);
   }
-  localStorage.setItem(NOTIFICATIONS_SEEDED_KEY, "1");
-}
-
-/** Restore demo notification seeds (drops user-added / read-state edits). */
-export function resetNotifications(): void {
-  if (typeof window === "undefined") return;
-  writeAll(DEMO_SEED.map((n) => ({ ...n })));
   localStorage.setItem(NOTIFICATIONS_SEEDED_KEY, "1");
 }
 

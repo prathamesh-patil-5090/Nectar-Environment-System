@@ -1,4 +1,4 @@
-import { employees, sites } from "@/lib/mock-data";
+import { employees } from "@/lib/mock-data";
 import { calculateOt } from "./engine";
 import { getRateRule } from "./rules";
 import type {
@@ -163,19 +163,3 @@ export const departments = [
 export const availableOtYears = [
   ...new Set(otRecords.map((r) => Number(r.date.slice(0, 4)))),
 ].sort();
-
-export function getSiteAbsenteeismProxy(siteId: string, from: string, to: string) {
-  // Proxy: count of OT reasons tagged employee_absence / shift_gap in period
-  const relevant = otRecords.filter(
-    (r) =>
-      r.siteId === siteId &&
-      r.date >= from &&
-      r.date <= to &&
-      (r.reason === "employee_absence" || r.reason === "shift_gap"),
-  );
-  return {
-    absenceLinkedOtHours: relevant.reduce((s, r) => s + r.otHours, 0),
-    absenceLinkedCount: relevant.length,
-    siteHeadcount: sites.find((s) => s.id === siteId)?.headcount ?? 0,
-  };
-}

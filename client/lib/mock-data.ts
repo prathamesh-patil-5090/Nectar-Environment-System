@@ -93,9 +93,6 @@ export const skillLabels: Record<SkillKey, string> = {
   compliance: "Compliance",
 };
 
-/** Active demo plants — ETP / RO / MEE */
-export const DEMO_SITE_IDS = ["s-etp", "s-ro", "s-mee"] as const;
-
 export const sites: Site[] = [
   {
     id: "s-etp",
@@ -534,8 +531,6 @@ export const skillMatrix: SkillMatrixRow[] = [
   },
 ];
 
-export const trainingItems: TrainingItem[] = [];
-
 export function getSiteName(siteId: string): string {
   return (
     sites.find((s) => s.id === siteId)?.name ??
@@ -550,10 +545,6 @@ export function getEmployeeById(id: string): Employee | undefined {
 
 export function getSiteById(id: string): Site | undefined {
   return sites.find((s) => s.id === id) ?? legacySites.find((s) => s.id === id);
-}
-
-export function getEmployeesForSite(siteId: string): Employee[] {
-  return employees.filter((e) => e.siteId === siteId);
 }
 
 export function getEmployeeTraining(employeeId: string): TrainingItem[] {
@@ -613,13 +604,4 @@ export function getDashboardKpis(siteId?: string) {
     urgentTraining,
     complianceReadySites,
   };
-}
-
-export function getUrgentTraining(siteId?: string): TrainingItem[] {
-  try {
-    const { getUrgentTrainingItems } = require("@/lib/training/store");
-    return getUrgentTrainingItems(siteId);
-  } catch {
-    return [];
-  }
 }

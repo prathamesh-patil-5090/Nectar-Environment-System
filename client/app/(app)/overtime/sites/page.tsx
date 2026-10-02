@@ -24,12 +24,7 @@ export default function OtSitesPage() {
       title: "Site",
       dataIndex: "siteName",
       render: (name, record) => (
-        <Link
-          href={`/overtime/sites/${record.siteId}`}
-          style={{ color: nectarColors.leaf, fontWeight: 600 }}
-        >
-          {name}
-        </Link>
+        <Link href={`/overtime/sites/${record.siteId}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{name}</Link>
       ),
     },
     {
@@ -38,23 +33,9 @@ export default function OtSitesPage() {
       sorter: (a, b) => a.otEmployees - b.otEmployees,
       defaultSortOrder: "descend",
     },
-    {
-      title: "OT Days",
-      dataIndex: "otDays",
-      sorter: (a, b) => a.otDays - b.otDays,
-    },
-    {
-      title: "OT Hours",
-      dataIndex: "otHours",
-      sorter: (a, b) => a.otHours - b.otHours,
-      render: (v) => formatHours(v),
-    },
-    {
-      title: "OT Cost",
-      dataIndex: "otCost",
-      sorter: (a, b) => a.otCost - b.otCost,
-      render: (v) => formatInr(v),
-    },
+    { title: "OT Days", dataIndex: "otDays", sorter: (a, b) => a.otDays - b.otDays },
+    { title: "OT Hours", dataIndex: "otHours", sorter: (a, b) => a.otHours - b.otHours, render: (v) => formatHours(v) },
+    { title: "OT Cost", dataIndex: "otCost", sorter: (a, b) => a.otCost - b.otCost, render: (v) => formatInr(v) },
     {
       title: "Avg OT/Employee",
       dataIndex: "avgOtPerEmployee",
@@ -65,19 +46,8 @@ export default function OtSitesPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <OtFiltersBar
-        value={filters}
-        onChange={setFilters}
-        lockedSiteId={lockedSiteId}
-      />
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={() => downloadOtReport("site", "xlsx", filters)}
-        >
-          Export
-        </Button>
-      </div>
+      <OtFiltersBar value={filters} onChange={setFilters} lockedSiteId={lockedSiteId} />
+      <div style={{ display: "flex", justifyContent: "flex-end" }}><Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("site", "xlsx", filters)}>Export</Button></div>
       <Table
         rowKey="siteId"
         columns={columns}

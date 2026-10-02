@@ -11,6 +11,7 @@ import {
 } from "@/lib/shift";
 import { canApproveShiftChanges, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText22 } from "@/lib/styles";
 
 export default function ShiftChangeRequestsPage() {
   const { message } = App.useApp();
@@ -26,14 +27,7 @@ export default function ShiftChangeRequestsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-          }}
-        >
-          Shift change requests
-        </div>
+        <div style={sSerifText22}>Shift change requests</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Supervisor or employee requests a shift change. Shift In-Charge, Manager,
           or Director approve it when the day is not on leave and rest rules hold.
@@ -46,11 +40,7 @@ export default function ShiftChangeRequestsPage() {
         style={{ background: nectarColors.white }}
         columns={[
           { title: "Employee", dataIndex: "employeeName" },
-          {
-            title: "Site",
-            dataIndex: "siteId",
-            render: (id) => getSiteName(id),
-          },
+          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
           { title: "Date", dataIndex: "date" },
           {
             title: "Change",
@@ -82,11 +72,7 @@ export default function ShiftChangeRequestsPage() {
                 "0 hrs"
               ),
           },
-          {
-            title: "Status",
-            dataIndex: "status",
-            render: (s) => <Tag>{s}</Tag>,
-          },
+          { title: "Status", dataIndex: "status", render: (s) => <Tag>{s}</Tag> },
           {
             title: "Action",
             key: "act",
@@ -126,9 +112,7 @@ export default function ShiftChangeRequestsPage() {
                   </Button>
                 </>
               ) : r.status === "PENDING" ? (
-                <span style={{ color: nectarColors.muted, fontSize: 12 }}>
-                  Awaiting shift in-charge / manager
-                </span>
+                <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting shift in-charge / manager</span>
               ) : (
                 "—"
               ),

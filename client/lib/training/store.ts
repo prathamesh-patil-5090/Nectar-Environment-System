@@ -1,7 +1,5 @@
 import {
   mockCourses,
-  mockJobCategories,
-  mockCompetencyAreas,
   initialEnrollments,
   initialSkillMappingResults,
   initialWrittenTestResults,
@@ -10,9 +8,7 @@ import {
   initialCertificates,
   initialLearningNeedRecords,
   initialTrainingSessions,
-  mockRecommendations,
   mockMentors,
-  mockRoleTracks,
   mockSpecializationTracks,
   initialMentorLiveSessions,
 } from "./data";
@@ -31,7 +27,6 @@ import type {
   TrainingSession,
   CourseRecommendation,
   MentorProfile,
-  RoleProgressionTrack,
   SpecializationTrack,
   MentorLiveSession,
   TrainingAssignment,
@@ -1101,10 +1096,6 @@ export function getMentorProfiles(): MentorProfile[] {
   return mockMentors;
 }
 
-export function getRoleProgressionTracks(): RoleProgressionTrack[] {
-  return mockRoleTracks;
-}
-
 export function registerForDropInClinic(
   mentorId: string,
   employeeId: string,
@@ -1149,10 +1140,6 @@ export function registerForDropInClinic(
     message: `Registered for "${topicTitle}" with ${mentor.name} on ${clinic.dayTime} at ${clinic.location}`,
     session: newSession,
   };
-}
-
-export function getSpecializationTracks(): SpecializationTrack[] {
-  return mockSpecializationTracks;
 }
 
 export function getSpecializationTrackById(id: string): SpecializationTrack | undefined {

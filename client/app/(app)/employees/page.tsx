@@ -9,17 +9,9 @@ import { employees, getSiteName, type Employee } from "@/lib/mock-data";
 import { canAccessEmployeeRecord, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
-const statusColor = {
-  compliant: "green",
-  "due-soon": "orange",
-  overdue: "red",
-} as const;
+const statusColor = { compliant: "green", "due-soon": "orange", overdue: "red" } as const;
 
-const statusLabel = {
-  compliant: "Compliant",
-  "due-soon": "Due soon",
-  overdue: "Overdue",
-} as const;
+const statusLabel = { compliant: "Compliant", "due-soon": "Due soon", overdue: "Overdue" } as const;
 
 export default function EmployeesPage() {
   const router = useRouter();
@@ -35,22 +27,14 @@ export default function EmployeesPage() {
       key: "name",
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (name: string, record) => (
-        <Link
-          href={`/employees/${record.id}`}
-          style={{ color: nectarColors.leaf, fontWeight: 600 }}
-        >
-          {name}
-        </Link>
+        <Link href={`/employees/${record.id}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{name}</Link>
       ),
     },
     {
       title: "Role",
       dataIndex: "role",
       key: "role",
-      filters: [...new Set(data.map((e) => e.role))].map((role) => ({
-        text: role,
-        value: role,
-      })),
+      filters: [...new Set(data.map((e) => e.role))].map((role) => ({ text: role, value: role })),
       onFilter: (value, record) => record.role === value,
     },
     {
@@ -60,25 +44,14 @@ export default function EmployeesPage() {
       render: (c: Employee["employeeCategory"]) =>
         c.replace(/_/g, " "),
     },
-    {
-      title: "Site",
-      key: "site",
-      render: (_, record) => getSiteName(record.siteId),
-    },
+    { title: "Site", key: "site", render: (_, record) => getSiteName(record.siteId) },
     {
       title: "Skill score",
       dataIndex: "skillScore",
       key: "skillScore",
       sorter: (a, b) => a.skillScore - b.skillScore,
       render: (score: number) => (
-        <span
-          style={{
-            fontWeight: 600,
-            color: score < 70 ? nectarColors.alert : nectarColors.ink,
-          }}
-        >
-          {score}%
-        </span>
+        <span style={{ fontWeight: 600, color: score < 70 ? nectarColors.alert : nectarColors.ink }}>{score}%</span>
       ),
     },
     {

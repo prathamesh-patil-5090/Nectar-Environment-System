@@ -23,6 +23,7 @@ import {
 } from "@/lib/overtime";
 import { canAssignOt, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Mb12, sWhitePadR10 } from "@/lib/styles";
 
 export default function OtAssignPage() {
   const { message } = App.useApp();
@@ -46,31 +47,16 @@ export default function OtAssignPage() {
 
   const rows = useMemo(() => {
     void tick;
-    return getOtAssignments({
-      siteId: siteScope,
-      employeeId: undefined,
-    });
+    return getOtAssignments({ siteId: siteScope, employeeId: undefined });
   }, [siteScope, tick]);
 
   const columns: ColumnsType<OtAssignment> = [
     { title: "Employee", dataIndex: "employeeName" },
-    {
-      title: "Plant",
-      dataIndex: "siteId",
-      render: (id) => getSiteName(id),
-    },
+    { title: "Plant", dataIndex: "siteId", render: (id) => getSiteName(id) },
     { title: "Date", dataIndex: "date" },
-    {
-      title: "Hours",
-      dataIndex: "hours",
-      render: (h) => `${h}h`,
-    },
+    { title: "Hours", dataIndex: "hours", render: (h) => `${h}h` },
     { title: "Reason", dataIndex: "reason" },
-    {
-      title: "Status",
-      dataIndex: "status",
-      render: (s) => <Tag>{s}</Tag>,
-    },
+    { title: "Status", dataIndex: "status", render: (s) => <Tag>{s}</Tag> },
     { title: "Assigned by", dataIndex: "assignedBy" },
   ];
 
@@ -107,57 +93,21 @@ export default function OtAssignPage() {
       </p>
 
       {canAssign ? (
-        <div
-          style={{
-            background: nectarColors.white,
-            padding: 20,
-            borderRadius: 10,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              marginBottom: 12,
-            }}
-          >
-            Assign OT
-          </div>
-          <Form
-            form={form}
-            layout="vertical"
-            style={{ maxWidth: 520 }}
-            initialValues={{ hours: 4, date: dayjs() }}
-          >
-            <Form.Item
-              name="employeeId"
-              label="Employee"
-              rules={[{ required: true }]}
-            >
+        <div style={sWhitePadR10}>
+          <div style={sSerifText18Mb12}>Assign OT</div>
+          <Form form={form} layout="vertical" style={{ maxWidth: 520 }} initialValues={{ hours: 4, date: dayjs() }}>
+            <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
               <Select
                 showSearch
                 optionFilterProp="label"
-                options={plantEmployees.map((e) => ({
-                  value: e.id,
-                  label: `${e.name} · ${e.role}`,
-                }))}
+                options={plantEmployees.map((e) => ({ value: e.id, label: `${e.name} · ${e.role}` }))}
               />
             </Form.Item>
-            <Form.Item name="date" label="Date" rules={[{ required: true }]}>
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="hours" label="Hours" rules={[{ required: true }]}>
-              <InputNumber min={1} max={12} style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
-              <Input.TextArea rows={2} />
-            </Form.Item>
-            <Form.Item name="notes" label="Notes">
-              <Input.TextArea rows={2} placeholder="Optional instructions" />
-            </Form.Item>
-            <Button type="primary" onClick={onAssign}>
-              Assign & notify
-            </Button>
+            <Form.Item name="date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: "100%" }} /></Form.Item>
+            <Form.Item name="hours" label="Hours" rules={[{ required: true }]}><InputNumber min={1} max={12} style={{ width: "100%" }} /></Form.Item>
+            <Form.Item name="reason" label="Reason" rules={[{ required: true }]}><Input.TextArea rows={2} /></Form.Item>
+            <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} placeholder="Optional instructions" /></Form.Item>
+            <Button type="primary" onClick={onAssign}>Assign & notify</Button>
           </Form>
         </div>
       ) : (

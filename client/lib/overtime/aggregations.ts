@@ -430,17 +430,6 @@ export function getHeatmapMonthSite(filters: OtFilters) {
   return { months, siteIds, cells };
 }
 
-export function getHeatmapDowHour(filters: OtFilters) {
-  const filtered = applyOtFilters(otRecords, filters);
-  const grid: number[][] = Array.from({ length: 7 }, () =>
-    Array.from({ length: 24 }, () => 0),
-  );
-  for (const r of filtered) {
-    grid[r.dayOfWeek][r.hourBucket] += r.otHours;
-  }
-  return grid.map((row) => row.map((v) => Math.round(v * 10) / 10));
-}
-
 export function getEmployeeOtDetail(employeeId: string, filters: OtFilters) {
   const emp = getEmployeeById(employeeId);
   if (!emp) return null;

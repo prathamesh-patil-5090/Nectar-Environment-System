@@ -38,9 +38,10 @@ import {
 } from '../schemas/training';
 
 async function seed() {
-  const uri =
-    process.env.MONGODB_URI ||
-    'mongodb+srv://unicordhq_db_user:C5eYcSY4he4bRJRJ@nectar.vqimrur.mongodb.net/nectar_enviro';
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI is not set — add it to server/.env');
+  }
 
   console.log('\n┌────────────────────────────────────────────────────────┐');
   console.log('│  🌱 Nectar Enviro — Unified Modern Database Seeder    │');

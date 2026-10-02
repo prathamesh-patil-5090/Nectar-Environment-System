@@ -7,6 +7,7 @@ import { getEmployeeById, getSiteName, sites } from "@/lib/mock-data";
 import { getRelievers } from "@/lib/reliever/pool";
 import { computeShiftImpact, candidateDisplaySource } from "@/lib/shift-impact";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText22 } from "@/lib/styles";
 
 const TODAY = "2026-09-23";
 
@@ -14,11 +15,7 @@ export default function RelieverAllocationPage() {
   const [siteId, setSiteId] = useState<string>();
   const report = useMemo(
     () =>
-      computeShiftImpact({
-        siteId,
-        from: TODAY,
-        to: TODAY,
-      }),
+      computeShiftImpact({ siteId, from: TODAY, to: TODAY }),
     [siteId],
   );
   const allRelievers = getRelievers();
@@ -28,14 +25,7 @@ export default function RelieverAllocationPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-          }}
-        >
-          Reliever allocation
-        </div>
+        <div style={sSerifText22}>Reliever allocation</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Shift Impact: leave vacancies and roster gaps with ranked cover
           (employees + pool). Manage availability in{" "}
@@ -62,27 +52,14 @@ export default function RelieverAllocationPage() {
         style={{ background: nectarColors.white }}
         locale={{ emptyText: "No open shift vacancies for this window" }}
         columns={[
-          {
-            title: "Site",
-            dataIndex: "siteId",
-            render: (id: string) => getSiteName(id),
-          },
-          {
-            title: "Date",
-            dataIndex: "date",
-          },
-          {
-            title: "Shift",
-            dataIndex: "shiftCode",
-            render: (c: string) => <Tag>{c}</Tag>,
-          },
+          { title: "Site", dataIndex: "siteId", render: (id: string) => getSiteName(id) },
+          { title: "Date", dataIndex: "date" },
+          { title: "Shift", dataIndex: "shiftCode", render: (c: string) => <Tag>{c}</Tag> },
           {
             title: "Source",
             dataIndex: "source",
             render: (s: string) => (
-              <Tag color={s === "leave" ? nectarColors.sky : "#D97706"}>
-                {s === "leave" ? "Leave" : "Roster gap"}
-              </Tag>
+              <Tag color={s === "leave" ? nectarColors.sky : "#D97706"}>{s === "leave" ? "Leave" : "Roster gap"}</Tag>
             ),
           },
           {
@@ -116,16 +93,12 @@ export default function RelieverAllocationPage() {
             render: (_, r) => {
               if (r.status !== "open") {
                 return (
-                  <span style={{ color: nectarColors.muted }}>
-                    {r.chosenCoverName ?? r.status}
-                  </span>
+                  <span style={{ color: nectarColors.muted }}>{r.chosenCoverName ?? r.status}</span>
                 );
               }
               if (!r.candidates.length) {
                 return (
-                  <span style={{ color: nectarColors.alert }}>
-                    No match — OT risk
-                  </span>
+                  <span style={{ color: nectarColors.alert }}>No match — OT risk</span>
                 );
               }
               return r.candidates.slice(0, 3).map((c) => {

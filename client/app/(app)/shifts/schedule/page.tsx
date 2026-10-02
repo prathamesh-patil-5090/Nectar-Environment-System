@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { employees, getSiteName, sites } from "@/lib/mock-data";
 import { TODAY, getPlannedDays, getShiftMasterById } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText22 } from "@/lib/styles";
 
 export default function ShiftSchedulePage() {
   const [siteId, setSiteId] = useState<string>();
@@ -17,29 +18,15 @@ export default function ShiftSchedulePage() {
 
   const rows = useMemo(
     () =>
-      getPlannedDays({
-        siteId,
-        employeeId,
-        from: range[0],
-        to: range[1],
-      }),
+      getPlannedDays({ siteId, employeeId, from: range[0], to: range[1] }),
     [siteId, employeeId, range],
   );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-          }}
-        >
-          Shift schedule
-        </div>
-        <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Forward-looking planned shifts (Current → Next → Future).
-        </p>
+        <div style={sSerifText22}>Shift schedule</div>
+        <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>Forward-looking planned shifts (Current → Next → Future).</p>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -85,11 +72,7 @@ export default function ShiftSchedulePage() {
             dataIndex: "employeeId",
             render: (id) => employees.find((e) => e.id === id)?.name ?? id,
           },
-          {
-            title: "Site",
-            dataIndex: "siteId",
-            render: (id) => getSiteName(id),
-          },
+          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
           {
             title: "Planned",
             dataIndex: "plannedCode",
@@ -97,16 +80,10 @@ export default function ShiftSchedulePage() {
               c === "OFF" ? (
                 <Tag>Weekly Off</Tag>
               ) : (
-                <Tag color={getShiftMasterById(r.plannedShiftId)?.color}>
-                  {c}
-                </Tag>
+                <Tag color={getShiftMasterById(r.plannedShiftId)?.color}>{c}</Tag>
               ),
           },
-          {
-            title: "Actual",
-            dataIndex: "actualCode",
-            render: (c) => (c ? <Tag>{c}</Tag> : "—"),
-          },
+          { title: "Actual", dataIndex: "actualCode", render: (c) => (c ? <Tag>{c}</Tag> : "—") },
           {
             title: "Deviation",
             key: "dev",

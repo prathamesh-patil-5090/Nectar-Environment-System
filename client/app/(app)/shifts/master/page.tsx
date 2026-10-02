@@ -11,6 +11,8 @@ import {
 } from "@/lib/shift";
 import { canManageShifts } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Mb12, sSerifText22Ink } from "@/lib/styles";
+import SharedPanel from "@/components/Panel";
 
 export default function ShiftMasterPage() {
   const session = getSession();
@@ -34,11 +36,7 @@ export default function ShiftMasterPage() {
           pagination={false}
           dataSource={shiftMaster}
           columns={[
-            {
-              title: "Code",
-              dataIndex: "code",
-              render: (c, r) => <Tag color={r.color}>{c}</Tag>,
-            },
+            { title: "Code", dataIndex: "code", render: (c, r) => <Tag color={r.color}>{c}</Tag> },
             { title: "Name", dataIndex: "name" },
             { title: "Start", dataIndex: "startTime" },
             { title: "End", dataIndex: "endTime" },
@@ -56,11 +54,7 @@ export default function ShiftMasterPage() {
           columns={[
             { title: "Pattern", dataIndex: "name" },
             { title: "Description", dataIndex: "description" },
-            {
-              title: "Sequence",
-              dataIndex: "sequence",
-              render: (seq: string[]) => seq.join(" → "),
-            },
+            { title: "Sequence", dataIndex: "sequence", render: (seq: string[]) => seq.join(" → ") },
             { title: "Period (days)", dataIndex: "periodDays" },
           ]}
         />
@@ -68,19 +62,9 @@ export default function ShiftMasterPage() {
 
       <Panel title="Rest & weekly-off rules">
         {!canEdit ? (
-          <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>
-            View only — Shift In-Charge / Manager can edit rest rules.
-          </p>
+          <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>View only — Shift In-Charge / Manager can edit rest rules.</p>
         ) : null}
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            flexWrap: "wrap",
-            alignItems: "center",
-            marginTop: canEdit ? 0 : 8,
-          }}
-        >
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginTop: canEdit ? 0 : 8 }}>
           <label style={{ fontSize: 13 }}>
             Minimum rest hours between shifts{" "}
             <InputNumber
@@ -95,14 +79,7 @@ export default function ShiftMasterPage() {
               }}
             />
           </label>
-          <label
-            style={{
-              fontSize: 13,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <label style={{ fontSize: 13, display: "inline-flex", alignItems: "center", gap: 8 }}>
             Weekly-off OT enabled
             <Switch
               disabled={!canEdit}
@@ -114,9 +91,7 @@ export default function ShiftMasterPage() {
               }}
             />
           </label>
-          <span style={{ fontSize: 13, color: nectarColors.muted }}>
-            Weekly off day: Sunday (demo fixed)
-          </span>
+          <span style={{ fontSize: 13, color: nectarColors.muted }}>Weekly off day: Sunday (demo fixed)</span>
         </div>
       </Panel>
     </div>
@@ -126,46 +101,12 @@ export default function ShiftMasterPage() {
 function Intro({ title, body }: { title: string; body: string }) {
   return (
     <div>
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 22,
-          color: nectarColors.ink,
-        }}
-      >
-        {title}
-      </div>
+      <div style={sSerifText22Ink}>{title}</div>
       <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>{body}</p>
     </div>
   );
 }
 
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-        borderRadius: 10,
-        border: "1px solid rgba(28, 68, 99, 0.08)",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          marginBottom: 12,
-        }}
-      >
-        {title}
-      </div>
-      {children}
-    </div>
-  );
+function Panel(props: { title: string; children: React.ReactNode }) {
+  return <SharedPanel {...props} titleStyle={sSerifText18Mb12} />;
 }

@@ -12,6 +12,15 @@ import {
 import type { Course, CourseEnrollment } from "@/lib/training/types";
 import { getPendingEvaluations } from "@/lib/training/store";
 import { nectarColors } from "@/lib/theme";
+import { sText11SemiboldColorBgR6Border } from "@/lib/styles";
+import type { CSSProperties } from "react";
+
+const sText12SemiboldBgR6: CSSProperties = {
+  background: nectarColors.leaf,
+  borderRadius: 6,
+  fontWeight: 600,
+  fontSize: 12,
+};
 
 interface PendingEvaluationsQueueProps {
   siteScope?: string;
@@ -30,18 +39,51 @@ export default function PendingEvaluationsQueue({
   const activeSite = siteScope ?? (selectedSite === "all" ? undefined : selectedSite);
   const pending = getPendingEvaluations(activeSite);
 
+  /** Practical / oral column: done → Evaluated; not allowed → Manager Evaluated; else a score button. */
+  const evaluationColumn = (
+    title: string,
+    key: string,
+    flag: "hasPractical" | "hasOral",
+    icon: React.ReactNode,
+    onScore: PendingEvaluationsQueueProps["onScorePractical"],
+    label: string,
+  ): (typeof columns)[number] => ({
+    title,
+    key,
+    align: "center",
+    render: (_, r) => {
+      if (r[flag]) {
+        return (
+          <span style={{ color: nectarColors.leaf, fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircleFilled /> Evaluated</span>
+        );
+      }
+      if (!canEvaluate) {
+        return (
+          <Tag color="default" style={{ fontSize: 11, borderRadius: 6 }}>Manager Evaluated</Tag>
+        );
+      }
+      return (
+        <Button
+          size="small"
+          type="primary"
+          icon={icon}
+          onClick={() => onScore(r.enrollment, r.employeeName, r.course)}
+          style={sText12SemiboldBgR6}
+        >
+          {label}
+        </Button>
+      );
+    },
+  });
+
   const columns: ColumnsType<any> = [
     {
       title: "Candidate Operator",
       key: "employee",
       render: (_, r) => (
         <div>
-          <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 14 }}>
-            {r.employeeName}
-          </div>
-          <div style={{ fontSize: 11, color: nectarColors.muted }}>
-            {r.employeeDesignation} · {r.siteName}
-          </div>
+          <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 14 }}>{r.employeeName}</div>
+          <div style={{ fontSize: 11, color: nectarColors.muted }}>{r.employeeDesignation} · {r.siteName}</div>
         </div>
       ),
     },
@@ -51,12 +93,8 @@ export default function PendingEvaluationsQueue({
       key: "course",
       render: (c: Course) => (
         <div>
-          <div style={{ fontWeight: 600, fontSize: 13, color: nectarColors.ink }}>
-            {c?.title}
-          </div>
-          <div style={{ fontSize: 11, color: nectarColors.muted }}>
-            Code: {c?.code} · {c?.section}
-          </div>
+          <div style={{ fontWeight: 600, fontSize: 13, color: nectarColors.ink }}>{c?.title}</div>
+          <div style={{ fontSize: 11, color: nectarColors.muted }}>Code: {c?.code} · {c?.section}</div>
         </div>
       ),
     },
@@ -66,9 +104,7 @@ export default function PendingEvaluationsQueue({
       key: "skillMapScore",
       align: "center",
       render: (s: number) => (
-        <Tag color="success" style={{ borderRadius: 12, fontWeight: 700, fontSize: 12 }}>
-          {s}% Passed
-        </Tag>
+        <Tag color="success" style={{ borderRadius: 12, fontWeight: 700, fontSize: 12 }}>{s}% Passed</Tag>
       ),
     },
     {
@@ -78,136 +114,37 @@ export default function PendingEvaluationsQueue({
       render: (_, r) => {
         if (r.writtenScore !== undefined && r.writtenScore !== null) {
           return (
-            <Tag color="success" style={{ borderRadius: 12, fontWeight: 700, fontSize: 12 }}>
-              {r.writtenScore}% Passed
-            </Tag>
+            <Tag color="success" style={{ borderRadius: 12, fontWeight: 700, fontSize: 12 }}>{r.writtenScore}% Passed</Tag>
           );
         }
         return (
-          <Tag
-            color="orange"
-            style={{
-              borderRadius: 6,
-              fontWeight: 600,
-              fontSize: 11,
-              background: "#FFFBEB",
-              color: "#D97706",
-              border: "1px dashed #F59E0B",
-            }}
-          >
-            Not Taken (Pending)
-          </Tag>
+          <Tag color="orange" style={sText11SemiboldColorBgR6Border}>Not Taken (Pending)</Tag>
         );
       },
     },
-    {
-      title: "Practical Status",
-      key: "practical",
-      align: "center",
-      render: (_, r) => {
-        if (r.hasPractical) {
-          return (
-            <span style={{ color: nectarColors.leaf, fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <CheckCircleFilled /> Evaluated
-            </span>
-          );
-        }
-        if (!canEvaluate) {
-          return (
-            <Tag color="default" style={{ fontSize: 11, borderRadius: 6 }}>
-              Manager Evaluated
-            </Tag>
-          );
-        }
-        return (
-          <Button
-            size="small"
-            type="primary"
-            icon={<FileProtectOutlined />}
-            onClick={() => onScorePractical(r.enrollment, r.employeeName, r.course)}
-            style={{
-              background: nectarColors.leaf,
-              borderRadius: 6,
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
-            Score Practical (1–5)
-          </Button>
-        );
-      },
-    },
-    {
-      title: "Oral Viva Status",
-      key: "oral",
-      align: "center",
-      render: (_, r) => {
-        if (r.hasOral) {
-          return (
-            <span style={{ color: nectarColors.leaf, fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <CheckCircleFilled /> Evaluated
-            </span>
-          );
-        }
-        if (!canEvaluate) {
-          return (
-            <Tag color="default" style={{ fontSize: 11, borderRadius: 6 }}>
-              Manager Evaluated
-            </Tag>
-          );
-        }
-        return (
-          <Button
-            size="small"
-            type="primary"
-            icon={<CommentOutlined />}
-            onClick={() => onScoreOral(r.enrollment, r.employeeName, r.course)}
-            style={{
-              background: nectarColors.leaf,
-              borderRadius: 6,
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
-            Conduct Oral Viva (1–5)
-          </Button>
-        );
-      },
-    },
+    evaluationColumn("Practical Status", "practical", "hasPractical", <FileProtectOutlined />, onScorePractical, "Score Practical (1–5)"),
+    evaluationColumn("Oral Viva Status", "oral", "hasOral", <CommentOutlined />, onScoreOral, "Conduct Oral Viva (1–5)"),
   ];
 
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        borderRadius: 14,
-        padding: 24,
-        border: "1px solid rgba(28, 68, 99, 0.12)",
+        background: "#FFFFFF", borderRadius: 14, padding: 24, border: "1px solid rgba(28, 68, 99, 0.12)",
         boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-          flexWrap: "wrap",
+          display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap",
           gap: 12,
         }}
       >
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1C4463" }}>
-              Manager Assessment & In-Person Scoring Queue
-            </h3>
-            <Tag color="orange" style={{ borderRadius: 12, fontSize: 11, fontWeight: 700 }}>
-              {pending.length} Pending
-            </Tag>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1C4463" }}>Manager Assessment & In-Person Scoring Queue</h3>
+            <Tag color="orange" style={{ borderRadius: 12, fontSize: 11, fontWeight: 700 }}>{pending.length} Pending</Tag>
           </div>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>
-            Candidates who completed their online module learning and passed the skill mapping exam.
-          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>Candidates who completed their online module learning and passed the skill mapping exam.</p>
         </div>
         {!siteScope && (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -216,12 +153,8 @@ export default function PendingEvaluationsQueue({
               value={selectedSite}
               onChange={(e) => setSelectedSite(e.target.value)}
               style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                border: "1px solid #CBD5E1",
-                fontSize: 12,
-                color: nectarColors.ink,
-                background: "#F8FAFC",
+                padding: "6px 12px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 12,
+                color: nectarColors.ink, background: "#F8FAFC",
               }}
             >
               <option value="all">All Plants (ETP, RO, MEE)</option>

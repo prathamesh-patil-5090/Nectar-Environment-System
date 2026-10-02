@@ -9,6 +9,7 @@ import {
   getSitesWithComputedReadiness,
 } from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18InkMb4 } from "@/lib/styles";
 
 export default function SiteReadiness() {
   const session = getSession();
@@ -18,22 +19,8 @@ export default function SiteReadiness() {
   );
 
   return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          color: nectarColors.ink,
-          marginBottom: 4,
-        }}
-      >
-        Site readiness
-      </div>
+    <div style={{ background: nectarColors.white, padding: 20 }}>
+      <div style={sSerifText18InkMb4}>Site readiness</div>
       <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
         One score per plant: “can we safely run O&amp;M today?” Built from
         staffing, training, skills, and open absences (≥{READINESS_READY_THRESHOLD}
@@ -52,29 +39,16 @@ export default function SiteReadiness() {
           const b = site.readinessBreakdown;
           const tip = (
             <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-              <div>
-                Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})
-              </div>
-              <div>
-                Training {b.trainingPct}% ({b.overdueTrainingCount} overdue)
-              </div>
+              <div>Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})</div>
+              <div>Training {b.trainingPct}% ({b.overdueTrainingCount} overdue)</div>
               <div>Skills {b.skillPct}%</div>
-              <div>
-                Cover {b.coveragePct}% ({b.openAbsences} open absences)
-              </div>
+              <div>Cover {b.coveragePct}% ({b.openAbsences} open absences)</div>
             </div>
           );
           return (
             <Tooltip key={site.id} title={tip}>
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 4,
-                    gap: 8,
-                  }}
-                >
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
                   <span style={{ fontSize: 13, color: nectarColors.ink }}>
                     {site.name}
                     <span style={{ color: nectarColors.muted }}>

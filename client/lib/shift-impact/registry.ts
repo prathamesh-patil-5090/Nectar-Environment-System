@@ -121,12 +121,4 @@ export function getCoverageApi(): CoverageApi {
   return coverageApi;
 }
 
-/** Test helper */
-export function resetShiftImpactRegistry() {
-  leaveApi = null;
-  shiftApi = null;
-  poolApi = null;
-  coverageApi = null;
-}
-
 export type { Employee };

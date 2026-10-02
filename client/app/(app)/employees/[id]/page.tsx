@@ -43,18 +43,21 @@ import {
 import { canAccessEmployeeRecord, canViewOtModule, scopedEmployeeId } from "@/lib/rbac";
 import { computeSiteReadiness } from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Ink, sSerifText18InkMb4 } from "@/lib/styles";
+import type { CSSProperties } from "react";
 
-const statusColor = {
-  compliant: "green",
-  "due-soon": "orange",
-  overdue: "red",
-} as const;
+const rowBetweenWrapGap12Mb16: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "baseline",
+  gap: 12,
+  marginBottom: 16,
+  flexWrap: "wrap",
+};
 
-const statusLabel = {
-  compliant: "Compliant",
-  "due-soon": "Due soon",
-  overdue: "Overdue",
-} as const;
+const statusColor = { compliant: "green", "due-soon": "orange", overdue: "red" } as const;
+
+const statusLabel = { compliant: "Compliant", "due-soon": "Due soon", overdue: "Overdue" } as const;
 
 const priorityColor: Record<TrainingPriority, string> = {
   critical: nectarColors.alert,
@@ -71,17 +74,8 @@ const trainingStatusLabel: Record<TrainingItem["status"], string> = {
 };
 
 const trainingColumns: ColumnsType<TrainingItem> = [
-  {
-    title: "Course",
-    dataIndex: "course",
-    key: "course",
-  },
-  {
-    title: "Provider",
-    dataIndex: "provider",
-    key: "provider",
-    render: (v?: string) => v ?? "—",
-  },
+  { title: "Course", dataIndex: "course", key: "course" },
+  { title: "Provider", dataIndex: "provider", key: "provider", render: (v?: string) => v ?? "—" },
   {
     title: "Date",
     key: "date",
@@ -107,9 +101,7 @@ const trainingColumns: ColumnsType<TrainingItem> = [
     dataIndex: "priority",
     key: "priority",
     render: (priority: TrainingPriority) => (
-      <Tag color={priorityColor[priority]} style={{ border: "none", margin: 0 }}>
-        {priority}
-      </Tag>
+      <Tag color={priorityColor[priority]} style={{ border: "none", margin: 0 }}>{priority}</Tag>
     ),
   },
   {
@@ -145,29 +137,18 @@ function OtStat({
 }) {
   return (
     <div
-      style={{
-        flex: "1 1 140px",
-        minWidth: 120,
-        padding: "12px 16px",
-        background: nectarColors.sand,
-        borderRadius: 8,
-      }}
+      style={{ flex: "1 1 140px", minWidth: 120, padding: "12px 16px", background: nectarColors.sand, borderRadius: 8 }}
     >
       <div style={{ fontSize: 12, color: nectarColors.muted }}>{label}</div>
       <div
         style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 22,
-          color: nectarColors.ink,
-          marginTop: 2,
+          fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 22, color: nectarColors.ink, marginTop: 2,
         }}
       >
         {value}
       </div>
       {hint ? (
-        <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
-          {hint}
-        </div>
+        <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{hint}</div>
       ) : null}
     </div>
   );
@@ -211,11 +192,7 @@ export default function EmployeeDetailPage({
   if (!employee) {
     return (
       <div style={{ background: nectarColors.white, padding: 40 }}>
-        <Empty description="Employee not found">
-          <Button type="primary" onClick={() => router.push("/employees")}>
-            Back to employees
-          </Button>
-        </Empty>
+        <Empty description="Employee not found"><Button type="primary" onClick={() => router.push("/employees")}>Back to employees</Button></Empty>
       </div>
     );
   }
@@ -228,23 +205,9 @@ export default function EmployeeDetailPage({
 
   const otColumns: ColumnsType<OtRecord> = [
     { title: "Date", dataIndex: "date", width: 110 },
-    {
-      title: "Hours",
-      dataIndex: "otHours",
-      width: 80,
-      render: (h: number) => formatHours(h),
-    },
-    {
-      title: "Cost",
-      dataIndex: "otCost",
-      width: 100,
-      render: (c: number) => formatInr(c),
-    },
-    {
-      title: "Reason",
-      dataIndex: "reason",
-      render: (r: OtRecord["reason"]) => OT_REASON_LABELS[r],
-    },
+    { title: "Hours", dataIndex: "otHours", width: 80, render: (h: number) => formatHours(h) },
+    { title: "Cost", dataIndex: "otCost", width: 100, render: (c: number) => formatInr(c) },
+    { title: "Reason", dataIndex: "reason", render: (r: OtRecord["reason"]) => OT_REASON_LABELS[r] },
     {
       title: "Status",
       dataIndex: "status",
@@ -269,25 +232,15 @@ export default function EmployeeDetailPage({
 
         <div
           style={{
-            background: nectarColors.white,
-            padding: "24px 28px",
-            display: "flex",
-            gap: 20,
-            alignItems: "flex-start",
+            background: nectarColors.white, padding: "24px 28px", display: "flex", gap: 20, alignItems: "flex-start",
             flexWrap: "wrap",
           }}
         >
-          <Avatar
-            size={72}
-            icon={<UserOutlined />}
-            style={{ background: nectarColors.leaf, flexShrink: 0 }}
-          />
+          <Avatar size={72} icon={<UserOutlined />} style={{ background: nectarColors.leaf, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 200 }}>
             <div
               style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 28,
-                color: nectarColors.ink,
+                fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 28, color: nectarColors.ink,
                 lineHeight: 1.2,
               }}
             >
@@ -298,16 +251,10 @@ export default function EmployeeDetailPage({
               {site ? ` · ${site.name}` : ""}
             </div>
             <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Tag color={statusColor[employee.trainingStatus]}>
-                {statusLabel[employee.trainingStatus]}
-              </Tag>
-              <Tag style={{ borderColor: "rgba(28, 68, 99, 0.15)" }}>
-                Skill score {employee.skillScore}%
-              </Tag>
+              <Tag color={statusColor[employee.trainingStatus]}>{statusLabel[employee.trainingStatus]}</Tag>
+              <Tag style={{ borderColor: "rgba(28, 68, 99, 0.15)" }}>Skill score {employee.skillScore}%</Tag>
               {employee.otEligible ? (
-                <Tag color={nectarColors.sky} style={{ border: "none" }}>
-                  OT eligible
-                </Tag>
+                <Tag color={nectarColors.sky} style={{ border: "none" }}>OT eligible</Tag>
               ) : null}
             </div>
           </div>
@@ -318,56 +265,38 @@ export default function EmployeeDetailPage({
         <div style={{ background: nectarColors.white, padding: 24 }}>
           <div
             style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              color: nectarColors.ink,
+              fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, color: nectarColors.ink,
               marginBottom: 16,
             }}
           >
             Profile
           </div>
-          <Descriptions
-            column={1}
-            size="small"
-            styles={{ label: { color: nectarColors.muted, width: 140 } }}
-          >
+          <Descriptions column={1} size="small" styles={{ label: { color: nectarColors.muted, width: 140 } }}>
             <Descriptions.Item
               label={
-                <span>
-                  <MailOutlined /> Email
-                </span>
+                <span><MailOutlined /> Email</span>
               }
             >
               {employee.email}
             </Descriptions.Item>
             <Descriptions.Item
               label={
-                <span>
-                  <PhoneOutlined /> Phone
-                </span>
+                <span><PhoneOutlined /> Phone</span>
               }
             >
               {employee.phone}
             </Descriptions.Item>
-            <Descriptions.Item label="Joined">
-              {employee.joinedAt}
-            </Descriptions.Item>
-            <Descriptions.Item label="Experience">
-              {employee.yearsExperience} years
-            </Descriptions.Item>
+            <Descriptions.Item label="Joined">{employee.joinedAt}</Descriptions.Item>
+            <Descriptions.Item label="Experience">{employee.yearsExperience} years</Descriptions.Item>
             <Descriptions.Item
               label={
-                <span>
-                  <EnvironmentOutlined /> Site
-                </span>
+                <span><EnvironmentOutlined /> Site</span>
               }
             >
               {site ? (
                 <span>
                   {site.name}{" "}
-                  <Tag color={nectarColors.leaf} style={{ border: "none" }}>
-                    {site.plantType}
-                  </Tag>
+                  <Tag color={nectarColors.leaf} style={{ border: "none" }}>{site.plantType}</Tag>
                   <span style={{ color: nectarColors.muted }}>
                     · {site.location}
                     {siteReadiness ? ` · readiness ${siteReadiness.readiness}%` : ""}
@@ -377,15 +306,9 @@ export default function EmployeeDetailPage({
                 "Corporate HQ (Org-wide)"
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="Designation">
-              {employee.designation}
-            </Descriptions.Item>
-            <Descriptions.Item label="Department">
-              {employee.department}
-            </Descriptions.Item>
-            <Descriptions.Item label="Category">
-              {employee.employeeCategory.replace(/_/g, " ")}
-            </Descriptions.Item>
+            <Descriptions.Item label="Designation">{employee.designation}</Descriptions.Item>
+            <Descriptions.Item label="Department">{employee.department}</Descriptions.Item>
+            <Descriptions.Item label="Category">{employee.employeeCategory.replace(/_/g, " ")}</Descriptions.Item>
             <Descriptions.Item label="Manager">
               {employee.managerId
                 ? (getEmployeeById(employee.managerId)?.name ?? "—")
@@ -405,16 +328,7 @@ export default function EmployeeDetailPage({
         </div>
 
         <div style={{ background: nectarColors.white, padding: 24 }}>
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              color: nectarColors.ink,
-              marginBottom: 4,
-            }}
-          >
-            Skill map
-          </div>
+          <div style={sSerifText18InkMb4}>Skill map</div>
           <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
             Personal O&amp;M competency bars for <em>this person</em> (0–100).
             Built from the skill matrix role baseline, then shifted by their
@@ -429,16 +343,8 @@ export default function EmployeeDetailPage({
               const score = skills[key];
               return (
                 <div key={key}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: nectarColors.ink }}>
-                      {skillLabels[key]}
-                    </span>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, color: nectarColors.ink }}>{skillLabels[key]}</span>
                     <span
                       style={{
                         fontSize: 13,
@@ -472,47 +378,18 @@ export default function EmployeeDetailPage({
 
       {showOt && otDetail ? (
         <div style={{ background: nectarColors.white, padding: 24 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              gap: 12,
-              marginBottom: 16,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={rowBetweenWrapGap12Mb16}>
             <div>
-              <div
-                style={{
-                  fontFamily: "var(--font-fraunces), Georgia, serif",
-                  fontSize: 18,
-                  color: nectarColors.ink,
-                }}
-              >
-                Overtime
-              </div>
+              <div style={sSerifText18Ink}>Overtime</div>
               <p style={{ margin: "4px 0 0", color: nectarColors.muted, fontSize: 13 }}>
                 Engine-generated OT history for this employee
                 {otDetail.shift ? ` · ${otDetail.shift.name}` : ""}.
               </p>
             </div>
-            <Link
-              href={`/overtime/employees/${employee.id}`}
-              style={{ fontSize: 13, color: nectarColors.leaf }}
-            >
-              Full OT profile
-            </Link>
+            <Link href={`/overtime/employees/${employee.id}`} style={{ fontSize: 13, color: nectarColors.leaf }}>Full OT profile</Link>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 10,
-              marginBottom: 16,
-            }}
-          >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
             <OtStat
               label="This month"
               value={formatHours(otDetail.summary.currentMonthHours)}
@@ -523,22 +400,12 @@ export default function EmployeeDetailPage({
               value={formatHours(otDetail.summary.currentYearHours)}
               hint={`${otDetail.summary.currentYearDays} days · ${formatInr(otDetail.summary.currentYearCost)}`}
             />
-            <OtStat
-              label="Prev. month"
-              value={formatHours(otDetail.summary.previousMonthHours)}
-            />
-            <OtStat
-              label="Site OT share"
-              value={`${otDetail.siteSharePct}%`}
-              hint="Of filtered site OT"
-            />
+            <OtStat label="Prev. month" value={formatHours(otDetail.summary.previousMonthHours)} />
+            <OtStat label="Site OT share" value={`${otDetail.siteSharePct}%`} hint="Of filtered site OT" />
           </div>
 
           {recentOt.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No overtime records in the selected period."
-            />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No overtime records in the selected period." />
           ) : (
             <Table
               rowKey="id"
@@ -553,37 +420,12 @@ export default function EmployeeDetailPage({
       ) : null}
 
       <div style={{ background: nectarColors.white, padding: 24 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            gap: 12,
-            marginBottom: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              color: nectarColors.ink,
-            }}
-          >
-            Training history
-          </div>
-          <Link
-            href="/training"
-            style={{ fontSize: 13, color: nectarColors.leaf }}
-          >
-            View all training
-          </Link>
+        <div style={rowBetweenWrapGap12Mb16}>
+          <div style={sSerifText18Ink}>Training history</div>
+          <Link href="/training" style={{ fontSize: 13, color: nectarColors.leaf }}>View all training</Link>
         </div>
         {training.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No training records for this employee."
-          />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No training records for this employee." />
         ) : (
           <Table
             rowKey="id"

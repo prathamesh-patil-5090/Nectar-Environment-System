@@ -58,14 +58,6 @@ export interface MentorLiveSession {
   selectedAgendaMap?: Record<string, string>; // employeeId -> agenda
 }
 
-export interface EnrollMentorSessionPayload {
-  employeeId: string;
-  employeeName: string;
-  question?: string;
-  slotId?: string;
-  agenda?: string;
-}
-
 export interface MentorProfile {
   id: string;
   name: string;
@@ -139,25 +131,6 @@ export interface CourseModule {
   videos: CourseVideo[];
 }
 
-export interface RoleCredential {
-  id: string;
-  title: string;
-  issuer: string;
-  issuerLogoText: string;
-  issuerBg: string;
-  issuerColor: string;
-}
-
-export interface RoleProgressionTrack {
-  id: string;
-  roleTitle: string;
-  description: string;
-  medianSalary: string;
-  openPositions: number;
-  avatarUrl: string;
-  credentials: RoleCredential[];
-}
-
 export type CompetencyLevel = "LOW" | "MED" | "HIGH";
 
 export type SessionType =
@@ -173,19 +146,6 @@ export type EnrollmentStatus =
   | "PRACTICAL_DONE"
   | "ORAL_DONE"
   | "CERTIFIED";
-
-export interface JobCategory {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface CompetencyArea {
-  id: string;
-  jobCategoryId: string;
-  name: string;
-  weightPct: number;
-}
 
 export interface QuizOption {
   id: string;

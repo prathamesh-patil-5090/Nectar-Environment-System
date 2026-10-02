@@ -44,6 +44,7 @@ import {
   scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Mb12, sSerifText22, sWhitePadR10 } from "@/lib/styles";
 
 const SHIFT_OPTIONS: ShiftCode[] = ["A", "B", "C", "G", "OFF"];
 
@@ -151,12 +152,7 @@ export default function ShiftRotationPage() {
           w.to,
         );
       }
-      return {
-        employeeId,
-        employeeName: emp?.name ?? employeeId,
-        groupId: row?.groupId ?? "—",
-        ...weekCodes,
-      };
+      return { employeeId, employeeName: emp?.name ?? employeeId, groupId: row?.groupId ?? "—", ...weekCodes };
     });
   }, [assignments, weeks, wizSite]);
 
@@ -243,12 +239,7 @@ export default function ShiftRotationPage() {
           w.to,
         );
       }
-      return {
-        employeeId,
-        employeeName: emp?.name ?? employeeId,
-        groupId: row?.groupId ?? "—",
-        ...weekCodes,
-      };
+      return { employeeId, employeeName: emp?.name ?? employeeId, groupId: row?.groupId ?? "—", ...weekCodes };
     });
   }, [reviewPreview, reviewWeeks]);
 
@@ -328,14 +319,7 @@ export default function ShiftRotationPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-          }}
-        >
-          Employee rotation schedule
-        </div>
+        <div style={sSerifText22}>Employee rotation schedule</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Pattern: <strong>{ACTIVE_PATTERN.name}</strong> —{" "}
           {ACTIVE_PATTERN.description}. Shift In-Charge builds a monthly draft →
@@ -354,21 +338,11 @@ export default function ShiftRotationPage() {
           onChange={setSiteId}
           disabled={Boolean(locked)}
         />
-        <Button
-          type="primary"
-          disabled={!canGenerate}
-          onClick={openWizard}
-        >
-          Build monthly schedule
-        </Button>
+        <Button type="primary" disabled={!canGenerate} onClick={openWizard}>Build monthly schedule</Button>
         {!canGenerate ? (
-          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>
-            Drafting requires Shift In-Charge or Manager
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>Drafting requires Shift In-Charge or Manager</span>
         ) : (
-          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>
-            After submit: Manager → Director (view required before decide)
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>After submit: Manager → Director (view required before decide)</span>
         )}
       </div>
 
@@ -379,11 +353,7 @@ export default function ShiftRotationPage() {
         style={{ background: nectarColors.white }}
         columns={[
           { title: "Employee", dataIndex: "employeeName" },
-          {
-            title: "Site",
-            dataIndex: "siteId",
-            render: (id) => getSiteName(id),
-          },
+          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
           { title: "Role", dataIndex: "groupId" },
           {
             title: "Current",
@@ -403,51 +373,21 @@ export default function ShiftRotationPage() {
         ]}
       />
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Drafts pending publish
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Drafts pending publish</div>
         <Table
           rowKey="id"
           size="small"
           pagination={false}
           dataSource={previews}
           columns={[
-            {
-              title: "Label",
-              key: "label",
-              render: (_, r) => r.label ?? `${r.fromDate} → ${r.toDate}`,
-            },
+            { title: "Label", key: "label", render: (_, r) => r.label ?? `${r.fromDate} → ${r.toDate}` },
             { title: "From", dataIndex: "fromDate" },
             { title: "To", dataIndex: "toDate" },
-            {
-              title: "Site",
-              dataIndex: "siteId",
-              render: (id) => getSiteName(id),
-            },
+            { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
             { title: "Employees", dataIndex: "employeesAffected" },
-            {
-              title: "Pattern",
-              key: "pat",
-              render: (_, r) => r.patternId ?? "—",
-            },
-            {
-              title: "Status",
-              dataIndex: "status",
-              render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag>,
-            },
+            { title: "Pattern", key: "pat", render: (_, r) => r.patternId ?? "—" },
+            { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag> },
             {
               title: "Action",
               key: "act",
@@ -462,9 +402,7 @@ export default function ShiftRotationPage() {
 
                 return (
                   <Space size={6} wrap>
-                    <Button size="small" onClick={() => openReview(r)}>
-                      View schedule
-                    </Button>
+                    <Button size="small" onClick={() => openReview(r)}>View schedule</Button>
                     {canActManager ? (
                       <>
                         <Button
@@ -506,14 +444,10 @@ export default function ShiftRotationPage() {
                       </>
                     ) : null}
                     {awaitingManager && !canManager ? (
-                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>
-                        Awaiting Manager
-                      </span>
+                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting Manager</span>
                     ) : null}
                     {awaitingDirector && !canAdmin ? (
-                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>
-                        Awaiting Director
-                      </span>
+                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting Director</span>
                     ) : null}
                   </Space>
                 );
@@ -639,9 +573,7 @@ export default function ShiftRotationPage() {
         styles={{ body: { display: "flex", flexDirection: "column", gap: 16 } }}
         footer={
           <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-            <Button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
-              Back
-            </Button>
+            <Button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
             <Space>
               {step < 4 ? (
                 <Button
@@ -724,17 +656,12 @@ export default function ShiftRotationPage() {
               <Select
                 style={{ width: "100%" }}
                 value={patternId}
-                options={rotationPatterns.map((p) => ({
-                  value: p.id,
-                  label: `${p.name} — ${p.description}`,
-                }))}
+                options={rotationPatterns.map((p) => ({ value: p.id, label: `${p.name} — ${p.description}` }))}
                 onChange={(v) => setPatternId(v)}
               />
             </div>
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13 }}>
-                Roles (leave empty for all four)
-              </div>
+              <div style={{ marginBottom: 6, fontSize: 13 }}>Roles (leave empty for all four)</div>
               <Select
                 mode="multiple"
                 allowClear
@@ -758,9 +685,7 @@ export default function ShiftRotationPage() {
 
         {step === 2 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Button size="small" onClick={fillAssignments} style={{ alignSelf: "flex-start" }}>
-              Re-fill from pattern
-            </Button>
+            <Button size="small" onClick={fillAssignments} style={{ alignSelf: "flex-start" }}>Re-fill from pattern</Button>
             <Table
               size="small"
               rowKey="employeeId"
@@ -832,9 +757,7 @@ export default function ShiftRotationPage() {
               Month: <strong>{monthKey}</strong> ({bounds.fromDate} → {bounds.toDate})
               <br />
               Pattern:{" "}
-              <strong>
-                {rotationPatterns.find((p) => p.id === patternId)?.name}
-              </strong>
+              <strong>{rotationPatterns.find((p) => p.id === patternId)?.name}</strong>
               <br />
               Employees: <strong>{previewRows.length}</strong>
               <br />

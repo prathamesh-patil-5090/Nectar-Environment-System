@@ -37,11 +37,7 @@ const REPORTS: { kind: ReportKind; title: string; description: string }[] = [
     description:
       "Month-by-month OT volume, cost, and approval status counts.",
   },
-  {
-    kind: "yearly",
-    title: "Yearly OT Report",
-    description: "Month-by-month yearly OT hours and cost analysis.",
-  },
+  { kind: "yearly", title: "Yearly OT Report", description: "Month-by-month yearly OT hours and cost analysis." },
   {
     kind: "management",
     title: "Management OT Analysis",
@@ -73,14 +69,8 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
 
       <div
         style={{
-          background: nectarColors.white,
-          padding: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          flexWrap: "wrap",
-          borderRadius: 12,
-          border: "1px solid rgba(28, 68, 99, 0.08)",
+          background: nectarColors.white, padding: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+          borderRadius: 12, border: "1px solid rgba(28, 68, 99, 0.08)",
         }}
       >
         <Typography.Text strong>Format</Typography.Text>
@@ -91,25 +81,19 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
           options={[
             {
               label: (
-                <span>
-                  <FileExcelOutlined /> Excel
-                </span>
+                <span><FileExcelOutlined /> Excel</span>
               ),
               value: "xlsx",
             },
             {
               label: (
-                <span>
-                  <FileTextOutlined /> CSV
-                </span>
+                <span><FileTextOutlined /> CSV</span>
               ),
               value: "csv",
             },
             {
               label: (
-                <span>
-                  <FilePdfOutlined /> PDF
-                </span>
+                <span><FilePdfOutlined /> PDF</span>
               ),
               value: "pdf",
             },
@@ -117,27 +101,12 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
         />
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 16,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {REPORTS.map((r) => (
           <Card key={r.kind} size="small" title={r.title}>
-            <p style={{ color: nectarColors.muted, minHeight: 48 }}>
-              {r.description}
-            </p>
+            <p style={{ color: nectarColors.muted, minHeight: 48 }}>{r.description}</p>
             <Space>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                disabled={!allowed}
-                onClick={() => onDownload(r.kind)}
-              >
-                Download report
-              </Button>
+              <Button type="primary" icon={<DownloadOutlined />} disabled={!allowed} onClick={() => onDownload(r.kind)}>Download report</Button>
             </Space>
           </Card>
         ))}

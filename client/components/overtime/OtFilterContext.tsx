@@ -31,11 +31,7 @@ export function OtFilterProvider({ children }: { children: React.ReactNode }) {
   });
 
   const value = useMemo(
-    () => ({
-      filters: lockedSiteId ? { ...filters, siteId: lockedSiteId } : filters,
-      setFilters,
-      lockedSiteId,
-    }),
+    () => ({ filters: lockedSiteId ? { ...filters, siteId: lockedSiteId } : filters, setFilters, lockedSiteId }),
     [filters, lockedSiteId],
   );
 

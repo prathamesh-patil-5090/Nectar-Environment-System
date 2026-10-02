@@ -4,6 +4,7 @@ import { listCoverOptionsForSite } from "@/lib/shift-impact/engine";
 import { registerPoolApi } from "@/lib/shift-impact/registry";
 import { inferRequiredSkills } from "@/lib/shift-impact/skills";
 import type { ShiftCode } from "@/lib/shift/types";
+import { persistJson } from "@/lib/storage";
 
 export type RelieverAvailability = "available" | "assigned" | "unavailable";
 
@@ -302,17 +303,8 @@ type RelieverPersisted = {
 };
 
 function persistRelieverPool() {
-  if (typeof window === "undefined") return;
-  try {
-    const payload: RelieverPersisted = {
-      relievers: relieverStore,
-      absences: absenceStore,
-      events: eventStore,
-    };
-    localStorage.setItem(RELIEVER_STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    // ignore
-  }
+  const payload: RelieverPersisted = { relievers: relieverStore, absences: absenceStore, events: eventStore };
+  persistJson(RELIEVER_STORAGE_KEY, payload);
 }
 
 function pushRelieverAssign(

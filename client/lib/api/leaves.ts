@@ -32,11 +32,6 @@ export type LeavePolicyConfig = {
   active?: boolean;
 };
 
-export type LeaveBalanceRecord = {
-  employeeId: string;
-  balances: Record<string, number>;
-};
-
 export type ValidateLeaveInput = {
   employeeId: string;
   mode: string;
@@ -92,16 +87,4 @@ export async function validateLeave(
     method: 'POST',
     body: JSON.stringify(input),
   });
-}
-
-export async function getLeavePolicy(): Promise<LeavePolicyConfig> {
-  return apiClient<LeavePolicyConfig>('/leaves/policy');
-}
-
-export async function getLeaveBalance(
-  employeeId: string,
-): Promise<LeaveBalanceRecord> {
-  return apiClient<LeaveBalanceRecord>(
-    `/leaves/balances/${encodeURIComponent(employeeId)}`,
-  );
 }

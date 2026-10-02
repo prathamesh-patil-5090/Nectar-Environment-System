@@ -15,6 +15,7 @@ import type {
   LeaveTimelineEvent,
   LeaveType,
 } from "./types";
+import { persistJson } from "@/lib/storage";
 
 const LEAVE_STORAGE_KEY = "nectar-enviro-leave-store-v2";
 
@@ -340,12 +341,7 @@ leaveStore = seed.map((l) => ({
 const seedSnapshot = leaveStore.map((l) => ({ ...l, timeline: [...l.timeline] }));
 
 function persistLeaveStore() {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LEAVE_STORAGE_KEY, JSON.stringify(leaveStore));
-  } catch {
-    // ignore quota / private mode
-  }
+  persistJson(LEAVE_STORAGE_KEY, leaveStore);
 }
 
 /** Fire-and-forget create on Nest — keeps UI snappy offline. */
@@ -415,57 +411,32 @@ export function getLeaveById(id: string) {
   return leaveStore.find((l) => l.id === id);
 }
 
+const KPI_PENDING: LeaveStatus[] = [
+  "REQUESTED",
+  "PENDING_EMPLOYEE_CONSENT",
+  "SUPERVISOR_VERIFIED",
+  "SUPERVISOR_RECORDED",
+  "SITE_APPROVED",
+  "SITE_VERIFIED",
+  "MANAGER_APPROVED",
+  "HR_VALIDATED",
+  "PENDING_INFORMATION",
+];
+const KPI_ON_LEAVE: LeaveStatus[] = [
+  "APPROVED",
+  "MANAGER_APPROVED",
+  "SITE_APPROVED",
+  "HR_VALIDATED",
+  "SUPERVISOR_RECORDED",
+  "SITE_VERIFIED",
+];
+
 export function getLeaveKpis(siteId?: string, employeeId?: string) {
   ensureLeaveHydrated();
   const rows = getLeaveRequests(siteId, employeeId);
   const today = "2026-09-23";
-  const pending = rows.filter((l) =>
-    [
-      "REQUESTED",
-      "PENDING_EMPLOYEE_CONSENT",
-      "SUPERVISOR_VERIFIED",
-      "SUPERVISOR_RECORDED",
-      "SITE_APPROVED",
-      "SITE_VERIFIED",
-      "MANAGER_APPROVED",
-      "HR_VALIDATED",
-      "PENDING_INFORMATION",
-    ].includes(l.status),
-  ).length;
-  const unverified = rows.filter((l) =>
-    ["ABSENT", "PENDING_INFORMATION", "UNEXPLAINED_ABSENCE"].includes(l.status),
-  ).length;
-  const onLeave = rows.filter(
-    (l) =>
-      [
-        "APPROVED",
-        "MANAGER_APPROVED",
-        "SITE_APPROVED",
-        "HR_VALIDATED",
-        "SUPERVISOR_RECORDED",
-        "SITE_VERIFIED",
-      ].includes(l.status) &&
-      l.startDate <= today &&
-      l.endDate >= today,
-  ).length;
-  const withoutInfo = rows.filter((l) =>
-    ["UNEXPLAINED_ABSENCE", "PENDING_INFORMATION"].includes(l.status),
-  ).length;
-  const overdueClosure = rows.filter((l) =>
-    ["EXTENSION_REQUIRED", "PENDING_INFORMATION"].includes(l.status),
-  ).length;
-  const otRisk = rows.filter(
-    (l) =>
-      l.potentialOtHours > 0 &&
-      !["REJECTED", "CANCELLED", "CLOSED"].includes(l.status),
-  ).length;
-  const criticalShortages = new Set(
-    rows
-      .filter((l) => l.potentialOtHours >= 8 && l.status !== "CLOSED")
-      .map((l) => l.siteId),
-  ).size;
-  const longLeave = rows.filter((l) => l.daysRequested >= 3 && l.status !== "CLOSED")
-    .length;
+  const count = (pred: (l: LeaveRequest) => boolean) => rows.filter(pred).length;
+  const inStatus = (...statuses: LeaveStatus[]) => count((l) => statuses.includes(l.status));
 
   return {
     totalEmployees: employeeId
@@ -475,17 +446,23 @@ export function getLeaveKpis(siteId?: string, employeeId?: string) {
             e.employmentStatus === "active" &&
             (siteId ? e.siteId === siteId : true),
         ).length,
-    pendingRequests: pending,
-    unverifiedAbsences: unverified,
-    currentlyOnLeave: onLeave,
-    leaveWithoutInformation: withoutInfo,
-    overdueLeaveClosure: overdueClosure,
-    leaveOtRisk: otRisk,
-    criticalSiteShortages: criticalShortages,
-    longLeaveCases: longLeave,
+    pendingRequests: inStatus(...KPI_PENDING),
+    unverifiedAbsences: inStatus("ABSENT", "PENDING_INFORMATION", "UNEXPLAINED_ABSENCE"),
+    currentlyOnLeave: count(
+      (l) => KPI_ON_LEAVE.includes(l.status) && l.startDate <= today && l.endDate >= today,
+    ),
+    leaveWithoutInformation: inStatus("UNEXPLAINED_ABSENCE", "PENDING_INFORMATION"),
+    overdueLeaveClosure: inStatus("EXTENSION_REQUIRED", "PENDING_INFORMATION"),
+    leaveOtRisk: count(
+      (l) => l.potentialOtHours > 0 && !["REJECTED", "CANCELLED", "CLOSED"].includes(l.status),
+    ),
+    criticalSiteShortages: new Set(
+      rows.filter((l) => l.potentialOtHours >= 8 && l.status !== "CLOSED").map((l) => l.siteId),
+    ).size,
+    longLeaveCases: count((l) => l.daysRequested >= 3 && l.status !== "CLOSED"),
     totalRequests: rows.length,
-    approvedCount: rows.filter((l) => l.status === "APPROVED" || l.status === "CLOSED").length,
-    rejectedCount: rows.filter((l) => l.status === "REJECTED").length,
+    approvedCount: inStatus("APPROVED", "CLOSED"),
+    rejectedCount: inStatus("REJECTED"),
   };
 }
 
@@ -759,9 +736,14 @@ function updateLeave(id: string, patch: Partial<LeaveRequest>, ev: LeaveTimeline
   return updated;
 }
 
-export function supervisorVerify(id: string, actor: string) {
+function requireLeave(id: string) {
   const leave = getLeaveById(id);
   if (!leave) throw new Error("Not found");
+  return leave;
+}
+
+export function supervisorVerify(id: string, actor: string) {
+  const leave = requireLeave(id);
   const next: LeaveStatus =
     leave.mode === "emergency" ? "SUPERVISOR_RECORDED" : "SUPERVISOR_VERIFIED";
   assertLeaveTransition(leave, next);
@@ -782,8 +764,7 @@ export function siteApprove(
     approveAnyway?: boolean;
   },
 ) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
+  const leave = requireLeave(id);
   const next: LeaveStatus =
     leave.mode === "emergency" ? "SITE_VERIFIED" : "SITE_APPROVED";
   assertLeaveTransition(leave, next);
@@ -806,6 +787,16 @@ export function siteApprove(
     reason: leave.reason,
   };
 
+  // An employee cover wins over a reliever; any cover clears the OT risk.
+  const applyCover = (coverEmployeeId?: string, relieverId?: string) => {
+    assignedCoverEmployeeId = coverEmployeeId || undefined;
+    assignedRelieverId = coverEmployeeId ? undefined : relieverId || undefined;
+    if (coverEmployeeId || relieverId) {
+      potentialOtHours = 0;
+      potentialOtCost = 0;
+    }
+  };
+
   if (opts?.relieverId || opts?.otFallback) {
     const cover = assignChosenRelieverForLeave(
       coverInput,
@@ -813,20 +804,7 @@ export function siteApprove(
     );
     replacementPlan = cover.plan;
     coverSource = cover.coverSource;
-    if (cover.coverEmployeeId) {
-      assignedCoverEmployeeId = cover.coverEmployeeId;
-      assignedRelieverId = undefined;
-      potentialOtHours = 0;
-      potentialOtCost = 0;
-    } else if (cover.relieverId) {
-      assignedRelieverId = cover.relieverId;
-      assignedCoverEmployeeId = undefined;
-      potentialOtHours = 0;
-      potentialOtCost = 0;
-    } else {
-      assignedRelieverId = undefined;
-      assignedCoverEmployeeId = undefined;
-    }
+    applyCover(cover.coverEmployeeId, cover.relieverId);
   } else if (opts?.arrangeReplacement) {
     const cover = assignRelieverForLeave(coverInput);
     replacementPlan = cover.plan;
@@ -835,15 +813,7 @@ export function siteApprove(
         ? "local_pool"
         : "auto_pool"
       : "ot_fallback";
-    if (cover.relieverId) {
-      assignedRelieverId = cover.relieverId;
-      assignedCoverEmployeeId = undefined;
-      potentialOtHours = 0;
-      potentialOtCost = 0;
-    } else {
-      assignedRelieverId = undefined;
-      assignedCoverEmployeeId = undefined;
-    }
+    applyCover(undefined, cover.relieverId);
   }
 
   if (opts?.approveAnyway && potentialOtHours > 0) {
@@ -879,21 +849,11 @@ export function siteApprove(
   );
 }
 
-export function hrValidate(id: string, actor: string) {
-  void id;
-  void actor;
-  throw new Error("HR validation is not used in this approval chain");
-}
-
 export function finalizeApprove(id: string, actor: string) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
-  assertLeaveTransition(leave, "APPROVED");
+  assertLeaveTransition(requireLeave(id), "APPROVED");
   return updateLeave(
     id,
-    {
-      status: "APPROVED",
-    },
+    { status: "APPROVED" },
     event(actor, "director", "Leave approved by Director", "Final director sign-off"),
   );
 }
@@ -904,8 +864,7 @@ export function rejectLeave(
   note: string,
   actorRole: LeaveTimelineEvent["role"] = "management",
 ) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
+  const leave = requireLeave(id);
   if (!note.trim()) throw new Error("A remark is required to reject");
   assertLeaveTransition(leave, "REJECTED");
   releaseRelieverForLeave(id);
@@ -931,8 +890,7 @@ export function employeeConsentLeave(
   decision: "approved" | "rejected",
   note?: string,
 ) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
+  const leave = requireLeave(id);
   if (leave.status !== "PENDING_EMPLOYEE_CONSENT") {
     throw new Error("Leave is not awaiting employee consent");
   }
@@ -974,9 +932,7 @@ export function managerDecideLeave(
   if (decision === "rejected") {
     return rejectLeave(id, actor, note ?? "Rejected by manager", "management");
   }
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
-  assertLeaveTransition(leave, "MANAGER_APPROVED");
+  assertLeaveTransition(requireLeave(id), "MANAGER_APPROVED");
   return updateLeave(
     id,
     {
@@ -1007,33 +963,11 @@ export function adminFinalizeLeave(
 }
 
 export function confirmReturn(id: string, actor: string, actualReturnDate: string) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
+  const leave = requireLeave(id);
   const planned = new Date(leave.expectedReturnDate + "T00:00:00Z").getTime();
   const actual = new Date(actualReturnDate + "T00:00:00Z").getTime();
+  // "late" needs APPROVED, so it never overlaps the EXTENSION_REQUIRED close-out below
   const late = leave.status === "APPROVED" && actual > planned;
-
-  if (leave.status === "EXTENSION_REQUIRED") {
-    assertLeaveTransition(leave, "CLOSED");
-    releaseRelieverForLeave(id);
-    return updateLeave(
-      id,
-      {
-        actualReturnDate,
-        status: "CLOSED",
-        assignedRelieverId: undefined,
-        replacementPlan: leave.replacementPlan
-          ? `${leave.replacementPlan} · replacement released`
-          : "Temporary replacement released",
-      },
-      event(
-        actor,
-        "supervisor",
-        "Extension closed — return confirmed",
-        `Actual return ${actualReturnDate}`,
-      ),
-    );
-  }
 
   if (late) {
     assertLeaveTransition(leave, "EXTENSION_REQUIRED");
@@ -1052,6 +986,7 @@ export function confirmReturn(id: string, actor: string, actualReturnDate: strin
     );
   }
 
+  const closingExtension = leave.status === "EXTENSION_REQUIRED";
   assertLeaveTransition(leave, "CLOSED");
   releaseRelieverForLeave(id);
   return updateLeave(
@@ -1067,16 +1002,14 @@ export function confirmReturn(id: string, actor: string, actualReturnDate: strin
     event(
       actor,
       "supervisor",
-      "Return to duty confirmed",
+      closingExtension ? "Extension closed — return confirmed" : "Return to duty confirmed",
       `Actual return ${actualReturnDate}`,
     ),
   );
 }
 
 export function escalateLeave(id: string, actor: string, note: string) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
-  assertLeaveTransition(leave, "PENDING_INFORMATION");
+  assertLeaveTransition(requireLeave(id), "PENDING_INFORMATION");
   return updateLeave(
     id,
     { status: "PENDING_INFORMATION" },
@@ -1090,8 +1023,7 @@ export function cancelLeave(
   note: string,
   actorRole: LeaveRequest["enteredByRole"] = "employee",
 ) {
-  const leave = getLeaveById(id);
-  if (!leave) throw new Error("Not found");
+  const leave = requireLeave(id);
   const reason = note?.trim();
   if (!reason) throw new Error("A reason is required to withdraw this leave");
   assertLeaveTransition(leave, "CANCELLED");
@@ -1128,19 +1060,6 @@ export function getPlantOverlappingLeaves(leaveId: string): LeaveRequest[] {
       l.startDate <= leave.endDate &&
       leave.startDate <= l.endDate,
   );
-}
-
-/** Statuses where the requester may still withdraw (not yet site-approved / escalated / finalized). */
-export const WITHDRAWABLE_LEAVE_STATUSES: LeaveStatus[] = [
-  "REQUESTED",
-  "PENDING_EMPLOYEE_CONSENT",
-  "SUPERVISOR_VERIFIED",
-  "ABSENT",
-  "SUPERVISOR_RECORDED",
-];
-
-export function canWithdrawLeaveStatus(status: LeaveStatus): boolean {
-  return WITHDRAWABLE_LEAVE_STATUSES.includes(status);
 }
 
 // ----------------------------------------------------

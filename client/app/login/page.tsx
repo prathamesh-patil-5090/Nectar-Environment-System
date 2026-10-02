@@ -15,6 +15,22 @@ import {
 import InteractiveEnvironmentalCanvas, {
   type ThemeMode,
 } from "@/components/InteractiveEnvironmentalCanvas";
+import type { CSSProperties } from "react";
+
+const sText14R10Border: CSSProperties = {
+  height: 46,
+  borderRadius: 10,
+  fontSize: 14,
+  backgroundColor: "#F8FAFC",
+  border: "1px solid #E2E8F0",
+};
+
+const sText13SemiboldColor: CSSProperties = {
+  fontWeight: 600,
+  fontSize: 13,
+  color: "#1C4463",
+  letterSpacing: "0.01em",
+};
 
 type LoginValues = {
   email: string;
@@ -47,62 +63,35 @@ export default function LoginPage() {
   };
 
   const handleSelectDemoUser = (email: string) => {
-    form.setFieldsValue({
-      email,
-      password: DEMO_CREDENTIALS.password,
-    });
+    form.setFieldsValue({ email, password: DEMO_CREDENTIALS.password });
     setError(null);
   };
 
   return (
     <div
       style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "32px 16px",
-        position: "relative",
-        overflow: "hidden",
-        backgroundColor: "#060f17",
+        minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+        padding: "32px 16px", position: "relative", overflow: "hidden", backgroundColor: "#060f17",
       }}
     >
       {/* Interactive Hydrodynamic Wavefield Canvas */}
       <InteractiveEnvironmentalCanvas themeMode={themeMode} />
 
       {/* Main Container */}
-      <div
-        className="nectar-login-enter"
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          position: "relative",
-          zIndex: 10,
-        }}
-      >
+      <div className="nectar-login-enter" style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 10 }}>
         {/* Brand Header */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <Typography.Title
             level={1}
             style={{
-              margin: 0,
-              fontFamily: "var(--font-dm-sans), system-ui, -apple-system, sans-serif",
-              fontSize: 32,
-              color: "#FFFFFF",
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
+              margin: 0, fontFamily: "var(--font-dm-sans), system-ui, -apple-system, sans-serif", fontSize: 32,
+              color: "#FFFFFF", fontWeight: 700, letterSpacing: "-0.03em",
             }}
           >
             Nectar Enviro
           </Typography.Title>
           <Typography.Paragraph
-            style={{
-              margin: "6px 0 0",
-              color: "rgba(255, 255, 255, 0.65)",
-              fontSize: 14,
-              letterSpacing: "0.01em",
-            }}
+            style={{ margin: "6px 0 0", color: "rgba(255, 255, 255, 0.65)", fontSize: 14, letterSpacing: "0.01em" }}
           >
             Workforce &amp; site readiness console
           </Typography.Paragraph>
@@ -123,12 +112,7 @@ export default function LoginPage() {
               type="error"
               message={error}
               showIcon
-              style={{
-                marginBottom: 18,
-                borderRadius: 10,
-                border: "1px solid rgba(196, 92, 38, 0.2)",
-                fontSize: 13,
-              }}
+              style={{ marginBottom: 18, borderRadius: 10, border: "1px solid rgba(196, 92, 38, 0.2)", fontSize: 13 }}
             />
           ) : null}
 
@@ -137,24 +121,12 @@ export default function LoginPage() {
             layout="vertical"
             requiredMark={false}
             onFinish={onFinish}
-            initialValues={{
-              email: DEMO_CREDENTIALS.email,
-              password: DEMO_CREDENTIALS.password,
-            }}
+            initialValues={{ email: DEMO_CREDENTIALS.email, password: DEMO_CREDENTIALS.password }}
           >
             <Form.Item
               name="email"
               label={
-                <span
-                  style={{
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: "#1C4463",
-                    letterSpacing: "0.01em",
-                  }}
-                >
-                  Email Address
-                </span>
+                <span style={sText13SemiboldColor}>Email Address</span>
               }
               rules={[
                 { required: true, message: "Enter your email" },
@@ -167,29 +139,14 @@ export default function LoginPage() {
                 placeholder="you@nectarenviro.com"
                 size="large"
                 autoComplete="username"
-                style={{
-                  height: 46,
-                  borderRadius: 10,
-                  fontSize: 14,
-                  backgroundColor: "#F8FAFC",
-                  border: "1px solid #E2E8F0",
-                }}
+                style={sText14R10Border}
               />
             </Form.Item>
 
             <Form.Item
               name="password"
               label={
-                <span
-                  style={{
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: "#1C4463",
-                    letterSpacing: "0.01em",
-                  }}
-                >
-                  Password
-                </span>
+                <span style={sText13SemiboldColor}>Password</span>
               }
               rules={[{ required: true, message: "Enter your password" }]}
               style={{ marginBottom: 20 }}
@@ -199,13 +156,7 @@ export default function LoginPage() {
                 placeholder="Password"
                 size="large"
                 autoComplete="current-password"
-                style={{
-                  height: 46,
-                  borderRadius: 10,
-                  fontSize: 14,
-                  backgroundColor: "#F8FAFC",
-                  border: "1px solid #E2E8F0",
-                }}
+                style={sText14R10Border}
               />
             </Form.Item>
 
@@ -217,15 +168,9 @@ export default function LoginPage() {
                 block
                 loading={loading}
                 style={{
-                  height: 46,
-                  borderRadius: 10,
-                  fontWeight: 600,
-                  fontSize: 14.5,
-                  letterSpacing: "0.01em",
-                  background: "linear-gradient(135deg, #1C4463 0%, #13344E 100%)",
-                  border: "none",
-                  boxShadow: "0 6px 18px -2px rgba(28, 68, 99, 0.4)",
-                  cursor: "pointer",
+                  height: 46, borderRadius: 10, fontWeight: 600, fontSize: 14.5, letterSpacing: "0.01em",
+                  background: "linear-gradient(135deg, #1C4463 0%, #13344E 100%)", border: "none",
+                  boxShadow: "0 6px 18px -2px rgba(28, 68, 99, 0.4)", cursor: "pointer",
                 }}
               >
                 Sign in
@@ -234,61 +179,27 @@ export default function LoginPage() {
           </Form>
 
           {/* Quick Demo Accounts Drawer */}
-          <div
-            style={{
-              paddingTop: 14,
-              borderTop: "1px solid #EEF2F6",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
+          <div style={{ paddingTop: 14, borderTop: "1px solid #EEF2F6" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span
                 style={{
-                  fontWeight: 600,
-                  color: "#1C4463",
-                  fontSize: 11.5,
-                  letterSpacing: "0.02em",
+                  fontWeight: 600, color: "#1C4463", fontSize: 11.5, letterSpacing: "0.02em",
                   textTransform: "uppercase",
                 }}
               >
                 Demo Accounts
               </span>
               <span
-                style={{
-                  fontSize: 11.5,
-                  color: "#64748B",
-                  background: "#F1F5F9",
-                  padding: "2px 8px",
-                  borderRadius: 6,
-                }}
+                style={{ fontSize: 11.5, color: "#64748B", background: "#F1F5F9", padding: "2px 8px", borderRadius: 6 }}
               >
                 pwd:{" "}
-                <code
-                  style={{
-                    fontWeight: 650,
-                    color: "#1C4463",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {DEMO_CREDENTIALS.password}
-                </code>
+                <code style={{ fontWeight: 650, color: "#1C4463", fontFamily: "monospace" }}>{DEMO_CREDENTIALS.password}</code>
               </span>
             </div>
 
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 3,
-                maxHeight: 160,
-                overflowY: "auto",
-                paddingRight: 2,
+                display: "flex", flexDirection: "column", gap: 3, maxHeight: 160, overflowY: "auto", paddingRight: 2,
               }}
             >
               {DEMO_USERS_VISIBLE.map((u) => (
@@ -303,15 +214,8 @@ export default function LoginPage() {
                     }
                   }}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "5px 8px",
-                    borderRadius: 7,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    transition: "background-color 0.15s ease",
+                    display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "5px 8px",
+                    borderRadius: 7, fontSize: 12, cursor: "pointer", transition: "background-color 0.15s ease",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "rgba(28, 68, 99, 0.05)";
@@ -320,23 +224,8 @@ export default function LoginPage() {
                     e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
-                  <code
-                    style={{
-                      fontSize: 11.5,
-                      color: "#1C4463",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {u.email}
-                  </code>
-                  <span
-                    style={{
-                      whiteSpace: "nowrap",
-                      color: "#64748B",
-                      fontSize: 11,
-                      fontWeight: 500,
-                    }}
-                  >
+                  <code style={{ fontSize: 11.5, color: "#1C4463", fontWeight: 500 }}>{u.email}</code>
+                  <span style={{ whiteSpace: "nowrap", color: "#64748B", fontSize: 11, fontWeight: 500 }}>
                     {ROLE_LABELS[u.role]}
                     {u.siteId ? ` · ${u.siteId.replace("s-", "").toUpperCase()}` : ""}
                   </span>
@@ -350,16 +239,8 @@ export default function LoginPage() {
       {/* Footer Info */}
       <footer
         style={{
-          position: "absolute",
-          bottom: 18,
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          zIndex: 10,
-          fontSize: 11.5,
-          color: "rgba(255, 255, 255, 0.4)",
-          letterSpacing: "0.04em",
-          pointerEvents: "none",
+          position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center", zIndex: 10, fontSize: 11.5,
+          color: "rgba(255, 255, 255, 0.4)", letterSpacing: "0.04em", pointerEvents: "none",
         }}
       >
         ETP (Effluent Treatment) · RO (Reverse Osmosis) · MEE (Multi-Effect Evaporator)
@@ -367,5 +248,4 @@ export default function LoginPage() {
     </div>
   );
 }
-
 

@@ -55,6 +55,7 @@ import {
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
+import { rowBetweenWrapGap12 } from "@/lib/styles";
 
 export default function LeaveRequestsContent() {
   const { message } = App.useApp();
@@ -126,26 +127,15 @@ export default function LeaveRequestsContent() {
       title: "Employee",
       dataIndex: "employeeName",
       render: (name, r) => (
-        <Link
-          href={`/leave/requests/${r.id}`}
-          style={{ color: nectarColors.leaf, fontWeight: 600 }}
-        >
-          {name}
-        </Link>
+        <Link href={`/leave/requests/${r.id}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{name}</Link>
       ),
     },
-    {
-      title: "Site",
-      dataIndex: "siteId",
-      render: (id) => getSiteName(id),
-    },
+    { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
     {
       title: "Mode",
       dataIndex: "mode",
       render: (m: LeaveMode) => (
-        <Tag color={m === "emergency" ? nectarColors.alert : nectarColors.sky}>
-          {m}
-        </Tag>
+        <Tag color={m === "emergency" ? nectarColors.alert : nectarColors.sky}>{m}</Tag>
       ),
     },
     {
@@ -158,12 +148,7 @@ export default function LeaveRequestsContent() {
           <span>
             {r.startDate} → {r.endDate}
             {overlaps ? (
-              <Tag
-                color={nectarColors.alert}
-                style={{ marginLeft: 8, marginInlineEnd: 0 }}
-              >
-                plant overlap
-              </Tag>
+              <Tag color={nectarColors.alert} style={{ marginLeft: 8, marginInlineEnd: 0 }}>plant overlap</Tag>
             ) : null}
           </span>
         );
@@ -189,9 +174,7 @@ export default function LeaveRequestsContent() {
       sorter: (a, b) => a.potentialOtHours - b.potentialOtHours,
       render: (h: number) =>
         h > 0 ? (
-          <span style={{ color: nectarColors.alert, fontWeight: 600 }}>
-            +{h} hrs
-          </span>
+          <span style={{ color: nectarColors.alert, fontWeight: 600 }}>+{h} hrs</span>
         ) : (
           "None"
         ),
@@ -201,9 +184,7 @@ export default function LeaveRequestsContent() {
       dataIndex: "status",
       render: (s: LeaveRequest["status"], r) => (
         <span style={{ display: "inline-flex", flexDirection: "column", gap: 4 }}>
-          <Tag color={s === "CANCELLED" ? "default" : undefined}>
-            {LEAVE_STATUS_LABELS[s]}
-          </Tag>
+          <Tag color={s === "CANCELLED" ? "default" : undefined}>{LEAVE_STATUS_LABELS[s]}</Tag>
           {s === "CANCELLED" && r.cancellationReason ? (
             <span style={{ fontSize: 11, color: nectarColors.muted, maxWidth: 160 }}>
               {r.cancelledByName ? `${r.cancelledByName}: ` : ""}
@@ -364,18 +345,14 @@ export default function LeaveRequestsContent() {
         if (r.status === "APPROVED" || r.status === "EXTENSION_REQUIRED") {
           if (canConfirmLeaveReturn(session)) {
             return (
-              <Link href={`/leave/requests/${r.id}`}>
-                <Button size="small">Confirm return</Button>
-              </Link>
+              <Link href={`/leave/requests/${r.id}`}><Button size="small">Confirm return</Button></Link>
             );
           }
           return waiting("Approved");
         }
 
         return (
-          <Link href={`/leave/requests/${r.id}`} style={{ fontSize: 12 }}>
-            Open
-          </Link>
+          <Link href={`/leave/requests/${r.id}`} style={{ fontSize: 12 }}>Open</Link>
         );
       },
     },
@@ -386,16 +363,10 @@ export default function LeaveRequestsContent() {
       title: "Employee",
       dataIndex: "employeeName",
       render: (n, r) => (
-        <Link href={`/leave/requests/${r.id}`} style={{ fontWeight: 600 }}>
-          {n}
-        </Link>
+        <Link href={`/leave/requests/${r.id}`} style={{ fontWeight: 600 }}>{n}</Link>
       ),
     },
-    {
-      title: "Site",
-      dataIndex: "siteId",
-      render: (id) => getSiteName(id),
-    },
+    { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
     { title: "Absent since", dataIndex: "startDate" },
     { title: "Days", dataIndex: "daysRequested" },
     {
@@ -407,20 +378,12 @@ export default function LeaveRequestsContent() {
     },
     { title: "Supervisor", dataIndex: "supervisorName" },
     { title: "Site In-Charge", dataIndex: "siteInChargeName" },
-    {
-      title: "Last communication",
-      dataIndex: "lastCommunication",
-      render: (v) => v ?? "—",
-    },
+    { title: "Last communication", dataIndex: "lastCommunication", render: (v) => v ?? "—" },
     {
       title: "",
       key: "follow",
       render: (_, r) => (
-        <Link href={`/leave/requests/${r.id}`}>
-          <Button size="small" type="primary">
-            Follow up
-          </Button>
-        </Link>
+        <Link href={`/leave/requests/${r.id}`}><Button size="small" type="primary">Follow up</Button></Link>
       ),
     },
   ];
@@ -577,26 +540,13 @@ export default function LeaveRequestsContent() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={rowBetweenWrapGap12}>
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
           {personalOnly
             ? "Your leave and absence requests."
             : "Open a name for the full record. Action column: supervisor verifies → shift in-charge covers → manager approves → Director finalizes."}
         </p>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setOpen(true)}
-        >
-          {personalOnly ? "Request leave" : "Record leave / absence"}
-        </Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>{personalOnly ? "Request leave" : "Record leave / absence"}</Button>
       </div>
 
       {showPendingTab ? (
@@ -604,16 +554,8 @@ export default function LeaveRequestsContent() {
           activeKey={activeTab}
           onChange={setView}
           items={[
-            {
-              key: "requests",
-              label: `Requests (${rows.length})`,
-              children: requestsTable,
-            },
-            {
-              key: "pending",
-              label: `Pending justifications (${pendingRows.length})`,
-              children: pendingTable,
-            },
+            { key: "requests", label: `Requests (${rows.length})`, children: requestsTable },
+            { key: "pending", label: `Pending justifications (${pendingRows.length})`, children: pendingTable },
           ]}
         />
       ) : (
@@ -630,13 +572,7 @@ export default function LeaveRequestsContent() {
         }}
         destroyOnHidden
         extra={
-          <Button
-            type="primary"
-            onClick={onCreate}
-            disabled={policyPreview?.verdict === "BLOCK"}
-          >
-            Save
-          </Button>
+          <Button type="primary" onClick={onCreate} disabled={policyPreview?.verdict === "BLOCK"}>Save</Button>
         }
       >
         <Form
@@ -656,11 +592,7 @@ export default function LeaveRequestsContent() {
             }, 400);
           }}
         >
-          <Form.Item
-            name="employeeId"
-            label="Employee"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
             <Select
               showSearch
               optionFilterProp="label"
@@ -678,9 +610,7 @@ export default function LeaveRequestsContent() {
             <Form.Item name="entrySource" label="Entry source">
               <Radio.Group>
                 <Radio value="employee">Employee self-request</Radio>
-                <Radio value="supervisor_on_behalf">
-                  Supervisor on behalf (needs employee consent)
-                </Radio>
+                <Radio value="supervisor_on_behalf">Supervisor on behalf (needs employee consent)</Radio>
               </Radio.Group>
             </Form.Item>
           ) : null}
@@ -690,17 +620,10 @@ export default function LeaveRequestsContent() {
               <Radio value="emergency">Emergency</Radio>
             </Radio.Group>
           </Form.Item>
-          <Form.Item
-            name="leaveType"
-            label="Leave type"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="leaveType" label="Leave type" rules={[{ required: true }]}>
             <Select
               options={(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map(
-                (value) => ({
-                  value,
-                  label: LEAVE_TYPE_LABELS[value],
-                }),
+                (value) => ({ value, label: LEAVE_TYPE_LABELS[value] }),
               )}
             />
           </Form.Item>
@@ -731,10 +654,7 @@ export default function LeaveRequestsContent() {
               ) : null
             }
           </Form.Item>
-          <Form.Item
-            noStyle
-            shouldUpdate={(prev, next) => prev.mode !== next.mode}
-          >
+          <Form.Item noStyle shouldUpdate={(prev, next) => prev.mode !== next.mode}>
             {({ getFieldValue }) => {
               const mode = getFieldValue("mode") as LeaveMode;
               const minDate =
@@ -742,11 +662,7 @@ export default function LeaveRequestsContent() {
                   ? dayjs().startOf("day").subtract(7, "day")
                   : dayjs().startOf("day");
               return (
-                <Form.Item
-                  name="range"
-                  label="Dates"
-                  rules={[{ required: true }]}
-                >
+                <Form.Item name="range" label="Dates" rules={[{ required: true }]}>
                   <DatePicker.RangePicker
                     style={{ width: "100%" }}
                     disabledDate={(current) =>
@@ -775,11 +691,7 @@ export default function LeaveRequestsContent() {
                   ? dayjs().startOf("day").subtract(7, "day")
                   : dayjs().startOf("day");
               return (
-                <Form.Item
-                  name="expectedReturn"
-                  label="Expected return"
-                  rules={[{ required: true }]}
-                >
+                <Form.Item name="expectedReturn" label="Expected return" rules={[{ required: true }]}>
                   <DatePicker
                     style={{ width: "100%" }}
                     disabledDate={(current) =>
@@ -790,17 +702,11 @@ export default function LeaveRequestsContent() {
               );
             }}
           </Form.Item>
-          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="lastCommunication" label="Last communication">
-            <Input placeholder="Optional note" />
-          </Form.Item>
+          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}><Input.TextArea rows={3} /></Form.Item>
+          <Form.Item name="lastCommunication" label="Last communication"><Input placeholder="Optional note" /></Form.Item>
 
           {policyChecking ? (
-            <p style={{ fontSize: 12, color: nectarColors.muted }}>
-              Checking leave policy…
-            </p>
+            <p style={{ fontSize: 12, color: nectarColors.muted }}>Checking leave policy…</p>
           ) : null}
           {policyPreview ? (
             <div
@@ -830,9 +736,7 @@ export default function LeaveRequestsContent() {
                   : ""}
               </div>
               {policyPreview.flags.length === 0 ? (
-                <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                  No policy issues.
-                </div>
+                <div style={{ fontSize: 12, color: nectarColors.muted }}>No policy issues.</div>
               ) : (
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
                   {policyPreview.flags.map((f) => (
@@ -841,9 +745,7 @@ export default function LeaveRequestsContent() {
                 </ul>
               )}
               {policyPreview.suggestions?.length ? (
-                <div style={{ marginTop: 6, fontSize: 12 }}>
-                  {policyPreview.suggestions.join(" · ")}
-                </div>
+                <div style={{ marginTop: 6, fontSize: 12 }}>{policyPreview.suggestions.join(" · ")}</div>
               ) : null}
             </div>
           ) : null}
@@ -886,9 +788,7 @@ export default function LeaveRequestsContent() {
           }
         }}
       >
-        <p style={{ marginTop: 0, color: nectarColors.muted, fontSize: 13 }}>
-          Same-plant employees, cluster employees, then pool — pick cover or OT.
-        </p>
+        <p style={{ marginTop: 0, color: nectarColors.muted, fontSize: 13 }}>Same-plant employees, cluster employees, then pool — pick cover or OT.</p>
         <Radio.Group
           value={coverChoice}
           onChange={(e) => setCoverChoice(e.target.value)}

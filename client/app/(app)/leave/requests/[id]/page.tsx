@@ -55,6 +55,16 @@ import {
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
+import { rowBetweenWrapGap12, sSerifText18Ink, sSerifText18InkMb122, sSerifText18Mb12, sSerifText26Ink, sWhitePadR10 } from "@/lib/styles";
+import type { CSSProperties } from "react";
+
+const sText12MutedMt2: CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  color: nectarColors.muted,
+  fontWeight: 400,
+  marginTop: 2,
+};
 
 function InfoTile({
   label,
@@ -68,33 +78,17 @@ function InfoTile({
   return (
     <div
       style={{
-        gridColumn: wide ? "1 / -1" : undefined,
-        padding: "12px 14px",
-        borderRadius: 8,
-        background: nectarColors.sand,
-        border: "1px solid rgba(11, 26, 36, 0.06)",
-        minHeight: 64,
+        gridColumn: wide ? "1 / -1" : undefined, padding: "12px 14px", borderRadius: 8, background: nectarColors.sand,
+        border: "1px solid rgba(11, 26, 36, 0.06)", minHeight: 64,
       }}
     >
       <div
-        style={{
-          fontSize: 11,
-          letterSpacing: "0.04em",
-          color: nectarColors.muted,
-          marginBottom: 4,
-          fontWeight: 600,
-        }}
+        style={{ fontSize: 11, letterSpacing: "0.04em", color: nectarColors.muted, marginBottom: 4, fontWeight: 600 }}
       >
         {label}
       </div>
       <div
-        style={{
-          fontSize: 14,
-          color: nectarColors.ink,
-          fontWeight: 500,
-          lineHeight: 1.45,
-          wordBreak: "break-word",
-        }}
+        style={{ fontSize: 14, color: nectarColors.ink, fontWeight: 500, lineHeight: 1.45, wordBreak: "break-word" }}
       >
         {children}
       </div>
@@ -144,10 +138,7 @@ export default function LeaveDetailPage({
   const replacementOptions = useMemo(() => {
     void tick;
     if (!leave) return { local: [], cluster: [] };
-    return listReplacementOptions(leave.siteId, {
-      date: leave.startDate,
-      excludeEmployeeId: leave.employeeId,
-    });
+    return listReplacementOptions(leave.siteId, { date: leave.startDate, excludeEmployeeId: leave.employeeId });
   }, [leave, tick]);
 
   const plantOverlaps = useMemo(() => {
@@ -158,11 +149,7 @@ export default function LeaveDetailPage({
 
   if (!leave || !impact) {
     return (
-      <Empty description="Leave request not found">
-        <Button type="primary" onClick={() => router.push("/leave/requests")}>
-          Back
-        </Button>
-      </Empty>
+      <Empty description="Leave request not found"><Button type="primary" onClick={() => router.push("/leave/requests")}>Back</Button></Empty>
     );
   }
 
@@ -170,20 +157,12 @@ export default function LeaveDetailPage({
   const empScope = scopedEmployeeId(session);
   if (empScope && leave.employeeId !== empScope) {
     return (
-      <Empty description="You can only view your own leave requests.">
-        <Button type="primary" onClick={() => router.push("/leave/requests")}>
-          My leave
-        </Button>
-      </Empty>
+      <Empty description="You can only view your own leave requests."><Button type="primary" onClick={() => router.push("/leave/requests")}>My leave</Button></Empty>
     );
   }
   if (siteScope && leave.siteId !== siteScope && !empScope) {
     return (
-      <Empty description="This leave request is outside your plant scope.">
-        <Button type="primary" onClick={() => router.push("/leave/requests")}>
-          Back
-        </Button>
-      </Empty>
+      <Empty description="This leave request is outside your plant scope."><Button type="primary" onClick={() => router.push("/leave/requests")}>Back</Button></Empty>
     );
   }
 
@@ -240,24 +219,9 @@ export default function LeaveDetailPage({
       </Button>
 
       <div style={{ background: nectarColors.white, padding: 24, borderRadius: 10 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={rowBetweenWrapGap12}>
           <div>
-            <div
-              style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 26,
-                color: nectarColors.ink,
-              }}
-            >
-              {leave.employeeName}
-            </div>
+            <div style={sSerifText26Ink}>{leave.employeeName}</div>
             <div style={{ color: nectarColors.muted }}>
               <Link href={`/employees/${leave.employeeId}`}>{leave.employeeId}</Link>
               {" · "}
@@ -265,12 +229,8 @@ export default function LeaveDetailPage({
             </div>
           </div>
           <Space wrap>
-            <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>
-              {leave.mode}
-            </Tag>
-            <Tag color={leave.status === "CANCELLED" ? "default" : undefined}>
-              {LEAVE_STATUS_LABELS[leave.status]}
-            </Tag>
+            <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>{leave.mode}</Tag>
+            <Tag color={leave.status === "CANCELLED" ? "default" : undefined}>{LEAVE_STATUS_LABELS[leave.status]}</Tag>
             <Tag>
               {leave.entrySource === "supervisor_on_behalf"
                 ? "Entered by supervisor"
@@ -282,10 +242,7 @@ export default function LeaveDetailPage({
         {leave.status === "CANCELLED" ? (
           <div
             style={{
-              marginTop: 16,
-              padding: "14px 16px",
-              borderRadius: 8,
-              background: "rgba(74, 99, 117, 0.08)",
+              marginTop: 16, padding: "14px 16px", borderRadius: 8, background: "rgba(74, 99, 117, 0.08)",
               border: "1px solid rgba(74, 99, 117, 0.25)",
             }}
           >
@@ -294,19 +251,9 @@ export default function LeaveDetailPage({
               {leave.cancelledByName ? ` by ${leave.cancelledByName}` : ""}
               {leave.cancelledByRole ? ` (${leave.cancelledByRole})` : ""}
             </div>
-            <div style={{ fontSize: 13, color: nectarColors.ink }}>
-              {leave.cancellationReason ?? "No reason recorded"}
-            </div>
+            <div style={{ fontSize: 13, color: nectarColors.ink }}>{leave.cancellationReason ?? "No reason recorded"}</div>
             {leave.cancelledAt ? (
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 12,
-                  color: nectarColors.muted,
-                }}
-              >
-                {leave.cancelledAt.slice(0, 16).replace("T", " ")}
-              </div>
+              <div style={{ marginTop: 6, fontSize: 12, color: nectarColors.muted }}>{leave.cancelledAt.slice(0, 16).replace("T", " ")}</div>
             ) : null}
           </div>
         ) : null}
@@ -314,16 +261,11 @@ export default function LeaveDetailPage({
         {leave.policyVerdict === "WARN" && leave.policyFlags?.length ? (
           <div
             style={{
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 8,
-              background: "rgba(217, 119, 6, 0.1)",
+              marginTop: 16, padding: 12, borderRadius: 8, background: "rgba(217, 119, 6, 0.1)",
               border: "1px solid #D97706",
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>
-              Policy warnings
-            </div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Policy warnings</div>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
               {leave.policyFlags
                 .filter((f) => f.severity === "warn")
@@ -332,31 +274,14 @@ export default function LeaveDetailPage({
                 ))}
             </ul>
             {leave.policySuggestions?.length ? (
-              <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>
-                {leave.policySuggestions.join(" · ")}
-              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>{leave.policySuggestions.join(" · ")}</div>
             ) : null}
           </div>
         ) : null}
 
         <div style={{ marginTop: 22 }}>
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-              color: nectarColors.ink,
-              marginBottom: 12,
-            }}
-          >
-            Leave details
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 10,
-            }}
-          >
+          <div style={sSerifText18InkMb122}>Leave details</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
             <InfoTile label="Leave type">
               {LEAVE_TYPE_LABELS[leave.leaveType]}
               {leave.isHalfDay
@@ -365,45 +290,17 @@ export default function LeaveDetailPage({
             </InfoTile>
             <InfoTile label="Dates">
               {leave.startDate} → {leave.endDate}
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  color: nectarColors.muted,
-                  fontWeight: 400,
-                  marginTop: 2,
-                }}
-              >
-                {leave.daysRequested} day{leave.daysRequested === 1 ? "" : "s"}
-              </span>
+              <span style={sText12MutedMt2}>{leave.daysRequested} day{leave.daysRequested === 1 ? "" : "s"}</span>
             </InfoTile>
-            <InfoTile label="Expected return">
-              {leave.expectedReturnDate}
-            </InfoTile>
-            <InfoTile label="Actual return">
-              {leave.actualReturnDate ?? "—"}
-            </InfoTile>
-            <InfoTile label="Leave balance">
-              {leave.leaveBalanceDays} days
-            </InfoTile>
+            <InfoTile label="Expected return">{leave.expectedReturnDate}</InfoTile>
+            <InfoTile label="Actual return">{leave.actualReturnDate ?? "—"}</InfoTile>
+            <InfoTile label="Leave balance">{leave.leaveBalanceDays} days</InfoTile>
             <InfoTile label="Supervisor">{leave.supervisorName}</InfoTile>
-            <InfoTile label="Shift In-Charge">
-              {leave.siteInChargeName}
-            </InfoTile>
+            <InfoTile label="Shift In-Charge">{leave.siteInChargeName}</InfoTile>
             <InfoTile label="Manager">{leave.managerName ?? "—"}</InfoTile>
             <InfoTile label="Entered by">
               {leave.enteredByName}
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  color: nectarColors.muted,
-                  fontWeight: 400,
-                  marginTop: 2,
-                }}
-              >
-                {leave.enteredByRole}
-              </span>
+              <span style={sText12MutedMt2}>{leave.enteredByRole}</span>
             </InfoTile>
             {leave.employeeConsent ? (
               <InfoTile label="Employee consent">
@@ -422,22 +319,14 @@ export default function LeaveDetailPage({
               </InfoTile>
             ) : null}
             {leave.rejectionReason ? (
-              <InfoTile label="Rejection reason" wide>
-                {leave.rejectionReason}
-              </InfoTile>
+              <InfoTile label="Rejection reason" wide>{leave.rejectionReason}</InfoTile>
             ) : null}
-            <InfoTile label="Reason" wide>
-              {leave.reason}
-            </InfoTile>
+            <InfoTile label="Reason" wide>{leave.reason}</InfoTile>
             {leave.lastCommunication ? (
-              <InfoTile label="Last communication" wide>
-                {leave.lastCommunication}
-              </InfoTile>
+              <InfoTile label="Last communication" wide>{leave.lastCommunication}</InfoTile>
             ) : null}
             {leave.replacementPlan ? (
-              <InfoTile label="Replacement plan" wide>
-                {leave.replacementPlan}
-              </InfoTile>
+              <InfoTile label="Replacement plan" wide>{leave.replacementPlan}</InfoTile>
             ) : null}
           </div>
         </div>
@@ -446,41 +335,14 @@ export default function LeaveDetailPage({
       {plantOverlaps.length > 0 ? (
         <div
           style={{
-            background: nectarColors.white,
-            padding: 20,
-            borderRadius: 10,
-            border: "1px solid rgba(196, 92, 38, 0.35)",
+            background: nectarColors.white, padding: 20, borderRadius: 10, border: "1px solid rgba(196, 92, 38, 0.35)",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              marginBottom: 12,
-            }}
-          >
-            <WarningOutlined
-              style={{ color: nectarColors.alert, fontSize: 18, marginTop: 2 }}
-            />
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+            <WarningOutlined style={{ color: nectarColors.alert, fontSize: 18, marginTop: 2 }} />
             <div>
-              <div
-                style={{
-                  fontFamily: "var(--font-fraunces), Georgia, serif",
-                  fontSize: 18,
-                  color: nectarColors.ink,
-                }}
-              >
-                Same-plant date overlap
-              </div>
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  fontSize: 13,
-                  color: nectarColors.muted,
-                  lineHeight: 1.45,
-                }}
-              >
+              <div style={sSerifText18Ink}>Same-plant date overlap</div>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: nectarColors.muted, lineHeight: 1.45 }}>
                 {plantOverlaps.length} other active leave
                 {plantOverlaps.length === 1 ? "" : "s"} at{" "}
                 {getSiteName(leave.siteId)} cover overlapping dates. Review
@@ -494,40 +356,17 @@ export default function LeaveDetailPage({
                 key={o.id}
                 href={`/leave/requests/${o.id}`}
                 style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: "8px 14px",
-                  padding: "12px 14px",
-                  borderRadius: 8,
-                  background: "rgba(196, 92, 38, 0.06)",
-                  color: nectarColors.ink,
+                  display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 14px", padding: "12px 14px",
+                  borderRadius: 8, background: "rgba(196, 92, 38, 0.06)", color: nectarColors.ink,
                   textDecoration: "none",
                 }}
               >
-                <span style={{ fontWeight: 600, color: nectarColors.leaf }}>
-                  {o.employeeName}
-                </span>
-                <span style={{ fontSize: 13 }}>
-                  {o.startDate} → {o.endDate}
-                </span>
-                <Tag
-                  color={o.mode === "emergency" ? nectarColors.alert : nectarColors.sky}
-                  style={{ margin: 0 }}
-                >
-                  {o.mode}
-                </Tag>
+                <span style={{ fontWeight: 600, color: nectarColors.leaf }}>{o.employeeName}</span>
+                <span style={{ fontSize: 13 }}>{o.startDate} → {o.endDate}</span>
+                <Tag color={o.mode === "emergency" ? nectarColors.alert : nectarColors.sky} style={{ margin: 0 }}>{o.mode}</Tag>
                 <Tag style={{ margin: 0 }}>{LEAVE_STATUS_LABELS[o.status]}</Tag>
                 {o.potentialOtHours > 0 ? (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: nectarColors.alert,
-                      fontWeight: 600,
-                    }}
-                  >
-                    +{o.potentialOtHours} hrs OT risk
-                  </span>
+                  <span style={{ fontSize: 12, color: nectarColors.alert, fontWeight: 600 }}>+{o.potentialOtHours} hrs OT risk</span>
                 ) : null}
               </Link>
             ))}
@@ -535,10 +374,7 @@ export default function LeaveDetailPage({
         </div>
       ) : null}
 
-      <ShiftImpactPanel
-        impact={impact}
-        report={shiftReport ?? undefined}
-      />
+      <ShiftImpactPanel impact={impact} report={shiftReport ?? undefined} />
 
       {(() => {
         const awaitingCover = [
@@ -581,22 +417,8 @@ export default function LeaveDetailPage({
         if (!showPanel) return null;
 
         return (
-          <div
-            style={{
-              background: nectarColors.white,
-              padding: 20,
-              borderRadius: 10,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 18,
-                marginBottom: 8,
-              }}
-            >
-              Replacement
-            </div>
+          <div style={sWhitePadR10}>
+            <div style={{ fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, marginBottom: 8 }}>Replacement</div>
             {leave.assignedRelieverId ||
             leave.assignedCoverEmployeeId ||
             leave.replacementPlan ? (
@@ -680,15 +502,7 @@ export default function LeaveDetailPage({
                 </Space>
               </>
             ) : people.length ? (
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: 18,
-                  color: nectarColors.ink,
-                  fontSize: 14,
-                  lineHeight: 1.7,
-                }}
-              >
+              <ul style={{ margin: 0, paddingLeft: 18, color: nectarColors.ink, fontSize: 14, lineHeight: 1.7 }}>
                 {people.slice(0, 8).map((person) => (
                   <li key={person.relieverId}>
                     {person.name} · {person.label}
@@ -698,30 +512,14 @@ export default function LeaveDetailPage({
                 ))}
               </ul>
             ) : (
-              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-                No available cover candidates — overtime may be needed.
-              </p>
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>No available cover candidates — overtime may be needed.</p>
             )}
           </div>
         );
       })()}
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Actions
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Actions</div>
         {waitingOnConsent ? (
           <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
             Waiting for <strong>{leave.employeeName}</strong> to approve or reject
@@ -798,9 +596,7 @@ export default function LeaveDetailPage({
               statusNote = "";
             }
             return statusNote ? (
-              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-                {statusNote}
-              </p>
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>{statusNote}</p>
             ) : null;
           }
 
@@ -939,22 +735,8 @@ export default function LeaveDetailPage({
         })()}
       </div>
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Workflow timeline
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Workflow timeline</div>
         <Timeline
           items={leave.timeline.map((t) => ({
             color: nectarColors.leaf,
@@ -962,18 +744,12 @@ export default function LeaveDetailPage({
               <div>
                 <div style={{ fontWeight: 600 }}>
                   {t.action}{" "}
-                  <span style={{ color: nectarColors.muted, fontWeight: 400 }}>
-                    · {t.actor} ({t.role})
-                  </span>
+                  <span style={{ color: nectarColors.muted, fontWeight: 400 }}>· {t.actor} ({t.role})</span>
                 </div>
                 {t.note ? (
-                  <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                    {t.note}
-                  </div>
+                  <div style={{ fontSize: 12, color: nectarColors.muted }}>{t.note}</div>
                 ) : null}
-                <div style={{ fontSize: 11, color: nectarColors.muted }}>
-                  {t.at.slice(0, 16).replace("T", " ")}
-                </div>
+                <div style={{ fontSize: 11, color: nectarColors.muted }}>{t.at.slice(0, 16).replace("T", " ")}</div>
               </div>
             ),
           }))}

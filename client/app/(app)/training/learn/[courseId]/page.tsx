@@ -78,6 +78,86 @@ import type {
   AbilityProgress,
   QuizQuestion,
 } from "@/lib/training/types";
+import { rowCenterBetween2 } from "@/lib/styles";
+import type { CSSProperties } from "react";
+
+const inlineRowCenterGap4Text11p5SemiboldColorBgPadR6Border: CSSProperties = {
+  background: "rgba(255, 255, 255, 0.12)",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+  color: "#FFFFFF",
+  borderRadius: 6,
+  padding: "4px 8px",
+  fontSize: 11.5,
+  fontWeight: 600,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  transition: "all 0.2s",
+};
+
+const sBoldBgPad: CSSProperties = {
+  background: "#1C4463",
+  borderColor: "#1C4463",
+  fontWeight: 700,
+  height: 42,
+  padding: "0 24px",
+};
+
+const sText11BoldUpperColorMb4: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  color: "#1C4463",
+  marginBottom: 4,
+};
+
+const rowBetweenText13ColorMb6: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: 13,
+  color: "#334155",
+  marginBottom: 6,
+};
+
+const sText11BoldUpperColorMb10: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  color: "#475569",
+  marginBottom: 10,
+  paddingLeft: 6,
+};
+
+const sWhitePadR8Border: CSSProperties = {
+  flex: 1,
+  background: "#FFFFFF",
+  padding: "14px",
+  borderRadius: 8,
+  border: "1px solid #E2E8F0",
+};
+
+const sBgPadR10BorderMb20: CSSProperties = {
+  padding: "16px 20px",
+  background: "#F0FDF4",
+  borderRadius: 10,
+  border: "1px solid #BBF7D0",
+  marginBottom: 20,
+};
+
+type Ability = Course["abilities"][number];
+
+/** Lesson video length in seconds (missing duration counts as 1 min). */
+const videoDurationSec = (ability: Ability) => (ability.videoDurationMinutes || 1) * 60;
+
+/** Where to resume an ability's video from, based on stored watch progress. */
+function resumePoint(ability: Ability, enrollment: CourseEnrollment | null | undefined) {
+  const watchedPct = enrollment?.abilityProgress[ability.id]?.videoWatchedPct || 0;
+  const dur = videoDurationSec(ability);
+  return { sec: Math.round((watchedPct / 100) * dur), dur };
+}
 
 function CourseLearningInner() {
   const params = useParams();
@@ -137,7 +217,7 @@ function CourseLearningInner() {
           const abilityId = abilityIdRef.current;
           if (!course || !abilityId) return;
           const ability = course.abilities.find((a) => a.id === abilityId) || course.abilities[0];
-          const duration = (ability.videoDurationMinutes || 1) * 60;
+          const duration = videoDurationSec(ability);
           // Only trigger if we reached the very end (within 2 sec)
           const currentSec = engine.currentSec;
           if (currentSec >= duration - 2 && !videoEndFiredRef.current) {
@@ -161,7 +241,7 @@ function CourseLearningInner() {
         const abilityId = abilityIdRef.current;
         if (!course || !abilityId) return;
         const ability = course.abilities.find((a) => a.id === abilityId) || course.abilities[0];
-        const duration = (ability.videoDurationMinutes || 1) * 60;
+        const duration = videoDurationSec(ability);
         const pct = Math.round((Math.min(sec, duration) / duration) * 100);
         const enr = getEnrollment(employeeIdRef.current, course.id);
         if (!enr) return;
@@ -224,11 +304,8 @@ function CourseLearningInner() {
       const first = found.abilities[0];
       setActiveAbilityId(first.id);
       abilityIdRef.current = first.id;
-      const enr = getEnrollment(employeeId, found.id);
-      const watchedPct = enr?.abilityProgress[first.id]?.videoWatchedPct || 0;
-      const dur = (first.videoDurationMinutes || 1) * 60;
-      const initialSec = Math.round((watchedPct / 100) * dur);
-      engineRef.current?.switchAbility(initialSec, dur);
+      const { sec, dur } = resumePoint(first, getEnrollment(employeeId, found.id));
+      engineRef.current?.switchAbility(sec, dur);
     }
   }, [courseId, employeeId]);
 
@@ -291,11 +368,8 @@ function CourseLearningInner() {
     if (!targetAbility) return;
     setActiveAbilityId(newAbilityId);
     abilityIdRef.current = newAbilityId;
-    const enr = getEnrollment(employeeId, course.id);
-    const watchedPct = enr?.abilityProgress[newAbilityId]?.videoWatchedPct || 0;
-    const dur = (targetAbility.videoDurationMinutes || 1) * 60;
-    const targetSec = Math.round((watchedPct / 100) * dur);
-    engineRef.current?.switchAbility(targetSec, dur);
+    const { sec, dur } = resumePoint(targetAbility, getEnrollment(employeeId, course.id));
+    engineRef.current?.switchAbility(sec, dur);
   };
 
   // ── Guard: wait for course data ────────────────────────────────────────────
@@ -303,21 +377,15 @@ function CourseLearningInner() {
     return (
       <div style={{ padding: "64px 24px", textAlign: "center", minHeight: "60vh", background: "#FFFFFF" }}>
         <h2 style={{ fontSize: 22, color: "#1F2937", marginBottom: 16 }}>Course Not Found</h2>
-        <p style={{ color: "#64748B", marginBottom: 24 }}>
-          The requested course could not be loaded.
-        </p>
-        <Link href="/training">
-          <Button type="primary" icon={<ArrowLeftOutlined />}>
-            Back to Training Catalog
-          </Button>
-        </Link>
+        <p style={{ color: "#64748B", marginBottom: 24 }}>The requested course could not be loaded.</p>
+        <Link href="/training"><Button type="primary" icon={<ArrowLeftOutlined />}>Back to Training Catalog</Button></Link>
       </div>
     );
   }
   const activeAbility =
     course.abilities.find((a) => a.id === activeAbilityId) || course.abilities[0];
   const activeIndex = course.abilities.findIndex((a) => a.id === activeAbility.id);
-  const totalDurationSec = (activeAbility.videoDurationMinutes || 1) * 60;
+  const totalDurationSec = videoDurationSec(activeAbility);
 
   const activeProgress: AbilityProgress = enrollment.abilityProgress[
     activeAbility.id
@@ -477,15 +545,8 @@ function CourseLearningInner() {
       {/* ---------------- 1. STICKY TOP STUDIO BAR (CLEAN WHITE) ---------------- */}
       <header
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          background: "#FFFFFF",
-          borderBottom: "1px solid #E2E8F0",
-          padding: "12px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          position: "sticky", top: 0, zIndex: 100, background: "#FFFFFF", borderBottom: "1px solid #E2E8F0",
+          padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
           boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
         }}
       >
@@ -494,18 +555,9 @@ function CourseLearningInner() {
           <Link
             href="/training"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              color: "#334155",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              padding: "6px 14px",
-              borderRadius: 6,
-              background: "#F1F5F9",
-              border: "1px solid #CBD5E1",
-              transition: "all 0.2s ease",
+              display: "inline-flex", alignItems: "center", gap: 6, color: "#334155", fontSize: 13, fontWeight: 600,
+              textDecoration: "none", padding: "6px 14px", borderRadius: 6, background: "#F1F5F9",
+              border: "1px solid #CBD5E1", transition: "all 0.2s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = "#1C4463";
@@ -525,32 +577,18 @@ function CourseLearningInner() {
           <span style={{ color: "#CBD5E1" }}>|</span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Tag color="#1C4463" style={{ border: "none", fontWeight: 700, borderRadius: 4 }}>
-              {course.code}
-            </Tag>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>
-              {course.title}
-            </span>
+            <Tag color="#1C4463" style={{ border: "none", fontWeight: 700, borderRadius: 4 }}>{course.code}</Tag>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>{course.title}</span>
           </div>
         </div>
 
         {/* Right: Progress Ring & Focus Mode */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Progress
-              type="circle"
-              percent={overallProgress}
-              size={36}
-              strokeColor="#16A34A"
-              railColor="#E2E8F0"
-            />
+            <Progress type="circle" percent={overallProgress} size={36} strokeColor="#16A34A" railColor="#E2E8F0" />
             <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 11, color: "#64748B", textTransform: "uppercase", fontWeight: 600 }}>
-                Course Progress
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
-                {completedAbilitiesCount} of {course.abilities.length} Completed
-              </div>
+              <div style={{ fontSize: 11, color: "#64748B", textTransform: "uppercase", fontWeight: 600 }}>Course Progress</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{completedAbilitiesCount} of {course.abilities.length} Completed</div>
             </div>
           </div>
 
@@ -558,13 +596,7 @@ function CourseLearningInner() {
             size="small"
             icon={focusMode ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setFocusMode(!focusMode)}
-            style={{
-              background: "#F8FAFC",
-              borderColor: "#CBD5E1",
-              color: "#334155",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
+            style={{ background: "#F8FAFC", borderColor: "#CBD5E1", color: "#334155", fontSize: 12, fontWeight: 600 }}
           >
             {focusMode ? "Show Syllabus" : "Focus Mode"}
           </Button>
@@ -577,47 +609,21 @@ function CourseLearningInner() {
         {!focusMode && (
           <aside
             style={{
-              width: 340,
-              minWidth: 340,
-              background: "#FFFFFF",
-              borderRight: "1px solid #E2E8F0",
-              display: "flex",
-              flexDirection: "column",
-              overflowY: "auto",
-              maxHeight: "calc(100vh - 60px)",
+              width: 340, minWidth: 340, background: "#FFFFFF", borderRight: "1px solid #E2E8F0", display: "flex",
+              flexDirection: "column", overflowY: "auto", maxHeight: "calc(100vh - 60px)",
             }}
           >
             {/* Header info */}
-            <div
-              style={{
-                padding: "20px 18px",
-                borderBottom: "1px solid #E2E8F0",
-                background: "#F8FAFC",
-              }}
-            >
+            <div style={{ padding: "20px 18px", borderBottom: "1px solid #E2E8F0", background: "#F8FAFC" }}>
               <div
                 style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "#1C4463",
+                  fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#1C4463",
                   marginBottom: 6,
                 }}
               >
                 {course.section}
               </div>
-              <h2
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                  color: "#0F172A",
-                  margin: "0 0 8px 0",
-                  lineHeight: 1.35,
-                }}
-              >
-                {course.title}
-              </h2>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", margin: "0 0 8px 0", lineHeight: 1.35 }}>{course.title}</h2>
               <div style={{ fontSize: 12, color: "#64748B" }}>
                 Pass Threshold: <strong>{course.passThreshold}%</strong> • Approx.{" "}
                 {course.estimatedHours} hrs
@@ -626,19 +632,7 @@ function CourseLearningInner() {
 
             {/* Modules List */}
             <div style={{ padding: "16px 12px", flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "#475569",
-                  marginBottom: 10,
-                  paddingLeft: 6,
-                }}
-              >
-                Learning Modules & Abilities
-              </div>
+              <div style={sText11BoldUpperColorMb10}>Learning Modules & Abilities</div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {course.abilities.map((ability) => {
@@ -678,54 +672,25 @@ function CourseLearningInner() {
                     >
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 4,
+                          display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4,
                         }}
                       >
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: isCurrent ? "#0284C7" : "#64748B",
-                          }}
-                        >
-                          Module {ability.order}
-                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: isCurrent ? "#0284C7" : "#64748B" }}>Module {ability.order}</span>
 
                         {passed ? (
                           <span
                             style={{
-                              fontSize: 10.5,
-                              color: "#16A34A",
-                              fontWeight: 700,
-                              display: "flex",
-                              alignItems: "center",
+                              fontSize: 10.5, color: "#16A34A", fontWeight: 700, display: "flex", alignItems: "center",
                               gap: 3,
                             }}
                           >
                             <CheckCircleFilled /> Done
                           </span>
                         ) : unlocked ? (
-                          <span
-                            style={{
-                              fontSize: 10.5,
-                              color: isCurrent ? "#0284C7" : "#0284C7",
-                              fontWeight: 600,
-                            }}
-                          >
-                            ● Active
-                          </span>
+                          <span style={{ fontSize: 10.5, color: isCurrent ? "#0284C7" : "#0284C7", fontWeight: 600 }}>● Active</span>
                         ) : (
                           <span
-                            style={{
-                              fontSize: 10.5,
-                              color: "#94A3B8",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 3,
-                            }}
+                            style={{ fontSize: 10.5, color: "#94A3B8", display: "flex", alignItems: "center", gap: 3 }}
                           >
                             <LockOutlined /> Locked
                           </span>
@@ -734,10 +699,7 @@ function CourseLearningInner() {
 
                       <div
                         style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: isCurrent ? "#0F172A" : "#1E293B",
-                          lineHeight: 1.35,
+                          fontSize: 13, fontWeight: 600, color: isCurrent ? "#0F172A" : "#1E293B", lineHeight: 1.35,
                           marginBottom: 6,
                         }}
                       >
@@ -746,10 +708,7 @@ function CourseLearningInner() {
 
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          fontSize: 11,
+                          display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11,
                           color: "#64748B",
                         }}
                       >
@@ -768,26 +727,8 @@ function CourseLearningInner() {
               </div>
 
               {/* Course-End Certification Gates */}
-              <div
-                style={{
-                  marginTop: 24,
-                  paddingTop: 16,
-                  borderTop: "1px solid #E2E8F0",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "#475569",
-                    marginBottom: 10,
-                    paddingLeft: 6,
-                  }}
-                >
-                  Final Qualification Gates
-                </div>
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #E2E8F0" }}>
+                <div style={sText11BoldUpperColorMb10}>Final Qualification Gates</div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {/* Gate 1: Practical Test */}
@@ -820,9 +761,7 @@ function CourseLearningInner() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>
-                        1. Practical Test
-                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>1. Practical Test</div>
                       <div
                         style={{
                           fontSize: 11,
@@ -843,9 +782,7 @@ function CourseLearningInner() {
                     {assessmentResults.practical ? (
                       <CheckCircleFilled style={{ color: nectarColors.leaf }} />
                     ) : canTakeSkillMapping(enrollment, course) ? (
-                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
-                        Ready
-                      </Tag>
+                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>Ready</Tag>
                     ) : (
                       <LockOutlined style={{ color: "#94A3B8" }} />
                     )}
@@ -881,9 +818,7 @@ function CourseLearningInner() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>
-                        2. Written Test
-                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>2. Written Test</div>
                       <div
                         style={{
                           fontSize: 11,
@@ -904,9 +839,7 @@ function CourseLearningInner() {
                     {assessmentResults.written ? (
                       <CheckCircleFilled style={{ color: nectarColors.leaf }} />
                     ) : assessmentResults.practical ? (
-                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
-                        Ready
-                      </Tag>
+                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>Ready</Tag>
                     ) : (
                       <LockOutlined style={{ color: "#94A3B8" }} />
                     )}
@@ -942,9 +875,7 @@ function CourseLearningInner() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>
-                        3. Oral Test
-                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>3. Oral Test</div>
                       <div
                         style={{
                           fontSize: 11,
@@ -965,9 +896,7 @@ function CourseLearningInner() {
                     {assessmentResults.oral ? (
                       <CheckCircleFilled style={{ color: nectarColors.leaf }} />
                     ) : assessmentResults.written?.passed ? (
-                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>
-                        Ready
-                      </Tag>
+                      <Tag style={{ margin: 0, fontWeight: 700, fontSize: 10, borderRadius: 10, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.2)", color: nectarColors.leaf }}>Ready</Tag>
                     ) : (
                       <LockOutlined style={{ color: "#94A3B8" }} />
                     )}
@@ -983,21 +912,15 @@ function CourseLearningInner() {
                       }
                     }}
                     style={{
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      background: assessmentResults.oral ? "#EFF6FF" : "#F8FAFC",
+                      padding: "10px 12px", borderRadius: 8, background: assessmentResults.oral ? "#EFF6FF" : "#F8FAFC",
                       border: assessmentResults.oral ? "1px solid #93C5FD" : "1px solid #E2E8F0",
                       cursor: assessmentResults.oral ? "pointer" : "not-allowed",
-                      opacity: assessmentResults.oral ? 1 : 0.6,
-                      display: "flex",
-                      alignItems: "center",
+                      opacity: assessmentResults.oral ? 1 : 0.6, display: "flex", alignItems: "center",
                       justifyContent: "space-between",
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>
-                        4. Test Report Summary
-                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>4. Test Report Summary</div>
                       <div style={{ fontSize: 11, color: "#64748B" }}>
                         {assessmentResults.oral
                           ? "Evaluation scorecard ready"
@@ -1024,24 +947,16 @@ function CourseLearningInner() {
                       }
                     }}
                     style={{
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      background: certificate ? "#EAF1F6" : "#F8FAFC",
+                      padding: "10px 12px", borderRadius: 8, background: certificate ? "#EAF1F6" : "#F8FAFC",
                       border: certificate ? `1.5px solid ${nectarColors.leaf}` : "1px solid #E2E8F0",
                       cursor: certificate || assessmentResults.oral ? "pointer" : "not-allowed",
-                      opacity: certificate || assessmentResults.oral ? 1 : 0.6,
-                      display: "flex",
-                      alignItems: "center",
+                      opacity: certificate || assessmentResults.oral ? 1 : 0.6, display: "flex", alignItems: "center",
                       justifyContent: "space-between",
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>
-                        5. Plant Qualification Certificate
-                      </div>
-                      <div style={{ fontSize: 11, color: certificate ? nectarColors.leaf : "#64748B" }}>
-                        {certificate ? "✓ Issued & Verifiable" : "Awaiting qualification report"}
-                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0F172A" }}>5. Plant Qualification Certificate</div>
+                      <div style={{ fontSize: 11, color: certificate ? nectarColors.leaf : "#64748B" }}>{certificate ? "✓ Issued & Verifiable" : "Awaiting qualification report"}</div>
                     </div>
                     {certificate ? (
                       <SafetyCertificateOutlined style={{ color: nectarColors.leaf, fontSize: 15 }} />
@@ -1056,41 +971,22 @@ function CourseLearningInner() {
         )}
 
         {/* RIGHT MAIN CENTER STAGE (CLEAN LIGHT BACKGROUND) */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "24px 32px 80px 32px",
-            background: "#F8FAFC",
-          }}
-        >
+        <main style={{ flex: 1, overflowY: "auto", padding: "24px 32px 80px 32px", background: "#F8FAFC" }}>
           <div style={{ maxWidth: 1040, margin: "0 auto" }}>
             {/* 1. CINEMATIC VIDEO DECK */}
             <div
               ref={videoContainerRef}
               style={{
-                borderRadius: 16,
-                overflow: "hidden",
-                background: "#000000",
-                border: "1px solid #CBD5E1",
-                boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)",
-                marginBottom: 24,
-                position: "relative",
+                borderRadius: 16, overflow: "hidden", background: "#000000", border: "1px solid #CBD5E1",
+                boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)", marginBottom: 24, position: "relative",
               }}
             >
               {/* 16:9 Video Canvas */}
               <div
                 onClick={() => engineRef.current?.toggle()}
                 style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "16 / 9",
-                  background: "#081018",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  cursor: "pointer",
+                  position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#081018", display: "flex",
+                  alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer",
                 }}
               >
                 {/* CSS Animation Keyframes for Live Stream & Aeration */}
@@ -1113,8 +1009,7 @@ function CourseLearningInner() {
                   fill
                   sizes="(max-width: 1200px) 100vw, 1000px"
                   style={{
-                    objectFit: "cover",
-                    opacity: isPlaying ? 0.95 : 0.65,
+                    objectFit: "cover", opacity: isPlaying ? 0.95 : 0.65,
                     transform: isPlaying ? "scale(1.04)" : "scale(1.0)",
                     transition: "transform 12s ease-out, opacity 0.4s ease",
                   }}
@@ -1154,18 +1049,10 @@ function CourseLearningInner() {
                       engineRef.current?.play();
                     }}
                     style={{
-                      width: 78,
-                      height: 78,
-                      borderRadius: "50%",
-                      background: "rgba(28, 68, 99, 0.92)",
-                      border: "3px solid #FFFFFF",
-                      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                      zIndex: 10,
+                      width: 78, height: 78, borderRadius: "50%", background: "rgba(28, 68, 99, 0.92)",
+                      border: "3px solid #FFFFFF", boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)", display: "flex",
+                      alignItems: "center", justifyContent: "center", cursor: "pointer",
+                      transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 10,
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
                     onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
@@ -1178,27 +1065,15 @@ function CourseLearningInner() {
                 <div
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    position: "absolute",
-                    top: 18,
-                    left: 20,
-                    right: 20,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    zIndex: 5,
+                    position: "absolute", top: 18, left: 20, right: 20, display: "flex",
+                    justifyContent: "space-between", alignItems: "center", zIndex: 5,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span
                       style={{
-                        background: "#1C4463",
-                        border: "1px solid rgba(255, 255, 255, 0.2)",
-                        padding: "4px 10px",
-                        borderRadius: 6,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#FFFFFF",
-                        letterSpacing: "0.04em",
+                        background: "#1C4463", border: "1px solid rgba(255, 255, 255, 0.2)", padding: "4px 10px",
+                        borderRadius: 6, fontSize: 11, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.04em",
                         boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
                       }}
                     >
@@ -1206,10 +1081,7 @@ function CourseLearningInner() {
                     </span>
                     <span
                       style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        color: "#FFFFFF",
-                        textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
+                        fontSize: 15, fontWeight: 700, color: "#FFFFFF", textShadow: "0 2px 8px rgba(0, 0, 0, 0.7)",
                       }}
                     >
                       {activeAbility?.title}
@@ -1219,26 +1091,14 @@ function CourseLearningInner() {
                   {isPlaying ? (
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        background: "rgba(15, 23, 42, 0.8)",
-                        border: "1px solid rgba(239, 68, 68, 0.6)",
-                        borderRadius: 20,
-                        padding: "3px 10px",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#FFFFFF",
-                        boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                        display: "flex", alignItems: "center", gap: 6, background: "rgba(15, 23, 42, 0.8)",
+                        border: "1px solid rgba(239, 68, 68, 0.6)", borderRadius: 20, padding: "3px 10px", fontSize: 11,
+                        fontWeight: 700, color: "#FFFFFF", boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
                       }}
                     >
                       <span
                         style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: "#EF4444",
-                          boxShadow: "0 0 8px #EF4444",
+                          width: 8, height: 8, borderRadius: "50%", background: "#EF4444", boxShadow: "0 0 8px #EF4444",
                           animation: "pulseLiveDot 1.2s infinite",
                         }}
                       />
@@ -1248,10 +1108,7 @@ function CourseLearningInner() {
                     <Tag
                       color="#16A34A"
                       style={{
-                        border: "none",
-                        fontWeight: 600,
-                        borderRadius: 4,
-                        boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                        border: "none", fontWeight: 600, borderRadius: 4, boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
                       }}
                     >
                       HD 1080p Plant Cam
@@ -1263,21 +1120,10 @@ function CourseLearningInner() {
                 {isPlaying && (
                   <div
                     style={{
-                      position: "absolute",
-                      bottom: 72,
-                      right: 20,
-                      background: "rgba(11, 26, 36, 0.75)",
-                      backdropFilter: "blur(6px)",
-                      borderRadius: 8,
-                      padding: "6px 12px",
-                      border: "1px solid rgba(255, 255, 255, 0.15)",
-                      fontSize: 11,
-                      fontFamily: "monospace",
-                      color: "#93C5FD",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      zIndex: 8,
+                      position: "absolute", bottom: 72, right: 20, background: "rgba(11, 26, 36, 0.75)",
+                      backdropFilter: "blur(6px)", borderRadius: 8, padding: "6px 12px",
+                      border: "1px solid rgba(255, 255, 255, 0.15)", fontSize: 11, fontFamily: "monospace",
+                      color: "#93C5FD", display: "flex", alignItems: "center", gap: 12, zIndex: 8,
                       pointerEvents: "none",
                     }}
                   >
@@ -1312,9 +1158,7 @@ function CourseLearningInner() {
                       value={currentTimeSec}
                       onChange={(val) => engineRef.current?.scrubTo(val)}
                       onChangeComplete={(val) => engineRef.current?.seekTo(val)}
-                      tooltip={{
-                        formatter: (val) => formatTime(val || 0),
-                      }}
+                      tooltip={{ formatter: (val) => formatTime(val || 0) }}
                       trackStyle={{ background: "#7EA6C4" }}
                       handleStyle={{
                         borderColor: "#FFFFFF",
@@ -1326,12 +1170,8 @@ function CourseLearningInner() {
                     />
                     <div
                       style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        fontVariantNumeric: "tabular-nums",
-                        color: "#E2E8F0",
-                        whiteSpace: "nowrap",
-                        letterSpacing: "0.02em",
+                        fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#E2E8F0",
+                        whiteSpace: "nowrap", letterSpacing: "0.02em",
                       }}
                     >
                       {formatTime(currentTimeSec)} / {formatTime(totalDurationSec)}
@@ -1339,14 +1179,7 @@ function CourseLearningInner() {
                   </div>
 
                   {/* Player Action Buttons Bar */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      fontSize: 12,
-                    }}
-                  >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                     {/* Left Controls: 5s Back, Play/Pause, 5s Forward, Speed */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       {/* 5s Back Button */}
@@ -1354,20 +1187,7 @@ function CourseLearningInner() {
                         <button
                           type="button"
                           onClick={() => handleSkip(-5)}
-                          style={{
-                            background: "rgba(255, 255, 255, 0.12)",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            color: "#FFFFFF",
-                            borderRadius: 6,
-                            padding: "4px 8px",
-                            fontSize: 11.5,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.2s",
-                          }}
+                          style={inlineRowCenterGap4Text11p5SemiboldColorBgPadR6Border}
                           onMouseEnter={(e) =>
                             (e.currentTarget.style.background = "rgba(255, 255, 255, 0.24)")
                           }
@@ -1384,18 +1204,9 @@ function CourseLearningInner() {
                         type="button"
                         onClick={() => engineRef.current?.toggle()}
                         style={{
-                          background: "#1C4463",
-                          border: "1px solid rgba(255, 255, 255, 0.25)",
-                          color: "#FFFFFF",
-                          borderRadius: 6,
-                          padding: "5px 14px",
-                          fontSize: 12.5,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          transition: "all 0.2s",
+                          background: "#1C4463", border: "1px solid rgba(255, 255, 255, 0.25)", color: "#FFFFFF",
+                          borderRadius: 6, padding: "5px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                          display: "inline-flex", alignItems: "center", gap: 6, transition: "all 0.2s",
                           boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = "#23557C")}
@@ -1417,20 +1228,7 @@ function CourseLearningInner() {
                         <button
                           type="button"
                           onClick={() => handleSkip(5)}
-                          style={{
-                            background: "rgba(255, 255, 255, 0.12)",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            color: "#FFFFFF",
-                            borderRadius: 6,
-                            padding: "4px 8px",
-                            fontSize: 11.5,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.2s",
-                          }}
+                          style={inlineRowCenterGap4Text11p5SemiboldColorBgPadR6Border}
                           onMouseEnter={(e) =>
                             (e.currentTarget.style.background = "rgba(255, 255, 255, 0.24)")
                           }
@@ -1446,9 +1244,7 @@ function CourseLearningInner() {
 
                       {/* Playback Speed selector (NEIPL Navy matching) */}
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ color: "#CBD5E1", fontSize: 11, fontWeight: 500 }}>
-                          Speed:
-                        </span>
+                        <span style={{ color: "#CBD5E1", fontSize: 11, fontWeight: 500 }}>Speed:</span>
                         {[1.0, 1.25, 1.5].map((spd) => (
                           <button
                             key={spd}
@@ -1486,16 +1282,9 @@ function CourseLearningInner() {
                           type="button"
                           onClick={toggleFullscreen}
                           style={{
-                            background: "rgba(255, 255, 255, 0.12)",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            color: "#FFFFFF",
-                            borderRadius: 6,
-                            padding: "4px 9px",
-                            fontSize: 13,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
+                            background: "rgba(255, 255, 255, 0.12)", border: "1px solid rgba(255, 255, 255, 0.2)",
+                            color: "#FFFFFF", borderRadius: 6, padding: "4px 9px", fontSize: 13, cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
                             transition: "all 0.2s",
                           }}
                           onMouseEnter={(e) =>
@@ -1516,15 +1305,10 @@ function CourseLearningInner() {
               {/* Watch time gating status bar (Clean light design) */}
               <div
                 style={{
-                  padding: "12px 20px",
-                  background: isVideoWatchDone ? "#ECFDF5" : "#FFFBEB",
-                  borderTop: isVideoWatchDone ? "1px solid #A7F3D0" : "1px solid #FDE68A",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontSize: 12.5,
-                  color: isVideoWatchDone ? "#065F46" : "#92400E",
-                  transition: "background 0.3s ease",
+                  padding: "12px 20px", background: isVideoWatchDone ? "#ECFDF5" : "#FFFBEB",
+                  borderTop: isVideoWatchDone ? "1px solid #A7F3D0" : "1px solid #FDE68A", display: "flex",
+                  alignItems: "center", justifyContent: "space-between", fontSize: 12.5,
+                  color: isVideoWatchDone ? "#065F46" : "#92400E", transition: "background 0.3s ease",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1535,9 +1319,7 @@ function CourseLearningInner() {
                   )}
                   <span>
                     {isVideoWatchDone ? (
-                      <strong>
-                        Watch requirement satisfied (≥ 90%). Micro-quiz knowledge check is unlocked!
-                      </strong>
+                      <strong>Watch requirement satisfied (≥ 90%). Micro-quiz knowledge check is unlocked!</strong>
                     ) : (
                       <>
                         Requires at least 90% watch time to unlock the knowledge check (Current:{" "}
@@ -1552,22 +1334,12 @@ function CourseLearningInner() {
             {/* 2. TABBED STUDY & ENGINEERING WORKSPACE (CLEAN WHITE CARD) */}
             <div
               style={{
-                background: "#FFFFFF",
-                borderRadius: 16,
-                border: "1px solid #E2E8F0",
-                overflow: "hidden",
-                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04)",
-                marginBottom: 32,
+                background: "#FFFFFF", borderRadius: 16, border: "1px solid #E2E8F0", overflow: "hidden",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04)", marginBottom: 32,
               }}
             >
               {/* Workspace Navigation Tabs */}
-              <div
-                style={{
-                  display: "flex",
-                  borderBottom: "1px solid #E2E8F0",
-                  background: "#F8FAFC",
-                }}
-              >
+              <div style={{ display: "flex", borderBottom: "1px solid #E2E8F0", background: "#F8FAFC" }}>
                 {[
                   { id: "sop", label: "SOP Reference Notes", icon: <BookOutlined /> },
                   {
@@ -1619,26 +1391,11 @@ function CourseLearningInner() {
                 {activeTab === "sop" && (
                   <div>
                     <div style={{ marginBottom: 20 }}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          color: "#1C4463",
-                          marginBottom: 4,
-                        }}
-                      >
-                        STANDARD OPERATING PROCEDURE (SOP)
-                      </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 700, color: "#0F172A", margin: 0 }}>
-                        {activeAbility.title} — Technical Procedure & Dosing Matrix
-                      </h3>
+                      <div style={sText11BoldUpperColorMb4}>STANDARD OPERATING PROCEDURE (SOP)</div>
+                      <h3 style={{ fontSize: 20, fontWeight: 700, color: "#0F172A", margin: 0 }}>{activeAbility.title} — Technical Procedure & Dosing Matrix</h3>
                     </div>
 
-                    <p style={{ fontSize: 14.5, lineHeight: 1.7, color: "#334155", marginBottom: 20 }}>
-                      {activeAbility.readingContent || activeAbility.description}
-                    </p>
+                    <p style={{ fontSize: 14.5, lineHeight: 1.7, color: "#334155", marginBottom: 20 }}>{activeAbility.readingContent || activeAbility.description}</p>
 
                     {/* Operational Safety Alert */}
                     <Alert
@@ -1646,27 +1403,16 @@ function CourseLearningInner() {
                       showIcon
                       title="Critical Operating Threshold & Safety Protocol"
                       description="Ensure hydraulic retention time (HRT) does not fall below 14 hours during peak industrial discharge. Monitor aeration basin dissolved oxygen (DO) continuously between 2.0 and 2.5 mg/L to prevent filamentous sludge bulking and anaerobic conditions."
-                      style={{
-                        marginBottom: 24,
-                        borderRadius: 8,
-                      }}
+                      style={{ marginBottom: 24, borderRadius: 8 }}
                     />
 
                     {/* Technical Parameter Matrix Table (Clean White) */}
                     <div
-                      style={{
-                        background: "#F8FAFC",
-                        borderRadius: 10,
-                        border: "1px solid #E2E8F0",
-                        padding: "18px",
-                      }}
+                      style={{ background: "#F8FAFC", borderRadius: 10, border: "1px solid #E2E8F0", padding: "18px" }}
                     >
                       <div
                         style={{
-                          fontSize: 12.5,
-                          fontWeight: 700,
-                          color: "#1C4463",
-                          textTransform: "uppercase",
+                          fontSize: 12.5, fontWeight: 700, color: "#1C4463", textTransform: "uppercase",
                           marginBottom: 12,
                         }}
                       >
@@ -1675,34 +1421,24 @@ function CourseLearningInner() {
 
                       <div
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                          gap: 14,
+                          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14,
                         }}
                       >
                         <div style={{ background: "#FFFFFF", padding: "12px 16px", borderRadius: 8, border: "1px solid #E2E8F0" }}>
                           <div style={{ fontSize: 11, color: "#64748B" }}>Influent pH Range</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                            6.5 – 8.5
-                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>6.5 – 8.5</div>
                         </div>
                         <div style={{ background: "#FFFFFF", padding: "12px 16px", borderRadius: 8, border: "1px solid #E2E8F0" }}>
                           <div style={{ fontSize: 11, color: "#64748B" }}>Target MLSS</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                            3,500 – 4,800 mg/L
-                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>3,500 – 4,800 mg/L</div>
                         </div>
                         <div style={{ background: "#FFFFFF", padding: "12px 16px", borderRadius: 8, border: "1px solid #E2E8F0" }}>
                           <div style={{ fontSize: 11, color: "#64748B" }}>PAC Dosing Ratio</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                            35 – 55 ppm
-                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>35 – 55 ppm</div>
                         </div>
                         <div style={{ background: "#FFFFFF", padding: "12px 16px", borderRadius: 8, border: "1px solid #E2E8F0" }}>
                           <div style={{ fontSize: 11, color: "#64748B" }}>Sludge Volume Index</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                            80 – 120 ml/g
-                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>80 – 120 ml/g</div>
                         </div>
                       </div>
                     </div>
@@ -1715,9 +1451,7 @@ function CourseLearningInner() {
                     {!isVideoWatchDone ? (
                       <div style={{ textAlign: "center", padding: "36px 0" }}>
                         <LockOutlined style={{ fontSize: 42, color: "#D97706", marginBottom: 16 }} />
-                        <h3 style={{ fontSize: 18, color: "#0F172A", marginBottom: 8, fontWeight: 700 }}>
-                          Knowledge Check Locked
-                        </h3>
+                        <h3 style={{ fontSize: 18, color: "#0F172A", marginBottom: 8, fontWeight: 700 }}>Knowledge Check Locked</h3>
                         <p style={{ color: "#64748B", maxWidth: 480, margin: "0 auto 20px auto", fontSize: 14 }}>
                           You must watch at least 90% of the technical lesson video before
                           attempting the gating micro-quiz. Current watch progress:{" "}
@@ -1728,26 +1462,16 @@ function CourseLearningInner() {
                       <div>
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 20,
-                            paddingBottom: 16,
-                            borderBottom: "1px solid #E2E8F0",
+                            display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20,
+                            paddingBottom: 16, borderBottom: "1px solid #E2E8F0",
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 11, color: "#1C4463", fontWeight: 700 }}>
-                              MODULE {activeAbility.order} GATING EVALUATION
-                            </div>
-                            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: 0 }}>
-                              Practical Knowledge Check
-                            </h3>
+                            <div style={{ fontSize: 11, color: "#1C4463", fontWeight: 700 }}>MODULE {activeAbility.order} GATING EVALUATION</div>
+                            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: 0 }}>Practical Knowledge Check</h3>
                           </div>
 
-                          <Tag color="success" style={{ fontSize: 12, padding: "3px 10px", fontWeight: 700 }}>
-                            Passing Score: {activeAbility.microQuiz.passThreshold}%
-                          </Tag>
+                          <Tag color="success" style={{ fontSize: 12, padding: "3px 10px", fontWeight: 700 }}>Passing Score: {activeAbility.microQuiz.passThreshold}%</Tag>
                         </div>
 
                         {/* Interactive Step-by-Step Question Stepper */}
@@ -1764,12 +1488,8 @@ function CourseLearningInner() {
                               {/* Stepper Progress Bar */}
                               <div style={{ marginBottom: 20 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1C4463" }}>
-                                    Question {safeIdx + 1} of {totalQ}
-                                  </span>
-                                  <span style={{ fontSize: 12, color: "#64748B" }}>
-                                    {Object.keys(quizAnswers).length} of {totalQ} Answered
-                                  </span>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1C4463" }}>Question {safeIdx + 1} of {totalQ}</span>
+                                  <span style={{ fontSize: 12, color: "#64748B" }}>{Object.keys(quizAnswers).length} of {totalQ} Answered</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 6 }}>
                                   {questions.map((item, idx) => (
@@ -1798,16 +1518,11 @@ function CourseLearningInner() {
                               <div
                                 key={q.id}
                                 style={{
-                                  background: "#F8FAFC",
-                                  borderRadius: 12,
-                                  padding: "24px",
-                                  border: "1px solid #E2E8F0",
+                                  background: "#F8FAFC", borderRadius: 12, padding: "24px", border: "1px solid #E2E8F0",
                                   boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
                                 }}
                               >
-                                <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>
-                                  {safeIdx + 1}. {q.text}
-                                </div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>{safeIdx + 1}. {q.text}</div>
 
                                 <Radio.Group
                                   value={quizAnswers[q.id]}
@@ -1880,10 +1595,7 @@ function CourseLearningInner() {
                               {/* Stepper Navigation Buttons */}
                               <div
                                 style={{
-                                  marginTop: 24,
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
+                                  marginTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center",
                                 }}
                               >
                                 <Button
@@ -1901,13 +1613,7 @@ function CourseLearningInner() {
                                       type="primary"
                                       onClick={() => setCurrentQuestionIdx((prev) => prev + 1)}
                                       disabled={!isCurrentAnswered}
-                                      style={{
-                                        background: "#1C4463",
-                                        borderColor: "#1C4463",
-                                        fontWeight: 700,
-                                        height: 42,
-                                        padding: "0 24px",
-                                      }}
+                                      style={sBoldBgPad}
                                     >
                                       Next Question <RightOutlined />
                                     </Button>
@@ -1917,10 +1623,7 @@ function CourseLearningInner() {
                                       onClick={handleQuizSubmit}
                                       disabled={!allAnswered}
                                       style={{
-                                        background: "#16A34A",
-                                        borderColor: "#16A34A",
-                                        fontWeight: 700,
-                                        height: 42,
+                                        background: "#16A34A", borderColor: "#16A34A", fontWeight: 700, height: 42,
                                         padding: "0 28px",
                                       }}
                                     >
@@ -1933,21 +1636,15 @@ function CourseLearningInner() {
                               {quizResult && (
                                 <div
                                   style={{
-                                    marginTop: 18,
-                                    padding: "14px 18px",
-                                    borderRadius: 8,
+                                    marginTop: 18, padding: "14px 18px", borderRadius: 8,
                                     background: quizResult.passed ? "#F0FDF4" : "#FEF2F2",
                                     border: quizResult.passed ? "1px solid #BBF7D0" : "1px solid #FECACA",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
+                                    display: "flex", alignItems: "center", justifyContent: "space-between",
                                   }}
                                 >
                                   <span
                                     style={{
-                                      fontSize: 14,
-                                      fontWeight: 700,
-                                      color: quizResult.passed ? "#16A34A" : "#DC2626",
+                                      fontSize: 14, fontWeight: 700, color: quizResult.passed ? "#16A34A" : "#DC2626",
                                     }}
                                   >
                                     Score: {quizResult.scorePct}% —{" "}
@@ -1983,21 +1680,8 @@ function CourseLearningInner() {
                 {activeTab === "scada" && (
                   <div>
                     <div style={{ marginBottom: 20 }}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          color: "#1C4463",
-                          marginBottom: 4,
-                        }}
-                      >
-                        INTERACTIVE PROCESS CONTROLLER
-                      </div>
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: 0 }}>
-                        Live Chemical & Aeration Dosing Telemetry Simulator
-                      </h3>
+                      <div style={sText11BoldUpperColorMb4}>INTERACTIVE PROCESS CONTROLLER</div>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: 0 }}>Live Chemical & Aeration Dosing Telemetry Simulator</h3>
                       <p style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>
                         Adjust operational plant parameters to observe real-time biological
                         reactions and verify final CPCB effluent compliance limits.
@@ -2009,22 +1693,11 @@ function CourseLearningInner() {
                       <Col xs={24} md={12}>
                         <div
                           style={{
-                            background: "#F8FAFC",
-                            borderRadius: 12,
-                            padding: "20px",
-                            border: "1px solid #E2E8F0",
+                            background: "#F8FAFC", borderRadius: 12, padding: "20px", border: "1px solid #E2E8F0",
                           }}
                         >
                           <div style={{ marginBottom: 18 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                fontSize: 13,
-                                color: "#334155",
-                                marginBottom: 6,
-                              }}
-                            >
+                            <div style={rowBetweenText13ColorMb6}>
                               <span>Influent Hydraulic Flow Rate</span>
                               <strong style={{ color: "#1C4463" }}>{simInfluentFlow} m³/day</strong>
                             </div>
@@ -2037,15 +1710,7 @@ function CourseLearningInner() {
                           </div>
 
                           <div style={{ marginBottom: 18 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                fontSize: 13,
-                                color: "#334155",
-                                marginBottom: 6,
-                              }}
-                            >
+                            <div style={rowBetweenText13ColorMb6}>
                               <span>Coagulant Dosing (PAC)</span>
                               <strong style={{ color: "#1C4463" }}>{simCoagulantPpm} ppm</strong>
                             </div>
@@ -2058,15 +1723,7 @@ function CourseLearningInner() {
                           </div>
 
                           <div>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                fontSize: 13,
-                                color: "#334155",
-                                marginBottom: 6,
-                              }}
-                            >
+                            <div style={rowBetweenText13ColorMb6}>
                               <span>Basin Dissolved Oxygen (DO)</span>
                               <strong style={{ color: "#1C4463" }}>{simAerationDO} mg/L</strong>
                             </div>
@@ -2085,23 +1742,14 @@ function CourseLearningInner() {
                       <Col xs={24} md={12}>
                         <div
                           style={{
-                            background: "#F8FAFC",
-                            borderRadius: 12,
-                            padding: "20px",
-                            border: "1px solid #E2E8F0",
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "space-between",
-                            height: "100%",
+                            background: "#F8FAFC", borderRadius: 12, padding: "20px", border: "1px solid #E2E8F0",
+                            display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%",
                           }}
                         >
                           <div>
                             <div
                               style={{
-                                fontSize: 12,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                color: "#475569",
+                                fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "#475569",
                                 marginBottom: 12,
                               }}
                             >
@@ -2109,21 +1757,11 @@ function CourseLearningInner() {
                             </div>
 
                             <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-                              <div
-                                style={{
-                                  flex: 1,
-                                  background: "#FFFFFF",
-                                  padding: "14px",
-                                  borderRadius: 8,
-                                  border: "1px solid #E2E8F0",
-                                }}
-                              >
+                              <div style={sWhitePadR8Border}>
                                 <div style={{ fontSize: 11, color: "#64748B" }}>Effluent COD</div>
                                 <div
                                   style={{
-                                    fontSize: 22,
-                                    fontWeight: 800,
-                                    color: simEffluentCOD <= 100 ? "#16A34A" : "#DC2626",
+                                    fontSize: 22, fontWeight: 800, color: simEffluentCOD <= 100 ? "#16A34A" : "#DC2626",
                                   }}
                                 >
                                   {simEffluentCOD} mg/L
@@ -2131,21 +1769,11 @@ function CourseLearningInner() {
                                 <div style={{ fontSize: 10, color: "#94A3B8" }}>Limit: ≤ 250 mg/L</div>
                               </div>
 
-                              <div
-                                style={{
-                                  flex: 1,
-                                  background: "#FFFFFF",
-                                  padding: "14px",
-                                  borderRadius: 8,
-                                  border: "1px solid #E2E8F0",
-                                }}
-                              >
+                              <div style={sWhitePadR8Border}>
                                 <div style={{ fontSize: 11, color: "#64748B" }}>Effluent BOD</div>
                                 <div
                                   style={{
-                                    fontSize: 22,
-                                    fontWeight: 800,
-                                    color: simEffluentBOD <= 30 ? "#16A34A" : "#DC2626",
+                                    fontSize: 22, fontWeight: 800, color: simEffluentBOD <= 30 ? "#16A34A" : "#DC2626",
                                   }}
                                 >
                                   {simEffluentBOD} mg/L
@@ -2192,32 +1820,14 @@ function CourseLearningInner() {
                 {activeTab === "mentor" && (
                   <div>
                     <div style={{ marginBottom: 18 }}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          color: "#1C4463",
-                          marginBottom: 4,
-                        }}
-                      >
-                        FIELD ADVICE FROM SENIOR OPERATORS
-                      </div>
-                      <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: 0 }}>
-                        Practical Shift Advice & Troubleshooting Nuances
-                      </h3>
+                      <div style={sText11BoldUpperColorMb4}>FIELD ADVICE FROM SENIOR OPERATORS</div>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A", margin: 0 }}>Practical Shift Advice & Troubleshooting Nuances</h3>
                     </div>
 
                     <div
                       style={{
-                        background: "#F8FAFC",
-                        borderRadius: 12,
-                        padding: "20px",
-                        border: "1px solid #E2E8F0",
-                        lineHeight: 1.65,
-                        fontSize: 14,
-                        color: "#334155",
+                        background: "#F8FAFC", borderRadius: 12, padding: "20px", border: "1px solid #E2E8F0",
+                        lineHeight: 1.65, fontSize: 14, color: "#334155",
                       }}
                     >
                       <p style={{ margin: 0 }}>
@@ -2227,9 +1837,7 @@ function CourseLearningInner() {
                         production unnecessarily. Instead, verify DO levels and extend hydraulic
                         retention time slightly by throttling the equalized feed pump.&rdquo;
                       </p>
-                      <div style={{ marginTop: 12, fontSize: 12, color: "#1C4463", fontWeight: 700 }}>
-                        — Senior Plant Commissioning Lead
-                      </div>
+                      <div style={{ marginTop: 12, fontSize: 12, color: "#1C4463", fontWeight: 700 }}>— Senior Plant Commissioning Lead</div>
                     </div>
                   </div>
                 )}
@@ -2239,29 +1847,16 @@ function CourseLearningInner() {
             {/* 3. STICKY BOTTOM STEPPER BAR (CLEAN WHITE) */}
             <div
               style={{
-                position: "sticky",
-                bottom: 16,
-                zIndex: 90,
-                background: "#FFFFFF",
-                borderRadius: 12,
-                border: "1px solid #E2E8F0",
-                padding: "14px 24px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                position: "sticky", bottom: 16, zIndex: 90, background: "#FFFFFF", borderRadius: 12,
+                border: "1px solid #E2E8F0", padding: "14px 24px", display: "flex", alignItems: "center",
+                justifyContent: "space-between", boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
               }}
             >
               <Button
                 icon={<LeftOutlined />}
                 onClick={handlePreviousModule}
                 disabled={activeIndex === 0}
-                style={{
-                  background: "#F1F5F9",
-                  borderColor: "#CBD5E1",
-                  color: "#334155",
-                  fontWeight: 600,
-                }}
+                style={{ background: "#F1F5F9", borderColor: "#CBD5E1", color: "#334155", fontWeight: 600 }}
               >
                 Previous Module
               </Button>
@@ -2277,11 +1872,7 @@ function CourseLearningInner() {
                 <Button
                   type="primary"
                   onClick={handleNextModule}
-                  style={{
-                    background: "#1C4463",
-                    borderColor: "#1C4463",
-                    fontWeight: 700,
-                  }}
+                  style={{ background: "#1C4463", borderColor: "#1C4463", fontWeight: 700 }}
                 >
                   Next Module <RightOutlined />
                 </Button>
@@ -2290,11 +1881,7 @@ function CourseLearningInner() {
                   type="primary"
                   onClick={() => setSkillMapOpen(true)}
                   disabled={!canTakeSkillMapping(enrollment, course)}
-                  style={{
-                    background: "#16A34A",
-                    borderColor: "#16A34A",
-                    fontWeight: 700,
-                  }}
+                  style={{ background: "#16A34A", borderColor: "#16A34A", fontWeight: 700 }}
                 >
                   Proceed to Skill Mapping Assessment <RightOutlined />
                 </Button>
@@ -2320,12 +1907,8 @@ function CourseLearningInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <SafetyCertificateOutlined style={{ color: "#1C4463", fontSize: 20 }} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                Module {activeIndex + 1} Knowledge Check
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>
-                {activeAbility.title}
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Module {activeIndex + 1} Knowledge Check</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>{activeAbility.title}</div>
             </div>
           </div>
         }
@@ -2349,21 +1932,13 @@ function CourseLearningInner() {
                   {/* Step Header with Indicators */}
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 16,
-                      paddingBottom: 12,
-                      borderBottom: "1px solid #E2E8F0",
+                      display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16,
+                      paddingBottom: 12, borderBottom: "1px solid #E2E8F0",
                     }}
                   >
                     <div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#1C4463" }}>
-                        Question {safeIdx + 1} of {totalQ}
-                      </span>
-                      <span style={{ fontSize: 12, color: "#64748B", marginLeft: 8 }}>
-                        ({answeredCount}/{totalQ} answered)
-                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#1C4463" }}>Question {safeIdx + 1} of {totalQ}</span>
+                      <span style={{ fontSize: 12, color: "#64748B", marginLeft: 8 }}>({answeredCount}/{totalQ} answered)</span>
                     </div>
 
                     <div style={{ display: "flex", gap: 6 }}>
@@ -2393,16 +1968,11 @@ function CourseLearningInner() {
                   <div
                     key={q.id}
                     style={{
-                      background: "#F8FAFC",
-                      borderRadius: 12,
-                      padding: "20px",
-                      border: "1px solid #E2E8F0",
+                      background: "#F8FAFC", borderRadius: 12, padding: "20px", border: "1px solid #E2E8F0",
                       marginBottom: 20,
                     }}
                   >
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>
-                      {safeIdx + 1}. {q.text}
-                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>{safeIdx + 1}. {q.text}</div>
 
                     <Radio.Group
                       value={quizAnswers[q.id]}
@@ -2465,13 +2035,7 @@ function CourseLearningInner() {
                   </div>
 
                   {/* Navigation & Submit Buttons */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
+                  <div style={rowCenterBetween2}>
                     <Button
                       onClick={() => setCurrentQuestionIdx((prev) => Math.max(0, prev - 1))}
                       disabled={safeIdx === 0}
@@ -2497,8 +2061,7 @@ function CourseLearningInner() {
                           disabled={answeredCount < totalQ}
                           style={{
                             background: answeredCount === totalQ ? "#16A34A" : "#94A3B8",
-                            borderColor: answeredCount === totalQ ? "#16A34A" : "#94A3B8",
-                            fontWeight: 700,
+                            borderColor: answeredCount === totalQ ? "#16A34A" : "#94A3B8", fontWeight: 700,
                           }}
                         >
                           Submit Knowledge Check <CheckCircleFilled />
@@ -2521,12 +2084,8 @@ function CourseLearningInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <ExperimentOutlined style={{ color: "#1C4463", fontSize: 20 }} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                Gate 1: Practical Assessment Test — {course.code}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>
-                In-Person Plant Practical Evaluation & SCADA Simulation
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Gate 1: Practical Assessment Test — {course.code}</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>In-Person Plant Practical Evaluation & SCADA Simulation</div>
             </div>
           </div>
         }
@@ -2538,25 +2097,13 @@ function CourseLearningInner() {
         <div style={{ padding: "12px 0" }}>
           {assessmentResults.practical ? (
             <div>
-              <div
-                style={{
-                  padding: "16px 20px",
-                  background: "#F0FDF4",
-                  borderRadius: 10,
-                  border: "1px solid #BBF7D0",
-                  marginBottom: 20,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={sBgPadR10BorderMb20}>
+                <div style={rowCenterBetween2}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <CheckCircleFilled style={{ color: "#16A34A", fontSize: 22 }} />
                     <div>
-                      <div style={{ fontWeight: 700, color: "#166534", fontSize: 15 }}>
-                        Practical Field Evaluation Complete ({assessmentResults.practical.overallPct}%)
-                      </div>
-                      <div style={{ fontSize: 12, color: "#15803D" }}>
-                        Evaluated on-site by: <strong>{assessmentResults.practical.evaluatorName}</strong>
-                      </div>
+                      <div style={{ fontWeight: 700, color: "#166534", fontSize: 15 }}>Practical Field Evaluation Complete ({assessmentResults.practical.overallPct}%)</div>
+                      <div style={{ fontSize: 12, color: "#15803D" }}>Evaluated on-site by: <strong>{assessmentResults.practical.evaluatorName}</strong></div>
                     </div>
                   </div>
                   {isManager && (
@@ -2570,29 +2117,21 @@ function CourseLearningInner() {
                   )}
                 </div>
                 {assessmentResults.practical.generalNotes && (
-                  <div style={{ marginTop: 12, fontSize: 12.5, color: "#14532D", background: "#FFFFFF", padding: "10px 14px", borderRadius: 8, border: "1px solid #DCFCE7" }}>
-                    <strong>Manager Observations & Sign-off:</strong> {assessmentResults.practical.generalNotes}
-                  </div>
+                  <div style={{ marginTop: 12, fontSize: 12.5, color: "#14532D", background: "#FFFFFF", padding: "10px 14px", borderRadius: 8, border: "1px solid #DCFCE7" }}><strong>Manager Observations & Sign-off:</strong> {assessmentResults.practical.generalNotes}</div>
                 )}
               </div>
 
               {/* Ability ratings and remarks */}
               <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>
-                  Ability-Level Practical Ratings (1–5 Scale) & Qualitative Remarks
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>Ability-Level Practical Ratings (1–5 Scale) & Qualitative Remarks</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {assessmentResults.practical.scores.map((s) => (
                     <div key={s.abilityId} style={{ background: "#F8FAFC", padding: "12px 16px", borderRadius: 8, border: "1px solid #E2E8F0" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontWeight: 600, color: "#0F172A", fontSize: 13 }}>
-                          {s.abilityTitle}
-                        </div>
+                      <div style={rowCenterBetween2}>
+                        <div style={{ fontWeight: 600, color: "#0F172A", fontSize: 13 }}>{s.abilityTitle}</div>
                         <Tag color="cyan" style={{ fontWeight: 700 }}>Rating: {s.score}/5</Tag>
                       </div>
-                      <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
-                        <strong>Observation:</strong> {s.remark}
-                      </div>
+                      <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}><strong>Observation:</strong> {s.remark}</div>
                     </div>
                   ))}
                 </div>
@@ -2605,7 +2144,7 @@ function CourseLearningInner() {
                     setSkillMapOpen(false);
                     setTimeout(() => setWrittenOpen(true), 400);
                   }}
-                  style={{ background: "#1C4463", borderColor: "#1C4463", fontWeight: 700, height: 42, padding: "0 24px" }}
+                  style={sBoldBgPad}
                 >
                   Proceed to Gate 2: Written Theory Exam <RightOutlined />
                 </Button>
@@ -2615,32 +2154,21 @@ function CourseLearningInner() {
             <div>
               <div
                 style={{
-                  padding: "20px 24px",
-                  background: "#EFF6FF",
-                  borderRadius: 12,
-                  border: "1.5px solid #BFDBFE",
+                  padding: "20px 24px", background: "#EFF6FF", borderRadius: 12, border: "1.5px solid #BFDBFE",
                   marginBottom: 20,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <SafetyCertificateOutlined style={{ color: "#1D4ED8", fontSize: 20 }} />
-                  <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 16 }}>
-                    In-Person Plant Practical Assessment Pending
-                  </span>
+                  <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 16 }}>In-Person Plant Practical Assessment Pending</span>
                 </div>
                 <div style={{ fontSize: 13.5, color: "#1E3A8A", lineHeight: 1.6 }}>
                   This hands-on test is conducted on-site in real life by your <strong>Plant Operations Manager / Technical Evaluator (Rajesh Kulkarni / Anand Dakave)</strong>.
                 </div>
                 <div
                   style={{
-                    fontSize: 13,
-                    color: "#3B82F6",
-                    background: "#FFFFFF",
-                    padding: "14px 16px",
-                    borderRadius: 8,
-                    border: "1px solid #DBEAFE",
-                    marginTop: 14,
-                    lineHeight: 1.6,
+                    fontSize: 13, color: "#3B82F6", background: "#FFFFFF", padding: "14px 16px", borderRadius: 8,
+                    border: "1px solid #DBEAFE", marginTop: 14, lineHeight: 1.6,
                   }}
                 >
                   <strong>Operational Protocol:</strong> The manager will observe your physical equipment lineups, sampling technique, and SCADA adjustments on the plant floor, evaluating you on a <strong>1–5 competency scale</strong>.
@@ -2651,9 +2179,7 @@ function CourseLearningInner() {
 
                 {isManager && (
                   <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px dashed #BFDBFE", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 12, color: "#1E40AF", fontWeight: 600 }}>
-                      Evaluator Mode (Plant Manager Access Only):
-                    </span>
+                    <span style={{ fontSize: 12, color: "#1E40AF", fontWeight: 600 }}>Evaluator Mode (Plant Manager Access Only):</span>
                     <Button
                       type="primary"
                       onClick={() => setEvalScoringType("practical")}
@@ -2675,12 +2201,8 @@ function CourseLearningInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <FileDoneOutlined style={{ color: "#1C4463", fontSize: 20 }} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                Gate 2: Written Theory Exam — {course.code}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>
-                Theoretical Chemistry, CPCB Regulations & Equipment Physics
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Gate 2: Written Theory Exam — {course.code}</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>Theoretical Chemistry, CPCB Regulations & Equipment Physics</div>
             </div>
           </div>
         }
@@ -2692,38 +2214,21 @@ function CourseLearningInner() {
         <div style={{ padding: "12px 0" }}>
           <div
             style={{
-              padding: "12px 16px",
-              background: "#F0FDF4",
-              borderRadius: 8,
-              border: "1px solid #BBF7D0",
-              color: "#166534",
-              fontSize: 13,
-              marginBottom: 20,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
+              padding: "12px 16px", background: "#F0FDF4", borderRadius: 8, border: "1px solid #BBF7D0",
+              color: "#166534", fontSize: 13, marginBottom: 20, display: "flex", alignItems: "center", gap: 8,
             }}
           >
             <CheckCircleFilled />
-            <span>
-              <strong>Gate 2 Requirement:</strong> 70% passing score is required to unlock Gate 3 (Oral Technical Viva).
-            </span>
+            <span><strong>Gate 2 Requirement:</strong> 70% passing score is required to unlock Gate 3 (Oral Technical Viva).</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {course.writtenTestQuestions.map((q, idx) => (
               <div
                 key={q.id}
-                style={{
-                  background: "#F8FAFC",
-                  padding: "18px",
-                  borderRadius: 10,
-                  border: "1px solid #E2E8F0",
-                }}
+                style={{ background: "#F8FAFC", padding: "18px", borderRadius: 10, border: "1px solid #E2E8F0" }}
               >
-                <div style={{ fontWeight: 600, color: "#0F172A", marginBottom: 12, fontSize: 14 }}>
-                  {idx + 1}. {q.text}
-                </div>
+                <div style={{ fontWeight: 600, color: "#0F172A", marginBottom: 12, fontSize: 14 }}>{idx + 1}. {q.text}</div>
                 <Radio.Group
                   value={writtenAnswers[q.id]}
                   onChange={(e) =>
@@ -2773,13 +2278,7 @@ function CourseLearningInner() {
                   msg.error(`Scored ${res.scorePct}%. 70% required. Please review theory materials and retry.`);
                 }
               }}
-              style={{
-                background: "#1C4463",
-                borderColor: "#1C4463",
-                fontWeight: 700,
-                height: 42,
-                padding: "0 24px",
-              }}
+              style={sBoldBgPad}
             >
               Submit Written Exam & Advance <RightOutlined />
             </Button>
@@ -2793,12 +2292,8 @@ function CourseLearningInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <CustomerServiceOutlined style={{ color: "#1C4463", fontSize: 20 }} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                Gate 3: Oral Technical Viva Interview — {course.code}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>
-                In-Person Technical Assessor Viva on Plant Emergency Protocols
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Gate 3: Oral Technical Viva Interview — {course.code}</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>In-Person Technical Assessor Viva on Plant Emergency Protocols</div>
             </div>
           </div>
         }
@@ -2810,25 +2305,13 @@ function CourseLearningInner() {
         <div style={{ padding: "12px 0" }}>
           {assessmentResults.oral ? (
             <div>
-              <div
-                style={{
-                  padding: "16px 20px",
-                  background: "#F0FDF4",
-                  borderRadius: 10,
-                  border: "1px solid #BBF7D0",
-                  marginBottom: 20,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={sBgPadR10BorderMb20}>
+                <div style={rowCenterBetween2}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <CheckCircleFilled style={{ color: "#16A34A", fontSize: 22 }} />
                     <div>
-                      <div style={{ fontWeight: 700, color: "#166534", fontSize: 15 }}>
-                        Oral Technical Viva Complete ({assessmentResults.oral.overallPct}%)
-                      </div>
-                      <div style={{ fontSize: 12, color: "#15803D" }}>
-                        Conducted by Lead Evaluator: <strong>{assessmentResults.oral.evaluatorName}</strong>
-                      </div>
+                      <div style={{ fontWeight: 700, color: "#166534", fontSize: 15 }}>Oral Technical Viva Complete ({assessmentResults.oral.overallPct}%)</div>
+                      <div style={{ fontSize: 12, color: "#15803D" }}>Conducted by Lead Evaluator: <strong>{assessmentResults.oral.evaluatorName}</strong></div>
                     </div>
                   </div>
                   {isManager && (
@@ -2842,29 +2325,21 @@ function CourseLearningInner() {
                   )}
                 </div>
                 {assessmentResults.oral.generalNotes && (
-                  <div style={{ marginTop: 12, fontSize: 12.5, color: "#14532D", background: "#FFFFFF", padding: "10px 14px", borderRadius: 8, border: "1px solid #DCFCE7" }}>
-                    <strong>Evaluator Sign-off Remarks:</strong> {assessmentResults.oral.generalNotes}
-                  </div>
+                  <div style={{ marginTop: 12, fontSize: 12.5, color: "#14532D", background: "#FFFFFF", padding: "10px 14px", borderRadius: 8, border: "1px solid #DCFCE7" }}><strong>Evaluator Sign-off Remarks:</strong> {assessmentResults.oral.generalNotes}</div>
                 )}
               </div>
 
               {/* Scenario breakdown */}
               <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>
-                  Viva Scenario Assessment & Observations (1–5 Scale)
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>Viva Scenario Assessment & Observations (1–5 Scale)</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {assessmentResults.oral.scores.map((s) => (
                     <div key={s.abilityId} style={{ background: "#F8FAFC", padding: "12px 16px", borderRadius: 8, border: "1px solid #E2E8F0" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontWeight: 600, color: "#0F172A", fontSize: 13 }}>
-                          {s.abilityTitle}
-                        </div>
+                      <div style={rowCenterBetween2}>
+                        <div style={{ fontWeight: 600, color: "#0F172A", fontSize: 13 }}>{s.abilityTitle}</div>
                         <Tag color="purple" style={{ fontWeight: 700 }}>Rating: {s.score}/5</Tag>
                       </div>
-                      <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
-                        <strong>Observation:</strong> {s.remark}
-                      </div>
+                      <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}><strong>Observation:</strong> {s.remark}</div>
                     </div>
                   ))}
                 </div>
@@ -2877,7 +2352,7 @@ function CourseLearningInner() {
                     setOralOpen(false);
                     setTimeout(() => setReportOpen(true), 400);
                   }}
-                  style={{ background: "#1C4463", borderColor: "#1C4463", fontWeight: 700, height: 42, padding: "0 24px" }}
+                  style={sBoldBgPad}
                 >
                   Proceed to Gate 4: Test Report Summary <RightOutlined />
                 </Button>
@@ -2887,32 +2362,21 @@ function CourseLearningInner() {
             <div>
               <div
                 style={{
-                  padding: "20px 24px",
-                  background: "#FAF5FF",
-                  borderRadius: 12,
-                  border: "1.5px solid #E9D5FF",
+                  padding: "20px 24px", background: "#FAF5FF", borderRadius: 12, border: "1.5px solid #E9D5FF",
                   marginBottom: 20,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <CustomerServiceOutlined style={{ color: "#7E22CE", fontSize: 20 }} />
-                  <span style={{ fontWeight: 800, color: "#6B21A8", fontSize: 16 }}>
-                    In-Person Oral Technical Viva Pending
-                  </span>
+                  <span style={{ fontWeight: 800, color: "#6B21A8", fontSize: 16 }}>In-Person Oral Technical Viva Pending</span>
                 </div>
                 <div style={{ fontSize: 13.5, color: "#581C87", lineHeight: 1.6 }}>
                   This technical scenario viva is conducted face-to-face by your <strong>Plant Operations Manager / Lead Evaluator</strong>.
                 </div>
                 <div
                   style={{
-                    fontSize: 13,
-                    color: "#7E22CE",
-                    background: "#FFFFFF",
-                    padding: "14px 16px",
-                    borderRadius: 8,
-                    border: "1px solid #F3E8FF",
-                    marginTop: 14,
-                    lineHeight: 1.6,
+                    fontSize: 13, color: "#7E22CE", background: "#FFFFFF", padding: "14px 16px", borderRadius: 8,
+                    border: "1px solid #F3E8FF", marginTop: 14, lineHeight: 1.6,
                   }}
                 >
                   <strong>Interview Scope:</strong> Critical plant emergency protocols (Chemical Shock Load, SVI Clarifier Bulking, Confined Space Entry, and LOTO), scored on a <strong>1–5 competency scale</strong>.
@@ -2923,9 +2387,7 @@ function CourseLearningInner() {
 
                 {isManager && (
                   <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px dashed #E9D5FF", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 12, color: "#6B21A8", fontWeight: 600 }}>
-                      Evaluator Mode (Plant Manager Access Only):
-                    </span>
+                    <span style={{ fontSize: 12, color: "#6B21A8", fontWeight: 600 }}>Evaluator Mode (Plant Manager Access Only):</span>
                     <Button
                       type="primary"
                       onClick={() => setEvalScoringType("oral")}
@@ -2947,12 +2409,8 @@ function CourseLearningInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <AuditOutlined style={{ color: "#1C4463", fontSize: 20 }} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                Gate 4: Operational Qualification Test Report Summary
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>
-                Document Ref: NEIPL-OQTR-{course.code}-2026
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Gate 4: Operational Qualification Test Report Summary</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>Document Ref: NEIPL-OQTR-{course.code}-2026</div>
             </div>
           </div>
         }
@@ -2965,67 +2423,31 @@ function CourseLearningInner() {
           {/* Legacy Nectar Header Banner */}
           <div
             style={{
-              background: "#FFFFFF",
-              borderRadius: 10,
-              padding: "16px 20px",
-              border: "1.5px solid #1C4463",
-              marginBottom: 18,
-              textAlign: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+              background: "#FFFFFF", borderRadius: 10, padding: "16px 20px", border: "1.5px solid #1C4463",
+              marginBottom: 18, textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div style={{ textAlign: "left" }}>
                 <span style={{ fontSize: 18, fontWeight: 900, color: "#1C4463", letterSpacing: 1 }}>nėctar</span>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: 0.5 }}>
-                  ENVIRO INDIA PVT. LTD.
-                </div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#64748B", letterSpacing: 0.5 }}>ENVIRO INDIA PVT. LTD.</div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <Tag color="cyan" style={{ fontSize: 11, fontWeight: 700, borderRadius: 4 }}>
-                  OFFICIAL EVALUATION RECORD
-                </Tag>
-              </div>
+              <div style={{ textAlign: "right" }}><Tag color="cyan" style={{ fontSize: 11, fontWeight: 700, borderRadius: 4 }}>OFFICIAL EVALUATION RECORD</Tag></div>
             </div>
 
-            <h2
-              style={{
-                margin: "4px 0 2px",
-                fontSize: 22,
-                fontWeight: 800,
-                color: "#0F172A",
-                letterSpacing: 0.5,
-              }}
-            >
-              Test Summary Report
-            </h2>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1C4463", textTransform: "uppercase" }}>
-              TRADE NAME :— Shift Incharge / {course.title}
-            </div>
+            <h2 style={{ margin: "4px 0 2px", fontSize: 22, fontWeight: 800, color: "#0F172A", letterSpacing: 0.5 }}>Test Summary Report</h2>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1C4463", textTransform: "uppercase" }}>TRADE NAME :— Shift Incharge / {course.title}</div>
 
             {/* Assessee Bar */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "1.5fr 1fr 1.5fr",
-                background: "#F8FAFC",
-                borderRadius: 6,
-                border: "1px solid #CBD5E1",
-                padding: "8px 14px",
-                marginTop: 12,
-                fontSize: 12.5,
-                textAlign: "left",
+                display: "grid", gridTemplateColumns: "1.5fr 1fr 1.5fr", background: "#F8FAFC", borderRadius: 6,
+                border: "1px solid #CBD5E1", padding: "8px 14px", marginTop: 12, fontSize: 12.5, textAlign: "left",
               }}
             >
-              <div>
-                <strong style={{ color: "#1C4463" }}>NAME :</strong> Mr. Akshay Jamble (Operator)
-              </div>
-              <div>
-                <strong style={{ color: "#1C4463" }}>EMP CODE :</strong> NEIPL125
-              </div>
-              <div>
-                <strong style={{ color: "#1C4463" }}>TL / ASSESSOR :</strong> Mr. Anand Dakave
-              </div>
+              <div><strong style={{ color: "#1C4463" }}>NAME :</strong> Mr. Akshay Jamble (Operator)</div>
+              <div><strong style={{ color: "#1C4463" }}>EMP CODE :</strong> NEIPL125</div>
+              <div><strong style={{ color: "#1C4463" }}>TL / ASSESSOR :</strong> Mr. Anand Dakave</div>
             </div>
           </div>
 
@@ -3043,14 +2465,7 @@ function CourseLearningInner() {
 
             return (
               <>
-                <div
-                  style={{
-                    borderRadius: 8,
-                    border: "1.5px solid #1C4463",
-                    overflow: "hidden",
-                    marginBottom: 20,
-                  }}
-                >
+                <div style={{ borderRadius: 8, border: "1.5px solid #1C4463", overflow: "hidden", marginBottom: 20 }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "#F1F5F9", textAlign: "left", color: "#1E293B", borderBottom: "1.5px solid #1C4463" }}>
@@ -3097,19 +2512,11 @@ function CourseLearningInner() {
                       </tr>
                       {/* Authentic Yellow Highlight Total Row */}
                       <tr style={{ background: "#FEF08A", fontWeight: 800, color: "#0F172A" }}>
-                        <td style={{ padding: "12px 14px", borderRight: "1px solid #CBD5E1", textAlign: "right" }} colSpan={2}>
-                          Overall Competency Level-
-                        </td>
+                        <td style={{ padding: "12px 14px", borderRight: "1px solid #CBD5E1", textAlign: "right" }} colSpan={2}>Overall Competency Level-</td>
                         <td style={{ padding: "12px 14px", textAlign: "center", borderRight: "1px solid #CBD5E1" }}>100%</td>
-                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 16, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>
-                          {compScore.toFixed(2)}
-                        </td>
-                        <td style={{ padding: "12px 14px", textAlign: "center", fontStyle: "italic", color: "#166534", borderRight: "1px solid #CBD5E1" }}>
-                          Qualified
-                        </td>
-                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 12 }}>
-                          Signed
-                        </td>
+                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 16, color: "#0F172A", borderRight: "1px solid #CBD5E1" }}>{compScore.toFixed(2)}</td>
+                        <td style={{ padding: "12px 14px", textAlign: "center", fontStyle: "italic", color: "#166534", borderRight: "1px solid #CBD5E1" }}>Qualified</td>
+                        <td style={{ padding: "12px 14px", textAlign: "center", fontSize: 12 }}>Signed</td>
                       </tr>
                     </tbody>
                   </table>
@@ -3118,13 +2525,8 @@ function CourseLearningInner() {
                 {/* Evaluator Notes */}
                 <div
                   style={{
-                    padding: "14px 18px",
-                    background: "#F8FAFC",
-                    borderRadius: 8,
-                    border: "1px solid #CBD5E1",
-                    fontSize: 13,
-                    color: "#334155",
-                    marginBottom: 20,
+                    padding: "14px 18px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #CBD5E1",
+                    fontSize: 13, color: "#334155", marginBottom: 20,
                   }}
                 >
                   <strong style={{ color: "#1C4463" }}>Team Leader & Evaluator Assessment Signoff (Mr. Anand Dakave):</strong> {evalNotes}
@@ -3145,11 +2547,7 @@ function CourseLearningInner() {
                 setTimeout(() => setCertModalOpen(true), 500);
               }}
               style={{
-                background: "#16A34A",
-                borderColor: "#16A34A",
-                fontWeight: 700,
-                height: 44,
-                padding: "0 28px",
+                background: "#16A34A", borderColor: "#16A34A", fontWeight: 700, height: 44, padding: "0 28px",
                 fontSize: 14,
               }}
             >
@@ -3165,12 +2563,8 @@ function CourseLearningInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <TrophyOutlined style={{ color: "#EAB308", fontSize: 20 }} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
-                Gate 5: Plant Operations Qualification Credential
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>
-                Nectar Environmental Academy of Technical Excellence
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Gate 5: Plant Operations Qualification Credential</div>
+              <div style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>Nectar Environmental Academy of Technical Excellence</div>
             </div>
           </div>
         }
@@ -3183,24 +2577,16 @@ function CourseLearningInner() {
           {certificate ? (
             <div
               style={{
-                padding: "36px 32px",
-                textAlign: "center",
-                background: "linear-gradient(135deg, #FCFBF7 0%, #F5F3ED 100%)",
-                borderRadius: 16,
-                border: "4px double #C2A649",
-                boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
-                position: "relative",
+                padding: "36px 32px", textAlign: "center",
+                background: "linear-gradient(135deg, #FCFBF7 0%, #F5F3ED 100%)", borderRadius: 16,
+                border: "4px double #C2A649", boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)", position: "relative",
               }}
             >
               {/* Header Badges */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#92722A", letterSpacing: "0.12em" }}>
-                    NECTA ENVIRO OPERATIONS ACADEMY
-                  </div>
-                  <div style={{ fontSize: 10, color: "#78716C" }}>
-                    Certified Industrial Environmental Operations
-                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#92722A", letterSpacing: "0.12em" }}>NECTA ENVIRO OPERATIONS ACADEMY</div>
+                  <div style={{ fontSize: 10, color: "#78716C" }}>Certified Industrial Environmental Operations</div>
                 </div>
                 <SafetyCertificateOutlined style={{ fontSize: 32, color: "#C2A649" }} />
               </div>
@@ -3208,52 +2594,30 @@ function CourseLearningInner() {
               {/* Title */}
               <h2
                 style={{
-                  fontSize: 26,
-                  fontWeight: 800,
-                  color: "#1C4463",
-                  margin: "12px 0 6px 0",
-                  fontFamily: "serif",
+                  fontSize: 26, fontWeight: 800, color: "#1C4463", margin: "12px 0 6px 0", fontFamily: "serif",
                   letterSpacing: "0.02em",
                 }}
               >
                 Certificate of Operational Competence
               </h2>
-              <div style={{ fontSize: 13, color: "#78716C", marginBottom: 20 }}>
-                This is to certify that under stringent 5-Gate examination protocols
-              </div>
+              <div style={{ fontSize: 13, color: "#78716C", marginBottom: 20 }}>This is to certify that under stringent 5-Gate examination protocols</div>
 
               {/* Recipient */}
               <div
                 style={{
-                  fontSize: 28,
-                  fontWeight: 800,
-                  color: "#0F172A",
-                  marginBottom: 10,
-                  fontFamily: "serif",
-                  borderBottom: "2px solid #C2A649",
-                  display: "inline-block",
-                  paddingBottom: 4,
-                  minWidth: 280,
+                  fontSize: 28, fontWeight: 800, color: "#0F172A", marginBottom: 10, fontFamily: "serif",
+                  borderBottom: "2px solid #C2A649", display: "inline-block", paddingBottom: 4, minWidth: 280,
                 }}
               >
                 {certificate.employeeName}
               </div>
 
-              <div style={{ fontSize: 13, color: "#57534E", maxWidth: 540, margin: "14px auto" }}>
-                has successfully satisfied all practical, theoretical, and oral viva standards for:
-              </div>
+              <div style={{ fontSize: 13, color: "#57534E", maxWidth: 540, margin: "14px auto" }}>has successfully satisfied all practical, theoretical, and oral viva standards for:</div>
 
               <div
                 style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#1C4463",
-                  background: "#F1EEDB",
-                  display: "inline-block",
-                  padding: "8px 20px",
-                  borderRadius: 8,
-                  border: "1px solid #D7C99F",
-                  marginBottom: 24,
+                  fontSize: 18, fontWeight: 700, color: "#1C4463", background: "#F1EEDB", display: "inline-block",
+                  padding: "8px 20px", borderRadius: 8, border: "1px solid #D7C99F", marginBottom: 24,
                 }}
               >
                 {certificate.courseTitle} ({course.code})
@@ -3262,51 +2626,32 @@ function CourseLearningInner() {
               {/* Signatures */}
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginTop: 28,
-                  paddingTop: 20,
+                  display: "flex", justifyContent: "space-between", marginTop: 28, paddingTop: 20,
                   borderTop: "1px solid #E7E5E4",
                 }}
               >
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1C4463" }}>
-                    Er. Vikram Sengupta
-                  </div>
-                  <div style={{ fontSize: 11, color: "#78716C" }}>
-                    Lead Technical Evaluator
-                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1C4463" }}>Er. Vikram Sengupta</div>
+                  <div style={{ fontSize: 11, color: "#78716C" }}>Lead Technical Evaluator</div>
                 </div>
 
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontWeight: 700, fontSize: 11, color: "#92722A", textTransform: "uppercase" }}>
-                    OFFICIAL VERIFIED SEAL
-                  </div>
-                  <div style={{ fontSize: 10, color: "#A8A29E" }}>
-                    ID: {certificate.certificateNo}
-                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 11, color: "#92722A", textTransform: "uppercase" }}>OFFICIAL VERIFIED SEAL</div>
+                  <div style={{ fontSize: 10, color: "#A8A29E" }}>ID: {certificate.certificateNo}</div>
                 </div>
 
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1C4463" }}>
-                    Dr. Arundhati Bose
-                  </div>
-                  <div style={{ fontSize: 11, color: "#78716C" }}>
-                    Director of Environmental Training
-                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1C4463" }}>Dr. Arundhati Bose</div>
+                  <div style={{ fontSize: 11, color: "#78716C" }}>Director of Environmental Training</div>
                 </div>
               </div>
 
-              <div style={{ marginTop: 20, fontSize: 10, color: "#A8A29E" }}>
-                Verification Hash: {certificate.verificationHash} • Issued: {new Date(certificate.issuedAt).toLocaleDateString()}
-              </div>
+              <div style={{ marginTop: 20, fontSize: 10, color: "#A8A29E" }}>Verification Hash: {certificate.verificationHash} • Issued: {new Date(certificate.issuedAt).toLocaleDateString()}</div>
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "40px" }}>
               <TrophyOutlined style={{ fontSize: 48, color: "#EAB308", marginBottom: 16 }} />
-              <p style={{ color: "#64748B" }}>
-                Certificate is ready to be issued upon completing the 5-Gate qualification progression.
-              </p>
+              <p style={{ color: "#64748B" }}>Certificate is ready to be issued upon completing the 5-Gate qualification progression.</p>
               <Button
                 type="primary"
                 onClick={() => {
@@ -3322,13 +2667,7 @@ function CourseLearningInner() {
 
           {/* Action buttons */}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-            <Button
-              icon={<PrinterOutlined />}
-              onClick={() => window.print()}
-              style={{ fontWeight: 600 }}
-            >
-              Print Certificate
-            </Button>
+            <Button icon={<PrinterOutlined />} onClick={() => window.print()} style={{ fontWeight: 600 }}>Print Certificate</Button>
             <Button
               type="primary"
               onClick={() => setCertModalOpen(false)}
@@ -3370,8 +2709,6 @@ function CourseLearningInner() {
 
 export default function CourseLearningPage() {
   return (
-    <App>
-      <CourseLearningInner />
-    </App>
+    <App><CourseLearningInner /></App>
   );
 }

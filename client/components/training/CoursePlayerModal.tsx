@@ -43,6 +43,24 @@ import {
   getAssessmentResults,
 } from "@/lib/training/store";
 import { nectarColors } from "@/lib/theme";
+import type { CSSProperties } from "react";
+
+const sText11BoldUpperMutedMb8: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  color: nectarColors.muted,
+  textTransform: "uppercase",
+  marginBottom: 8,
+  paddingLeft: 6,
+};
+
+const sBgPadR10Border: CSSProperties = {
+  background: nectarColors.sand,
+  padding: "14px 16px",
+  borderRadius: 10,
+  border: "1px solid rgba(28, 68, 99, 0.08)",
+};
 
 interface CoursePlayerModalProps {
   course: Course | null;
@@ -190,27 +208,17 @@ export default function CoursePlayerModal({
         {/* ================= LEFT SYLLABUS SIDEBAR ================= */}
         <div
           style={{
-            width: 340,
-            background: "#FFFFFF",
-            borderRight: "1px solid rgba(28, 68, 99, 0.1)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
+            width: 340, background: "#FFFFFF", borderRight: "1px solid rgba(28, 68, 99, 0.1)", display: "flex",
+            flexDirection: "column", justifyContent: "space-between",
           }}
         >
           {/* Syllabus Header */}
           <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid rgba(28, 68, 99, 0.08)" }}>
-            <Tag color="cyan" style={{ borderRadius: 10, fontSize: 11, marginBottom: 6 }}>
-              {course.section}
-            </Tag>
+            <Tag color="cyan" style={{ borderRadius: 10, fontSize: 11, marginBottom: 6 }}>{course.section}</Tag>
             <h3
               style={{
-                margin: 0,
-                fontSize: 15,
-                fontWeight: 700,
-                color: nectarColors.ink,
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                lineHeight: 1.3,
+                margin: 0, fontSize: 15, fontWeight: 700, color: nectarColors.ink,
+                fontFamily: "var(--font-fraunces), Georgia, serif", lineHeight: 1.3,
               }}
             >
               {course.title}
@@ -232,19 +240,7 @@ export default function CoursePlayerModal({
 
           {/* Sequential Ability Modules */}
           <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                color: nectarColors.muted,
-                textTransform: "uppercase",
-                marginBottom: 8,
-                paddingLeft: 6,
-              }}
-            >
-              Sequential Learning Modules
-            </div>
+            <div style={sText11BoldUpperMutedMb8}>Sequential Learning Modules</div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {course.abilities.map((ab) => {
@@ -297,16 +293,11 @@ export default function CoursePlayerModal({
                       )}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf }}>
-                        MODULE {ab.code}
-                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf }}>MODULE {ab.code}</div>
                       <div
                         style={{
-                          fontSize: 12,
-                          fontWeight: isActive ? 600 : 500,
-                          color: isUnlocked ? nectarColors.ink : nectarColors.muted,
-                          lineHeight: 1.3,
-                          marginTop: 2,
+                          fontSize: 12, fontWeight: isActive ? 600 : 500,
+                          color: isUnlocked ? nectarColors.ink : nectarColors.muted, lineHeight: 1.3, marginTop: 2,
                         }}
                       >
                         {ab.title}
@@ -323,19 +314,7 @@ export default function CoursePlayerModal({
 
             {/* Assessment Gates Section */}
             <Divider style={{ margin: "16px 0 12px" }} />
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                color: nectarColors.muted,
-                textTransform: "uppercase",
-                marginBottom: 8,
-                paddingLeft: 6,
-              }}
-            >
-              Course-End Certification Gates
-            </div>
+            <div style={sText11BoldUpperMutedMb8}>Course-End Certification Gates</div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {/* Skill Mapping Test */}
@@ -350,26 +329,18 @@ export default function CoursePlayerModal({
                   }
                 }}
                 style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
+                  padding: "10px 12px", borderRadius: 10,
                   background: allAbilitiesDone ? "#EAF1F6" : "rgba(11, 26, 36, 0.03)",
                   border: `1px solid ${allAbilitiesDone ? "rgba(28, 68, 99, 0.2)" : "rgba(28, 68, 99, 0.06)"}`,
-                  cursor: allAbilitiesDone ? "pointer" : "not-allowed",
-                  opacity: allAbilitiesDone ? 1 : 0.6,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  cursor: allAbilitiesDone ? "pointer" : "not-allowed", opacity: allAbilitiesDone ? 1 : 0.6,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <TrophyOutlined style={{ color: allAbilitiesDone ? nectarColors.leaf : nectarColors.muted, fontSize: 16 }} />
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: allAbilitiesDone ? nectarColors.leaf : nectarColors.ink }}>
-                      1. Skill Mapping Test
-                    </div>
-                    <div style={{ fontSize: 10, color: nectarColors.muted }}>
-                      {assessmentResults.skillMap ? `Score: ${assessmentResults.skillMap.scorePct}% (Passed)` : "Course-End Auto Test"}
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: allAbilitiesDone ? nectarColors.leaf : nectarColors.ink }}>1. Skill Mapping Test</div>
+                    <div style={{ fontSize: 10, color: nectarColors.muted }}>{assessmentResults.skillMap ? `Score: ${assessmentResults.skillMap.scorePct}% (Passed)` : "Course-End Auto Test"}</div>
                   </div>
                 </div>
                 {!allAbilitiesDone && <LockOutlined style={{ fontSize: 13, color: nectarColors.muted }} />}
@@ -387,26 +358,19 @@ export default function CoursePlayerModal({
                   }
                 }}
                 style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
+                  padding: "10px 12px", borderRadius: 10,
                   background: assessmentResults.skillMap?.passed ? "#EFF6FF" : "rgba(11, 26, 36, 0.03)",
                   border: `1px solid ${assessmentResults.skillMap?.passed ? "#DBEAFE" : "rgba(28, 68, 99, 0.06)"}`,
                   cursor: assessmentResults.skillMap?.passed ? "pointer" : "not-allowed",
-                  opacity: assessmentResults.skillMap?.passed ? 1 : 0.6,
-                  display: "flex",
-                  alignItems: "center",
+                  opacity: assessmentResults.skillMap?.passed ? 1 : 0.6, display: "flex", alignItems: "center",
                   justifyContent: "space-between",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <SafetyCertificateOutlined style={{ color: assessmentResults.skillMap?.passed ? "#1E40AF" : nectarColors.muted, fontSize: 16 }} />
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: assessmentResults.skillMap?.passed ? "#1E40AF" : nectarColors.ink }}>
-                      2. Written Exam
-                    </div>
-                    <div style={{ fontSize: 10, color: nectarColors.muted }}>
-                      {assessmentResults.written ? `Score: ${assessmentResults.written.scorePct}% (Passed)` : "Engineering Theory Test"}
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: assessmentResults.skillMap?.passed ? "#1E40AF" : nectarColors.ink }}>2. Written Exam</div>
+                    <div style={{ fontSize: 10, color: nectarColors.muted }}>{assessmentResults.written ? `Score: ${assessmentResults.written.scorePct}% (Passed)` : "Engineering Theory Test"}</div>
                   </div>
                 </div>
                 {!assessmentResults.skillMap?.passed && <LockOutlined style={{ fontSize: 13, color: nectarColors.muted }} />}
@@ -415,9 +379,7 @@ export default function CoursePlayerModal({
           </div>
 
           {/* Sidebar Footer */}
-          <div style={{ padding: "12px 18px", borderTop: "1px solid rgba(28, 68, 99, 0.08)", fontSize: 11, color: nectarColors.muted, textAlign: "center" }}>
-            Sequential Integrity Server-Verified
-          </div>
+          <div style={{ padding: "12px 18px", borderTop: "1px solid rgba(28, 68, 99, 0.08)", fontSize: 11, color: nectarColors.muted, textAlign: "center" }}>Sequential Integrity Server-Verified</div>
         </div>
 
         {/* ================= RIGHT MAIN PLAYER CONSOLE ================= */}
@@ -425,24 +387,15 @@ export default function CoursePlayerModal({
           {/* Active Module Header */}
           <div
             style={{
-              padding: "16px 24px",
-              background: "#FFFFFF",
-              borderBottom: "1px solid rgba(28, 68, 99, 0.08)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
+              padding: "16px 24px", background: "#FFFFFF", borderBottom: "1px solid rgba(28, 68, 99, 0.08)",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
             }}
           >
             <div>
-              <div style={{ fontSize: 11, color: nectarColors.leaf, fontWeight: 700, letterSpacing: "0.06em" }}>
-                MODULE {activeAbility.code}
-              </div>
+              <div style={{ fontSize: 11, color: nectarColors.leaf, fontWeight: 700, letterSpacing: "0.06em" }}>MODULE {activeAbility.code}</div>
               <h2
                 style={{
-                  margin: "2px 0 0",
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: nectarColors.ink,
+                  margin: "2px 0 0", fontSize: 18, fontWeight: 600, color: nectarColors.ink,
                   fontFamily: "var(--font-fraunces), Georgia, serif",
                 }}
               >
@@ -452,9 +405,7 @@ export default function CoursePlayerModal({
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {activeProgress.completedAt ? (
-                <Tag color="success" icon={<CheckCircleFilled />}>
-                  Module Completed
-                </Tag>
+                <Tag color="success" icon={<CheckCircleFilled />}>Module Completed</Tag>
               ) : (
                 <Tag color="processing">In Progress</Tag>
               )}
@@ -465,54 +416,32 @@ export default function CoursePlayerModal({
             {/* 1. SIMULATED VIDEO PLAYER SCREEN */}
             <div
               style={{
-                background: "#0B1A24",
-                borderRadius: 14,
-                overflow: "hidden",
-                position: "relative",
-                aspectRatio: "16/9",
-                maxHeight: 330,
-                boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
-                display: "flex",
-                flexDirection: "column",
+                background: "#0B1A24", borderRadius: 14, overflow: "hidden", position: "relative", aspectRatio: "16/9",
+                maxHeight: 330, boxShadow: "0 6px 20px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column",
                 justifyContent: "space-between",
               }}
             >
               {/* Video Poster Background */}
               <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage: `url(${course.thumbnailUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  filter: isPlaying ? "brightness(0.85)" : "brightness(0.65)",
-                  transition: "all 0.3s ease",
+                  position: "absolute", inset: 0, backgroundImage: `url(${course.thumbnailUrl})`,
+                  backgroundSize: "cover", backgroundPosition: "center",
+                  filter: isPlaying ? "brightness(0.85)" : "brightness(0.65)", transition: "all 0.3s ease",
                 }}
               />
 
               {/* Center Play Indicator */}
               <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                   zIndex: 2,
                 }}
               >
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: "50%",
-                    background: "rgba(255, 255, 255, 0.9)",
-                    border: "none",
-                    cursor: "pointer",
-                    display: "grid",
-                    placeItems: "center",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                    width: 64, height: 64, borderRadius: "50%", background: "rgba(255, 255, 255, 0.9)", border: "none",
+                    cursor: "pointer", display: "grid", placeItems: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
                     transition: "transform 0.2s ease",
                   }}
                 >
@@ -523,14 +452,9 @@ export default function CoursePlayerModal({
               {/* Top Video Overlay Bar */}
               <div
                 style={{
-                  position: "relative",
-                  zIndex: 3,
-                  padding: "12px 18px",
-                  background: "linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)",
-                  color: "#FFFFFF",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 12,
+                  position: "relative", zIndex: 3, padding: "12px 18px",
+                  background: "linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)", color: "#FFFFFF",
+                  display: "flex", justifyContent: "space-between", fontSize: 12,
                 }}
               >
                 <span>NEIPL Technical Training Video · {activeAbility.title}</span>
@@ -540,16 +464,12 @@ export default function CoursePlayerModal({
               {/* Bottom Video Controls & Progress */}
               <div
                 style={{
-                  position: "relative",
-                  zIndex: 3,
-                  padding: "16px 20px",
+                  position: "relative", zIndex: 3, padding: "16px 20px",
                   background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", color: "#FFFFFF", fontSize: 12, marginBottom: 6 }}>
-                  <span>
-                    Watch Progress: <strong>{activeProgress.videoWatchedPct}%</strong>
-                  </span>
+                  <span>Watch Progress: <strong>{activeProgress.videoWatchedPct}%</strong></span>
                   <span>{activeProgress.videoWatchedPct >= 90 ? "✓ 90% Requirement Met" : "Requires >= 90% to unlock quiz"}</span>
                 </div>
                 <Progress
@@ -607,14 +527,10 @@ export default function CoursePlayerModal({
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
+                    width: 40, height: 40, borderRadius: 10,
                     background: activeProgress.quizPassed ? "#EAF1F6" : "#DBEAFE",
-                    color: activeProgress.quizPassed ? nectarColors.leaf : "#1E40AF",
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: 18,
+                    color: activeProgress.quizPassed ? nectarColors.leaf : "#1E40AF", display: "grid",
+                    placeItems: "center", fontSize: 18,
                   }}
                 >
                   {activeProgress.quizPassed ? <CheckCircleFilled /> : <ThunderboltOutlined />}
@@ -641,8 +557,7 @@ export default function CoursePlayerModal({
                   disabled={activeProgress.videoWatchedPct < 90}
                   onClick={() => handleStartMicroQuiz(activeAbility)}
                   style={{
-                    borderRadius: 8,
-                    background: activeProgress.videoWatchedPct >= 90 ? nectarColors.leaf : undefined,
+                    borderRadius: 8, background: activeProgress.videoWatchedPct >= 90 ? nectarColors.leaf : undefined,
                     fontWeight: 600,
                   }}
                 >
@@ -655,21 +570,15 @@ export default function CoursePlayerModal({
             {activeAbility.readingContent && (
               <div
                 style={{
-                  background: "#FFFFFF",
-                  border: "1px solid rgba(28, 68, 99, 0.08)",
-                  borderRadius: 12,
+                  background: "#FFFFFF", border: "1px solid rgba(28, 68, 99, 0.08)", borderRadius: 12,
                   padding: "18px 20px",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   <ReadOutlined style={{ color: nectarColors.leaf }} />
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: nectarColors.ink }}>
-                    Standard Operating Procedure (SOP) Reference Notes
-                  </h4>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: nectarColors.ink }}>Standard Operating Procedure (SOP) Reference Notes</h4>
                 </div>
-                <p style={{ margin: 0, fontSize: 13, color: nectarColors.ink, lineHeight: 1.6 }}>
-                  {activeAbility.readingContent}
-                </p>
+                <p style={{ margin: 0, fontSize: 13, color: nectarColors.ink, lineHeight: 1.6 }}>{activeAbility.readingContent}</p>
               </div>
             )}
           </div>
@@ -687,24 +596,12 @@ export default function CoursePlayerModal({
       >
         {activeQuizAbility && (
           <div style={{ padding: "8px 0" }}>
-            <div style={{ fontSize: 13, color: nectarColors.muted, marginBottom: 16 }}>
-              Answer all questions. You need at least <strong>70%</strong> to pass and unlock the next module.
-            </div>
+            <div style={{ fontSize: 13, color: nectarColors.muted, marginBottom: 16 }}>Answer all questions. You need at least <strong>70%</strong> to pass and unlock the next module.</div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {activeQuizAbility.microQuiz.questions.map((q, idx) => (
-                <div
-                  key={q.id}
-                  style={{
-                    background: nectarColors.sand,
-                    padding: "14px 16px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(28, 68, 99, 0.08)",
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 10 }}>
-                    {idx + 1}. {q.text}
-                  </div>
+                <div key={q.id} style={sBgPadR10Border}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 10 }}>{idx + 1}. {q.text}</div>
 
                   <Radio.Group
                     onChange={(e) =>
@@ -715,9 +612,7 @@ export default function CoursePlayerModal({
                   >
                     <Space direction="vertical">
                       {q.options.map((opt) => (
-                        <Radio key={opt.id} value={opt.id}>
-                          <span style={{ fontSize: 13, color: nectarColors.ink }}>{opt.text}</span>
-                        </Radio>
+                        <Radio key={opt.id} value={opt.id}><span style={{ fontSize: 13, color: nectarColors.ink }}>{opt.text}</span></Radio>
                       ))}
                     </Space>
                   </Radio.Group>
@@ -742,23 +637,15 @@ export default function CoursePlayerModal({
             {quizSubmitted && quizResult && (
               <div
                 style={{
-                  marginTop: 18,
-                  padding: "12px 16px",
-                  borderRadius: 8,
+                  marginTop: 18, padding: "12px 16px", borderRadius: 8,
                   background: quizResult.passed ? "#EAF1F6" : "#FEF2F2",
-                  border: `1px solid ${quizResult.passed ? "rgba(28, 68, 99, 0.2)" : "#FEE2E2"}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  border: `1px solid ${quizResult.passed ? "rgba(28, 68, 99, 0.2)" : "#FEE2E2"}`, display: "flex",
+                  alignItems: "center", justifyContent: "space-between",
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 700, color: quizResult.passed ? nectarColors.leaf : "#991B1B" }}>
-                    Score: {quizResult.scorePct}% · {quizResult.passed ? "PASSED" : "NEEDS RETRY"}
-                  </div>
-                  <div style={{ fontSize: 12, color: quizResult.passed ? nectarColors.muted : "#B91C1C" }}>
-                    {quizResult.passed ? "Next module is now accessible." : "Pass mark is 70%. Please retry."}
-                  </div>
+                  <div style={{ fontWeight: 700, color: quizResult.passed ? nectarColors.leaf : "#991B1B" }}>Score: {quizResult.scorePct}% · {quizResult.passed ? "PASSED" : "NEEDS RETRY"}</div>
+                  <div style={{ fontSize: 12, color: quizResult.passed ? nectarColors.muted : "#B91C1C" }}>{quizResult.passed ? "Next module is now accessible." : "Pass mark is 70%. Please retry."}</div>
                 </div>
 
                 {!quizResult.passed && (
@@ -811,18 +698,8 @@ export default function CoursePlayerModal({
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {course.skillMappingQuestions.map((q, idx) => (
-              <div
-                key={q.id}
-                style={{
-                  background: nectarColors.sand,
-                  padding: "14px 16px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(28, 68, 99, 0.08)",
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 8 }}>
-                  {idx + 1}. {q.text}
-                </div>
+              <div key={q.id} style={sBgPadR10Border}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 8 }}>{idx + 1}. {q.text}</div>
                 <Radio.Group
                   onChange={(e) =>
                     setSkillMapAnswers({ ...skillMapAnswers, [q.id]: e.target.value })
@@ -832,9 +709,7 @@ export default function CoursePlayerModal({
                 >
                   <Space direction="vertical">
                     {q.options.map((opt) => (
-                      <Radio key={opt.id} value={opt.id}>
-                        <span style={{ fontSize: 13, color: nectarColors.ink }}>{opt.text}</span>
-                      </Radio>
+                      <Radio key={opt.id} value={opt.id}><span style={{ fontSize: 13, color: nectarColors.ink }}>{opt.text}</span></Radio>
                     ))}
                   </Space>
                 </Radio.Group>
@@ -891,18 +766,8 @@ export default function CoursePlayerModal({
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {course.writtenTestQuestions.map((q, idx) => (
-              <div
-                key={q.id}
-                style={{
-                  background: nectarColors.sand,
-                  padding: "14px 16px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(28, 68, 99, 0.08)",
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 8 }}>
-                  {idx + 1}. {q.text}
-                </div>
+              <div key={q.id} style={sBgPadR10Border}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 8 }}>{idx + 1}. {q.text}</div>
                 <Radio.Group
                   onChange={(e) =>
                     setWrittenAnswers({ ...writtenAnswers, [q.id]: e.target.value })
@@ -912,9 +777,7 @@ export default function CoursePlayerModal({
                 >
                   <Space direction="vertical">
                     {q.options.map((opt) => (
-                      <Radio key={opt.id} value={opt.id}>
-                        <span style={{ fontSize: 13, color: nectarColors.ink }}>{opt.text}</span>
-                      </Radio>
+                      <Radio key={opt.id} value={opt.id}><span style={{ fontSize: 13, color: nectarColors.ink }}>{opt.text}</span></Radio>
                     ))}
                   </Space>
                 </Radio.Group>

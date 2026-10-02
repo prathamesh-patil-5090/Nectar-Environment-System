@@ -38,6 +38,8 @@ import {
   OT_STATUS_LABELS,
 } from "@/lib/overtime";
 import { nectarColors } from "@/lib/theme";
+import { gridGap16, gridGap162 } from "@/lib/styles";
+import SharedPanel from "@/components/Panel";
 
 const PIE_COLORS = [
   nectarColors.leaf,
@@ -49,9 +51,7 @@ const PIE_COLORS = [
 
 export default function OtAnalysisPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 24 }}>Loading analysis…</div>}>
-      <OtAnalysisInner />
-    </Suspense>
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading analysis…</div>}><OtAnalysisInner /></Suspense>
   );
 }
 
@@ -82,14 +82,7 @@ function OtAnalysisInner() {
 
   const analysisBody = (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-        className="nectar-ot-two"
-      >
+      <div style={gridGap16} className="nectar-ot-two">
         <Panel title="Monthly OT hours">
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={monthly}>
@@ -97,12 +90,7 @@ function OtAnalysisInner() {
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="otHours"
-                stroke={nectarColors.leaf}
-                strokeWidth={2}
-              />
+              <Line type="monotone" dataKey="otHours" stroke={nectarColors.leaf} strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </Panel>
@@ -119,14 +107,7 @@ function OtAnalysisInner() {
         </Panel>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr 1fr",
-          gap: 16,
-        }}
-        className="nectar-ot-two"
-      >
+      <div style={gridGap162} className="nectar-ot-two">
         <Panel title="Site-wise OT">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={sites}>
@@ -180,29 +161,14 @@ function OtAnalysisInner() {
               ),
             },
             { title: "Site", dataIndex: "siteName" },
-            {
-              title: "OT Hours",
-              dataIndex: "otHours",
-              render: (v) => formatHours(v),
-            },
-            {
-              title: "OT Cost",
-              dataIndex: "otCost",
-              render: (v) => formatInr(v),
-            },
+            { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+            { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
             { title: "OT Days", dataIndex: "otDays" },
           ]}
         />
       </Panel>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 16,
-        }}
-        className="nectar-ot-three"
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }} className="nectar-ot-three">
         <Panel title="By department">
           <Table
             size="small"
@@ -211,11 +177,7 @@ function OtAnalysisInner() {
             dataSource={departments}
             columns={[
               { title: "Dept", dataIndex: "department" },
-              {
-                title: "Hours",
-                dataIndex: "otHours",
-                render: (v) => formatHours(v),
-              },
+              { title: "Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
             ]}
           />
         </Panel>
@@ -227,11 +189,7 @@ function OtAnalysisInner() {
             dataSource={shifts}
             columns={[
               { title: "Shift", dataIndex: "shiftName" },
-              {
-                title: "Hours",
-                dataIndex: "otHours",
-                render: (v) => formatHours(v),
-              },
+              { title: "Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
             ]}
           />
         </Panel>
@@ -247,16 +205,8 @@ function OtAnalysisInner() {
                 dataIndex: "reason",
                 render: (r) => OT_REASON_LABELS[r as keyof typeof OT_REASON_LABELS],
               },
-              {
-                title: "Hours",
-                dataIndex: "otHours",
-                render: (v) => formatHours(v),
-              },
-              {
-                title: "%",
-                dataIndex: "pct",
-                render: (v) => `${v}%`,
-              },
+              { title: "Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+              { title: "%", dataIndex: "pct", render: (v) => `${v}%` },
             ]}
           />
         </Panel>
@@ -270,37 +220,20 @@ function OtAnalysisInner() {
           dataSource={yearly}
           columns={[
             { title: "Year", dataIndex: "year" },
-            {
-              title: "OT Hours",
-              dataIndex: "otHours",
-              render: (v) => formatHours(v),
-            },
-            {
-              title: "OT Cost",
-              dataIndex: "otCost",
-              render: (v) => formatInr(v),
-            },
+            { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+            { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
           ]}
         />
       </Panel>
 
       <Panel title="OT heatmap (Month × Site)">
         <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              borderCollapse: "separate",
-              borderSpacing: 3,
-              minWidth: 640,
-              width: "100%",
-            }}
-          >
+          <table style={{ borderCollapse: "separate", borderSpacing: 3, minWidth: 640, width: "100%" }}>
             <thead>
               <tr>
                 <th style={thStyle}>Site</th>
                 {heatmap.months.map((m) => (
-                  <th key={m} style={thStyle}>
-                    {m.slice(5)}
-                  </th>
+                  <th key={m} style={thStyle}>{m.slice(5)}</th>
                 ))}
               </tr>
             </thead>
@@ -311,9 +244,7 @@ function OtAnalysisInner() {
                   siteId;
                 return (
                   <tr key={siteId}>
-                    <td style={{ ...thStyle, textAlign: "left", color: nectarColors.ink }}>
-                      {name}
-                    </td>
+                    <td style={{ ...thStyle, textAlign: "left", color: nectarColors.ink }}>{name}</td>
                     {heatmap.months.map((month) => {
                       const cell = heatmap.cells.find(
                         (c) => c.siteId === siteId && c.month === month,
@@ -326,13 +257,8 @@ function OtAnalysisInner() {
                             title={`${name} ${month}: ${hours} hrs`}
                             style={{
                               background: `rgba(28, 68, 99, ${0.08 + intensity * 0.72})`,
-                              color: intensity > 0.55 ? "#fff" : nectarColors.ink,
-                              textAlign: "center",
-                              fontSize: 11,
-                              fontWeight: 600,
-                              padding: "8px 4px",
-                              borderRadius: 4,
-                              minWidth: 36,
+                              color: intensity > 0.55 ? "#fff" : nectarColors.ink, textAlign: "center", fontSize: 11,
+                              fontWeight: 600, padding: "8px 4px", borderRadius: 4, minWidth: 36,
                             }}
                           >
                             {hours || "·"}
@@ -351,13 +277,7 @@ function OtAnalysisInner() {
       <Panel title="High OT detection & patterns">
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {insights.map((i) => (
-            <li
-              key={i.id}
-              style={{
-                padding: "10px 0",
-                borderBottom: `1px solid ${nectarColors.sand}`,
-              }}
-            >
+            <li key={i.id} style={{ padding: "10px 0", borderBottom: `1px solid ${nectarColors.sand}` }}>
               <Tag
                 color={
                   i.severity === "attention"
@@ -370,9 +290,7 @@ function OtAnalysisInner() {
               >
                 {i.title}
               </Tag>
-              <div style={{ marginTop: 4, fontSize: 13, color: nectarColors.muted }}>
-                {i.message}
-              </div>
+              <div style={{ marginTop: 4, fontSize: 13, color: nectarColors.muted }}>{i.message}</div>
             </li>
           ))}
         </ul>
@@ -386,21 +304,13 @@ function OtAnalysisInner() {
         Where OT happens, who generates it, when it occurs, what it costs — plus
         downloadable reports.
       </p>
-      <OtFiltersBar
-        value={filters}
-        onChange={setFilters}
-        lockedSiteId={lockedSiteId}
-      />
+      <OtFiltersBar value={filters} onChange={setFilters} lockedSiteId={lockedSiteId} />
       <Tabs
         activeKey={tab}
         onChange={setTab}
         items={[
           { key: "analysis", label: "Analysis", children: analysisBody },
-          {
-            key: "reports",
-            label: "Reports",
-            children: <OtReportsPanel filters={filters} />,
-          },
+          { key: "reports", label: "Reports", children: <OtReportsPanel filters={filters} /> },
         ]}
       />
     </div>
@@ -415,26 +325,6 @@ const thStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: nectarColors.white, padding: 20 }}>
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          marginBottom: 12,
-          color: nectarColors.ink,
-        }}
-      >
-        {title}
-      </div>
-      {children}
-    </div>
-  );
+function Panel(props: { title: string; children: React.ReactNode }) {
+  return <SharedPanel {...props} boxStyle={{ background: nectarColors.white, padding: 20 }} />;
 }

@@ -87,39 +87,23 @@ export default function TrainingPage() {
       {/* Dual Mode Switcher Bar */}
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-          padding: "12px 18px",
-          background: "#FFFFFF",
-          borderRadius: 12,
-          border: "1px solid rgba(28, 68, 99, 0.1)",
+          display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
+          padding: "12px 18px", background: "#FFFFFF", borderRadius: 12, border: "1px solid rgba(28, 68, 99, 0.1)",
           boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              background: "#EAF1F6",
-              border: "1px solid rgba(28, 68, 99, 0.18)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: nectarColors.leaf,
+              width: 34, height: 34, borderRadius: 8, background: "#EAF1F6", border: "1px solid rgba(28, 68, 99, 0.18)",
+              display: "flex", alignItems: "center", justifyContent: "center", color: nectarColors.leaf,
               fontWeight: 700,
             }}
           >
             <SafetyCertificateOutlined style={{ fontSize: 18 }} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#1C4463" }}>
-              Nectar Enviro Operational Training & Certification
-            </div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#1C4463" }}>Nectar Enviro Operational Training & Certification</div>
             <div style={{ fontSize: 11, color: nectarColors.muted }}>
               {session?.name ?? "Authorized Operator"} · {session?.role?.toUpperCase() ?? "MANAGEMENT"}{" "}
               {siteScope ? `(${siteScope.toUpperCase()})` : "(All Plants)"}
@@ -206,13 +190,7 @@ function NonEmployeeTrainingView({
     enrollment: CourseEnrollment | null;
     candidateName: string;
     course: Course | null;
-  }>({
-    open: false,
-    type: "practical",
-    enrollment: null,
-    candidateName: "",
-    course: null,
-  });
+  }>({ open: false, type: "practical", enrollment: null, candidateName: "", course: null });
 
   const data = useMemo(() => {
     void tick;
@@ -266,9 +244,7 @@ function NonEmployeeTrainingView({
             dataIndex: "siteName",
             key: "siteName",
             render: (site: string) => (
-              <Tag color="cyan" style={{ borderRadius: 6, fontWeight: 600, fontSize: 11 }}>
-                {site}
-              </Tag>
+              <Tag color="cyan" style={{ borderRadius: 6, fontWeight: 600, fontSize: 11 }}>{site}</Tag>
             ),
           },
         ] as ColumnsType<TrainingItem>)
@@ -295,9 +271,7 @@ function NonEmployeeTrainingView({
       dataIndex: "priority",
       key: "priority",
       render: (p: TrainingPriority) => (
-        <Tag color={priorityColor[p]} style={{ border: "none", textTransform: "capitalize", fontWeight: 600 }}>
-          {p}
-        </Tag>
+        <Tag color={priorityColor[p]} style={{ border: "none", textTransform: "capitalize", fontWeight: 600 }}>{p}</Tag>
       ),
     },
     {
@@ -307,13 +281,9 @@ function NonEmployeeTrainingView({
       sorter: (a, b) => a.dueDate.localeCompare(b.dueDate),
       render: (due: string, record: TrainingItem) => (
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: record.status === "overdue" ? "#DC2626" : "#334155" }}>
-            {due}
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: record.status === "overdue" ? "#DC2626" : "#334155" }}>{due}</div>
           {record.completedAt && (
-            <div style={{ fontSize: 11, color: nectarColors.leaf, fontWeight: 500 }}>
-              Completed: {record.completedAt}
-            </div>
+            <div style={{ fontSize: 11, color: nectarColors.leaf, fontWeight: 500 }}>Completed: {record.completedAt}</div>
           )}
         </div>
       ),
@@ -412,33 +382,20 @@ function NonEmployeeTrainingView({
           {/* Manager Field & Viva Evaluation Directive Banner */}
           <div
             style={{
-              background: "linear-gradient(135deg, #F4F7FA 0%, #EAF1F6 100%)",
-              borderRadius: 12,
-              padding: "16px 20px",
-              border: "1px solid rgba(28, 68, 99, 0.18)",
-              marginBottom: 18,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 12,
+              background: "linear-gradient(135deg, #F4F7FA 0%, #EAF1F6 100%)", borderRadius: 12, padding: "16px 20px",
+              border: "1px solid rgba(28, 68, 99, 0.18)", marginBottom: 18, display: "flex",
+              justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
             }}
           >
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: nectarColors.leaf }}>
-                In-Person Plant Practical & Oral Viva Evaluation Console
-              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: nectarColors.leaf }}>In-Person Plant Practical & Oral Viva Evaluation Console</div>
               <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
                 Plant Managers observe hands-on physical operation and oral viva responses on-site, recording 1–5 rubric scores and tailored qualitative remarks per ability.
               </div>
             </div>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <Tag color="cyan" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>
-                Gate 1: Practical Observation
-              </Tag>
-              <Tag color="purple" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>
-                Gate 3: Oral Technical Viva
-              </Tag>
+              <Tag color="cyan" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>Gate 1: Practical Observation</Tag>
+              <Tag color="purple" style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px" }}>Gate 3: Oral Technical Viva</Tag>
             </div>
           </div>
 
@@ -449,22 +406,10 @@ function NonEmployeeTrainingView({
                 siteScope={siteScope}
                 canEvaluate={canEvaluateAssessments(session)}
                 onScorePractical={(enrollment, candidateName, course) => {
-                  setEvalModal({
-                    open: true,
-                    type: "practical",
-                    enrollment,
-                    candidateName,
-                    course,
-                  });
+                  setEvalModal({ open: true, type: "practical", enrollment, candidateName, course });
                 }}
                 onScoreOral={(enrollment, candidateName, course) => {
-                  setEvalModal({
-                    open: true,
-                    type: "oral",
-                    enrollment,
-                    candidateName,
-                    course,
-                  });
+                  setEvalModal({ open: true, type: "oral", enrollment, candidateName, course });
                 }}
               />
             </div>
@@ -472,11 +417,7 @@ function NonEmployeeTrainingView({
 
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 16,
-              marginBottom: 16,
+              display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 16,
               flexWrap: "wrap",
             }}
           >
@@ -487,12 +428,7 @@ function NonEmployeeTrainingView({
             </p>
             <label
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 13,
-                color: nectarColors.ink,
-                cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: nectarColors.ink, cursor: "pointer",
               }}
             >
               <Switch checked={urgentOnly} onChange={setUrgentOnly} />

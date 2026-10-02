@@ -43,23 +43,11 @@ function Field({
   return (
     <label
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        minWidth: wide ? 220 : 0,
+        display: "flex", flexDirection: "column", gap: 6, minWidth: wide ? 220 : 0,
         flex: wide ? "1 1 220px" : "1 1 140px",
       }}
     >
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.04em",
-          color: nectarColors.muted,
-        }}
-      >
-        {label}
-      </span>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", color: nectarColors.muted }}>{label}</span>
       {children}
     </label>
   );
@@ -75,24 +63,13 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
       : null;
 
   const statusMenu: MenuProps["items"] = [
-    {
-      key: "all",
-      label: "All statuses",
-      onClick: () => patch({ status: undefined }),
-    },
+    { key: "all", label: "All statuses", onClick: () => patch({ status: undefined }) },
     { type: "divider" },
     ...OT_STATUS_OPTIONS.map((opt) => ({
       key: opt.value,
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: opt.color,
-            }}
-          />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color }} />
           {opt.label}
         </span>
       ),
@@ -131,33 +108,21 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
   return (
     <div
       style={{
-        background: nectarColors.white,
-        border: "1px solid #E2E8F0",
-        borderRadius: 12,
-        padding: "16px 18px 18px",
+        background: nectarColors.white, border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 18px 18px",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 14,
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14,
           flexWrap: "wrap",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: `${nectarColors.leaf}14`,
-              color: nectarColors.leaf,
-              display: "grid",
-              placeItems: "center",
+              width: 28, height: 28, borderRadius: 8, background: `${nectarColors.leaf}14`, color: nectarColors.leaf,
+              display: "grid", placeItems: "center",
             }}
           >
             <FilterOutlined />
@@ -165,9 +130,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           <div>
             <div
               style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 16,
-                color: nectarColors.ink,
+                fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 16, color: nectarColors.ink,
                 lineHeight: 1.2,
               }}
             >
@@ -191,14 +154,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
         </Button>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-          alignItems: "flex-end",
-        }}
-      >
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
         <Field label="Date range" wide>
           <RangePicker
             value={rangeValue}
@@ -225,17 +181,9 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
             placeholder="Any year"
             style={controlStyle}
             value={value.year}
-            options={availableOtYears.map((y) => ({
-              value: y,
-              label: String(y),
-            }))}
+            options={availableOtYears.map((y) => ({ value: y, label: String(y) }))}
             onChange={(year) =>
-              patch({
-                year,
-                month: year ? value.month : undefined,
-                dateFrom: undefined,
-                dateTo: undefined,
-              })
+              patch({ year, month: year ? value.month : undefined, dateFrom: undefined, dateTo: undefined })
             }
           />
         </Field>
@@ -247,10 +195,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
             style={controlStyle}
             value={value.month}
             disabled={!value.year}
-            options={Array.from({ length: 12 }, (_, i) => ({
-              value: i + 1,
-              label: dayjs().month(i).format("MMMM"),
-            }))}
+            options={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: dayjs().month(i).format("MMMM") }))}
             onChange={(month) => patch({ month })}
           />
         </Field>
@@ -310,10 +255,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
             value={value.employeeType}
             options={(
               ["permanent", "contract", "deputed"] as EmployeeType[]
-            ).map((t) => ({
-              value: t,
-              label: t.charAt(0).toUpperCase() + t.slice(1),
-            }))}
+            ).map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
             onChange={(employeeType) => patch({ employeeType })}
           />
         </Field>
@@ -324,26 +266,14 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
             placeholder="All statuses"
             style={controlStyle}
             value={value.status}
-            options={OT_STATUS_OPTIONS.map((opt) => ({
-              value: opt.value,
-              label: opt.label,
-            }))}
+            options={OT_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
             optionRender={(option) => {
               const status = option.value as OtStatus;
               return (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                   <span
                     style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: OT_STATUS_COLORS[status],
+                      width: 8, height: 8, borderRadius: "50%", background: OT_STATUS_COLORS[status],
                       display: "inline-block",
                     }}
                   />
@@ -353,20 +283,9 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
             }}
             onChange={(status: OtStatus | undefined) => patch({ status })}
           />
-          <div
-            style={{
-              marginTop: 8,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-            }}
-          >
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {OT_STATUS_OPTIONS.map((opt) => (
-              <Dropdown
-                key={opt.value}
-                menu={{ items: statusMenu }}
-                trigger={["hover"]}
-              >
+              <Dropdown key={opt.value} menu={{ items: statusMenu }} trigger={["hover"]}>
                 <button
                   type="button"
                   onClick={() =>
@@ -397,14 +316,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
                     fontFamily: "inherit",
                   }}
                 >
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background: opt.color,
-                    }}
-                  />
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: opt.color }} />
                   {opt.label}
                 </button>
               </Dropdown>

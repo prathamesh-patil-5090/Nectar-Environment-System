@@ -14,6 +14,7 @@ import type { TrainingSession } from "@/lib/training/types";
 import { getTrainingSessions, createTrainingSession, getAllCourses } from "@/lib/training/store";
 import { employees } from "@/lib/mock-data";
 import { nectarColors } from "@/lib/theme";
+import { sWhiteR14BorderShadow } from "@/lib/styles";
 
 interface TrainingScheduleViewProps {
   isManager?: boolean;
@@ -57,9 +58,7 @@ export default function TrainingScheduleView({
       render: (t: string, r) => (
         <div>
           <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 13 }}>{t}</div>
-          <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
-            Conducted by: {r.scheduledByName}
-          </div>
+          <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Conducted by: {r.scheduledByName}</div>
         </div>
       ),
     },
@@ -70,9 +69,7 @@ export default function TrainingScheduleView({
       render: (type: TrainingSession["type"]) => {
         const color = type === "PRACTICAL" ? "green" : type === "ORAL" ? "blue" : "purple";
         return (
-          <Tag color={color} style={{ borderRadius: 10, fontWeight: 600, fontSize: 11 }}>
-            {type}
-          </Tag>
+          <Tag color={color} style={{ borderRadius: 10, fontWeight: 600, fontSize: 11 }}>{type}</Tag>
         );
       },
     },
@@ -115,39 +112,22 @@ export default function TrainingScheduleView({
       key: "status",
       align: "center",
       render: (s: string) => (
-        <Tag color="cyan" style={{ borderRadius: 12, fontSize: 11, textTransform: "capitalize" }}>
-          {s}
-        </Tag>
+        <Tag color="cyan" style={{ borderRadius: 12, fontSize: 11, textTransform: "capitalize" }}>{s}</Tag>
       ),
     },
   ];
 
   return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        borderRadius: 14,
-        border: "1px solid rgba(28, 68, 99, 0.08)",
-        boxShadow: "0 2px 10px rgba(11, 26, 36, 0.03)",
-        overflow: "hidden",
-      }}
-    >
+    <div style={sWhiteR14BorderShadow}>
       <div
         style={{
-          padding: "16px 20px",
-          borderBottom: "1px solid rgba(28, 68, 99, 0.08)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          padding: "16px 20px", borderBottom: "1px solid rgba(28, 68, 99, 0.08)", display: "flex",
+          justifyContent: "space-between", alignItems: "center",
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: nectarColors.ink }}>
-            {isManager ? "Plant Evaluation & Training Calendar" : "My Scheduled Assessment Sessions"}
-          </h3>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>
-            Hands-on plant floor observations and technical viva interview appointments.
-          </p>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: nectarColors.ink }}>{isManager ? "Plant Evaluation & Training Calendar" : "My Scheduled Assessment Sessions"}</h3>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>Hands-on plant floor observations and technical viva interview appointments.</p>
         </div>
 
         {isManager && (
@@ -173,13 +153,7 @@ export default function TrainingScheduleView({
         centered
       >
         <Form form={form} layout="vertical" onFinish={handleCreate} style={{ marginTop: 16 }}>
-          <Form.Item
-            name="title"
-            label="Session Title"
-            rules={[{ required: true, message: "Please enter title" }]}
-          >
-            <Input placeholder="e.g. Practical Observation: PAC Dosing & SVI Settleability" />
-          </Form.Item>
+          <Form.Item name="title" label="Session Title" rules={[{ required: true, message: "Please enter title" }]}><Input placeholder="e.g. Practical Observation: PAC Dosing & SVI Settleability" /></Form.Item>
 
           <Form.Item name="type" label="Assessment Type" initialValue="PRACTICAL">
             <Select
@@ -191,18 +165,7 @@ export default function TrainingScheduleView({
             />
           </Form.Item>
 
-          <Form.Item
-            name="courseId"
-            label="Associated Course"
-            rules={[{ required: true, message: "Select course" }]}
-          >
-            <Select
-              options={allCourses.map((c) => ({
-                value: c.id,
-                label: `${c.code} — ${c.title}`,
-              }))}
-            />
-          </Form.Item>
+          <Form.Item name="courseId" label="Associated Course" rules={[{ required: true, message: "Select course" }]}><Select options={allCourses.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` }))} /></Form.Item>
 
           <Form.Item
             name="employeeIds"
@@ -211,20 +174,11 @@ export default function TrainingScheduleView({
           >
             <Select
               mode="multiple"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.name} (${e.designation})`,
-              }))}
+              options={employees.map((e) => ({ value: e.id, label: `${e.name} (${e.designation})` }))}
             />
           </Form.Item>
 
-          <Form.Item
-            name="scheduledAt"
-            label="Date & Time"
-            rules={[{ required: true, message: "Select date & time" }]}
-          >
-            <DatePicker showTime style={{ width: "100%" }} />
-          </Form.Item>
+          <Form.Item name="scheduledAt" label="Date & Time" rules={[{ required: true, message: "Select date & time" }]}><DatePicker showTime style={{ width: "100%" }} /></Form.Item>
 
           <Form.Item
             name="venueOrLink"
@@ -236,9 +190,7 @@ export default function TrainingScheduleView({
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ background: nectarColors.leaf }}>
-              Confirm Schedule
-            </Button>
+            <Button type="primary" htmlType="submit" style={{ background: nectarColors.leaf }}>Confirm Schedule</Button>
           </div>
         </Form>
       </Modal>

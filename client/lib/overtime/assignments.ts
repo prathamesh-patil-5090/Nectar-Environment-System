@@ -4,6 +4,7 @@
 
 import { getEmployeeById } from "@/lib/mock-data";
 import { pushNotification } from "@/lib/notifications";
+import { readJson, writeJson } from "@/lib/storage";
 
 export const OT_ASSIGNMENTS_KEY = "nectar-enviro-ot-assignments";
 
@@ -97,20 +98,11 @@ const DEMO_OT: OtAssignment[] = [
   },
 ];
 
-function readAll(): OtAssignment[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(OT_ASSIGNMENTS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as OtAssignment[];
-  } catch {
-    return [];
-  }
+function readAll() {
+  return readJson<OtAssignment[]>(OT_ASSIGNMENTS_KEY, []);
 }
-
 function writeAll(rows: OtAssignment[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(OT_ASSIGNMENTS_KEY, JSON.stringify(rows));
+  writeJson(OT_ASSIGNMENTS_KEY, rows);
 }
 
 export function ensureOtAssignmentSeed(): void {
@@ -119,12 +111,6 @@ export function ensureOtAssignmentSeed(): void {
   const have = new Set(existing.map((a) => a.id));
   const missing = DEMO_OT.filter((a) => !have.has(a.id));
   if (missing.length) writeAll([...missing, ...existing]);
-}
-
-/** Restore demo OT assignments (drops manager-created assigns in this browser). */
-export function resetOtAssignments(): void {
-  if (typeof window === "undefined") return;
-  writeAll(DEMO_OT.map((a) => ({ ...a })));
 }
 
 export function getOtAssignments(opts?: {

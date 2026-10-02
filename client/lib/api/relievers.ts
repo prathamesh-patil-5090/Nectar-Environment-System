@@ -20,10 +20,6 @@ export async function getRelievers(status?: string): Promise<RelieverData[]> {
   return apiClient<RelieverData[]>(`/relievers${query}`);
 }
 
-export async function getRelieverById(id: string): Promise<RelieverData> {
-  return apiClient<RelieverData>(`/relievers/${encodeURIComponent(id)}`);
-}
-
 export async function updateRelieverAvailability(
   id: string,
   availability: string,

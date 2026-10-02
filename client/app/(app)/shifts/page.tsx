@@ -15,6 +15,8 @@ import {
 } from "@/lib/shift";
 import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { gridGap16, gridGap162, rowWrapGap1BgR8 } from "@/lib/styles";
+import Panel from "@/components/Panel";
 
 export default function ShiftsDashboardPage() {
   const session = getSession();
@@ -58,16 +60,7 @@ export default function ShiftsDashboardPage() {
         onChange={setSiteId}
       />
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 1,
-          background: "rgba(28, 68, 99, 0.06)",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div style={rowWrapGap1BgR8}>
         <KpiStat label="Employees today" value={kpis.employeesToday} />
         <KpiStat label="A Shift" value={kpis.aShift} tone="positive" />
         <KpiStat label="B Shift" value={kpis.bShift} tone="info" />
@@ -78,7 +71,7 @@ export default function ShiftsDashboardPage() {
         <KpiStat label="Uncovered positions" value={kpis.uncoveredPositions} tone="alert" />
       </div>
 
-      <div className="nectar-ot-two" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
+      <div className="nectar-ot-two" style={gridGap162}>
         <Panel title="Upcoming rotation">
           <Table
             rowKey="id"
@@ -87,22 +80,10 @@ export default function ShiftsDashboardPage() {
             dataSource={upcoming}
             columns={[
               { title: "Date", dataIndex: "fromDate" },
-              {
-                title: "Site",
-                dataIndex: "siteId",
-                render: (id) => getSiteName(id),
-              },
+              { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
               { title: "Employees", dataIndex: "employeesAffected" },
-              {
-                title: "Shift",
-                key: "rot",
-                render: (_, r) => `${r.fromCode} → ${r.toCode}`,
-              },
-              {
-                title: "Status",
-                dataIndex: "status",
-                render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag>,
-              },
+              { title: "Shift", key: "rot", render: (_, r) => `${r.fromCode} → ${r.toCode}` },
+              { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag> },
               {
                 title: "",
                 key: "act",
@@ -114,9 +95,7 @@ export default function ShiftsDashboardPage() {
                   if (!open) return null;
                   if (siteId && r.siteId !== siteId) return null;
                   return (
-                    <Link href="/shifts/rotation">
-                      <Button size="small">Review on Rotation</Button>
-                    </Link>
+                    <Link href="/shifts/rotation"><Button size="small">Review on Rotation</Button></Link>
                   );
                 },
               },
@@ -126,23 +105,15 @@ export default function ShiftsDashboardPage() {
 
         <Panel title="Conflicts">
           {conflicts.length === 0 ? (
-            <div style={{ color: nectarColors.muted, fontSize: 13 }}>
-              No rest / weekly-off conflicts in the next window.
-            </div>
+            <div style={{ color: nectarColors.muted, fontSize: 13 }}>No rest / weekly-off conflicts in the next window.</div>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {conflicts.map((c) => (
                 <li
                   key={c.id}
-                  style={{
-                    padding: "10px 0",
-                    borderBottom: `1px solid ${nectarColors.sand}`,
-                    fontSize: 13,
-                  }}
+                  style={{ padding: "10px 0", borderBottom: `1px solid ${nectarColors.sand}`, fontSize: 13 }}
                 >
-                  <Tag color={c.severity === "attention" ? nectarColors.alert : "#D97706"}>
-                    {c.type}
-                  </Tag>
+                  <Tag color={c.severity === "attention" ? nectarColors.alert : "#D97706"}>{c.type}</Tag>
                   <strong>{c.employeeName}</strong>
                   <div style={{ color: nectarColors.muted }}>{c.message}</div>
                 </li>
@@ -152,7 +123,7 @@ export default function ShiftsDashboardPage() {
         </Panel>
       </div>
 
-      <div className="nectar-ot-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="nectar-ot-two" style={gridGap16}>
         <Panel title="OT by cause (shift-linked)">
           <Table
             size="small"
@@ -161,16 +132,10 @@ export default function ShiftsDashboardPage() {
             dataSource={otCause.byCause}
             columns={[
               { title: "Cause", dataIndex: "cause" },
-              {
-                title: "Hours",
-                dataIndex: "hours",
-                render: (h) => `${h} hrs`,
-              },
+              { title: "Hours", dataIndex: "hours", render: (h) => `${h} hrs` },
             ]}
           />
-          <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>
-            Total OT reference: {otCause.totalOt} hrs
-          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>Total OT reference: {otCause.totalOt} hrs</div>
         </Panel>
         <Panel title="Insights">
           <div style={{ fontSize: 13, marginBottom: 10 }}>
@@ -184,43 +149,10 @@ export default function ShiftsDashboardPage() {
             </div>
           ))}
           {insights.siteIssues.slice(0, 2).map((s) => (
-            <div key={s.siteId} style={{ fontSize: 12, color: nectarColors.muted }}>
-              {s.siteName}: {s.deviations} deviations · {s.otHoursAssociated} OT hrs
-            </div>
+            <div key={s.siteId} style={{ fontSize: 12, color: nectarColors.muted }}>{s.siteName}: {s.deviations} deviations · {s.otHoursAssociated} OT hrs</div>
           ))}
         </Panel>
       </div>
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-        borderRadius: 10,
-        border: "1px solid rgba(28, 68, 99, 0.08)",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          marginBottom: 12,
-          color: nectarColors.ink,
-        }}
-      >
-        {title}
-      </div>
-      {children}
     </div>
   );
 }
