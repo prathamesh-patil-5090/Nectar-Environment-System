@@ -4,11 +4,11 @@ import Link from "next/link";
 import { Progress, Tag } from "antd";
 import { StarFilled } from "@ant-design/icons";
 import type { CourseCardData } from "@/lib/training/types";
-import styles from "./training.module.css";
+import Cover from "./Cover";
 
 export type CourseBadge = { text: string; color: string };
 
-/** One course card (Coursera-style). The whole card is the link; at most one badge. */
+/** Course image card (same look as the event cards). The whole card is the link; at most one badge. */
 export default function CourseCard({
   course,
   badge,
@@ -22,36 +22,37 @@ export default function CourseCard({
 }) {
   const skills = course.skills.slice(0, 3).join(" · ");
   return (
-    <Link href={`/training/course/${course.id}`} className={styles.card} aria-label={`${course.title} (${course.code})`}>
-      <div
-        className={styles.thumb}
-        style={course.thumbnailUrl ? { backgroundImage: `url(${course.thumbnailUrl})` } : undefined}
-      >
+    <Link
+      href={`/training/course/${course.id}`}
+      aria-label={`${course.title} (${course.code})`}
+      className="group flex flex-col gap-3 min-w-0 rounded-2xl focus-visible:outline-2 focus-visible:outline-emerald-600"
+    >
+      <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80">
+        <Cover src={course.thumbnailUrl} label={course.title} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/65 text-white backdrop-blur-sm">
+          {course.code}
+        </span>
         {badge && (
-          <Tag color={badge.color} style={{ position: "absolute", top: 8, left: 8, margin: 0, fontWeight: 600 }}>
+          <Tag color={badge.color} className="absolute! top-3 right-3 m-0! rounded-full! font-semibold shadow-sm">
             {badge.text}
           </Tag>
         )}
       </div>
-      <div className={styles.body}>
-        <div className={styles.line}>
-          {course.code}
-          {course.provider ? ` · ${course.provider}` : ""}
-        </div>
-        <h3 className={styles.title}>{course.title}</h3>
+      <div className="flex flex-col gap-1 min-w-0">
+        <h3 className="m-0 text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:underline">{course.title}</h3>
         {reason ? (
-          <div className={styles.reason}>{reason}</div>
+          <div className="text-sm font-medium text-[#1C4463] line-clamp-2">{reason}</div>
         ) : (
-          skills && <div className={styles.line} title={course.skills.join(", ")}>Skills: {skills}</div>
+          skills && <div className="text-sm text-slate-500 truncate" title={course.skills.join(", ")}>{skills}</div>
         )}
         {typeof progressPct === "number" && (
-          <Progress percent={progressPct} size="small" strokeColor="#1C4463" aria-label="Progress" />
+          <Progress percent={progressPct} size="small" strokeColor="#1C4463" railColor="#e2e8f0" aria-label="Progress" className="m-0!" />
         )}
-        <div className={styles.meta}>
+        <div className="flex items-center gap-1.5 flex-wrap text-xs text-slate-500 mt-0.5">
           {typeof course.rating === "number" && (
-            <span>
-              <StarFilled style={{ color: "#D97706" }} /> {course.rating.toFixed(1)}
-              {course.reviewCount ? ` (${course.reviewCount})` : ""}
+            <span className="font-semibold text-slate-700">
+              <StarFilled className="text-amber-500" /> {course.rating.toFixed(1)}
+              {course.reviewCount ? <span className="font-normal text-slate-400"> ({course.reviewCount})</span> : null}
             </span>
           )}
           {course.level && <span>· {course.level}</span>}
