@@ -263,7 +263,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const siderRef = useRef<HTMLDivElement>(null);
   const logoFullRef = useRef<HTMLDivElement>(null);
-  const logoShortRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
 
   const setCollapsedPersisted = (next: boolean) => {
@@ -277,15 +276,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setCollapsed(readSiderCollapsed() || window.innerWidth < 768); // narrow screens start collapsed (not persisted)
   }, []);
 
-  // GSAP: Animate logo swap on collapse/expand
+  // GSAP: Fade the logo back in on expand (collapsed shows no logo, only the toggle)
   useEffect(() => {
-    if (collapsed && logoShortRef.current) {
-      gsap.fromTo(
-        logoShortRef.current,
-        { opacity: 0, scale: 0.65 },
-        { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }
-      );
-    } else if (!collapsed && logoFullRef.current) {
+    if (!collapsed && logoFullRef.current) {
       gsap.fromTo(
         logoFullRef.current,
         { opacity: 0, x: -14 },
@@ -748,43 +741,50 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         style={{ position: "sticky", top: 0, height: "100vh", overflow: collapsed ? "visible" : "auto", zIndex: 20 }}
       >
         <div ref={siderRef}>
+        <div
+          style={{
+            display: "flex", flexDirection: collapsed ? "column" : "row", alignItems: "center",
+            justifyContent: collapsed ? "center" : "space-between", gap: collapsed ? 6 : 8,
+            padding: collapsed ? "0 8px" : "0 12px 0 20px", minHeight: 68,
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+        {collapsed ? null : (
         <Link
           href="/dashboard"
           style={{
-            display: "flex", alignItems: "center", padding: collapsed ? "20px 8px" : "20px 20px",
-            textDecoration: "none", borderBottom: "1px solid rgba(255,255,255,0.08)",
-            justifyContent: collapsed ? "center" : "flex-start", overflow: "hidden", height: 68,
+            display: "flex", alignItems: "center", textDecoration: "none",
+            justifyContent: collapsed ? "center" : "flex-start", overflow: "hidden", minWidth: 0,
           }}
         >
-          {collapsed ? (
+            <div ref={logoFullRef} style={{ minWidth: 0 }}>
             <div
-              ref={logoShortRef}
               style={{
-                color: nectarColors.white, fontSize: 14, fontWeight: 700, letterSpacing: "0.05em",
-                background: "rgba(28, 68, 99, 0.4)", width: 36, height: 36, borderRadius: 8, display: "grid",
-                placeItems: "center", border: "1px solid rgba(255,255,255,0.12)",
+                fontFamily: "var(--font-dm-sans), system-ui, sans-serif", color: nectarColors.white, fontSize: 16,
+                lineHeight: 1.2, fontWeight: 600, whiteSpace: "nowrap",
               }}
             >
-              NE
+              Nectar Enviro
             </div>
-          ) : (
-            <div ref={logoFullRef} style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-dm-sans), system-ui, sans-serif", color: nectarColors.white, fontSize: 16,
-                  lineHeight: 1.2, fontWeight: 600, whiteSpace: "nowrap",
-                }}
-              >
-                Nectar Enviro
-              </div>
-              <div
-                style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: "0.02em", whiteSpace: "nowrap" }}
-              >
-                Ops Console
-              </div>
+            <div
+              style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: "0.02em", whiteSpace: "nowrap" }}
+            >
+              Ops Console
             </div>
-          )}
+          </div>
         </Link>
+        )}
+          <button
+            ref={toggleBtnRef}
+            type="button"
+            className="nectar-sider-toggle"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={handleToggleCollapse}
+          >
+            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          </button>
+        </div>
 
         <Menu
           theme="dark"
@@ -852,18 +852,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              ref={toggleBtnRef}
-              type="button"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              onClick={handleToggleCollapse}
-              style={{
-                border: "none", background: "transparent", cursor: "pointer", fontSize: 18, color: nectarColors.ink,
-                display: "grid", placeItems: "center", padding: 4,
-              }}
-            >
-              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            </button>
             <Typography.Title
               level={4}
               style={{ margin: 0, fontFamily: "var(--font-fraunces), Georgia, serif", color: nectarColors.ink }}

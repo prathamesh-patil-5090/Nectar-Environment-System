@@ -28,7 +28,7 @@ export default function CertificateModal({
   );
 
   return (
-    <Modal open={Boolean(certificate)} onCancel={onClose} footer={null} width={760} centered bodyStyle={{ padding: 0 }}>
+    <Modal open={Boolean(certificate)} onCancel={onClose} footer={null} width={760} centered styles={{ body: { padding: 0 } }}>
       <div
         id="printable-certificate"
         style={{
