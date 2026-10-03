@@ -138,6 +138,10 @@ export class LeaveRequest {
   @Prop({ type: Array, default: [] })
   timeline: any[];
 
+  /** Safety events (incident with injury) this leave is linked to — see safety module. */
+  @Prop({ type: [String], default: undefined })
+  linkedSafetyEventIds?: string[];
+
   @Prop({ required: true })
   createdAt: string;
 

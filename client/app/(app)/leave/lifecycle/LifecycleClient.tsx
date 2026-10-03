@@ -34,6 +34,7 @@ import {
 } from "@/lib/rbac";
 import { TODAY } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
+import { SafetyClearanceTag } from "@/components/safety/SafetyClearanceBanner";
 
 export default function LeaveLifecycleClient() {
   const { message, modal } = App.useApp();
@@ -206,6 +207,9 @@ export default function LeaveLifecycleClient() {
               {row.softBlock}
             </Tag>
           ) : null}
+          <div style={{ marginTop: 4 }}>
+            <SafetyClearanceTag employeeId={row.employeeId} />
+          </div>
         </div>
       ),
     },

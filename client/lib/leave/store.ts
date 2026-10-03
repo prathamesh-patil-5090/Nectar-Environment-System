@@ -28,6 +28,7 @@ import type {
   LeaveType,
 } from "./types";
 import { persistJson } from "@/lib/storage";
+import { assertSafetyClearance } from "@/lib/safety/gates";
 
 const LEAVE_STORAGE_KEY = "nectar-enviro-leave-store-v2";
 
@@ -420,7 +421,12 @@ function pushLeaveUpdate(leave: LeaveRequest) {
   const { id, status, ...meta } = leave;
   void import("../api/leaves")
     .then(({ updateLeaveStatus }) => updateLeaveStatus(id, status, meta))
-    .catch(() => {});
+    .catch((err) => {
+      // Server rejected a return-to-duty close (safety clearance pending): pull the real state back
+      if (err instanceof Error && err.message.startsWith("Safety clearance pending")) {
+        void syncLeavesWithApi();
+      }
+    });
 }
 
 function ensureLeaveHydrated() {
@@ -1099,6 +1105,7 @@ export function confirmReturn(
       }
     }
     assertLeaveTransition(leave, "CLOSED");
+    assertSafetyClearance(leave.employeeId);
     releaseRelieverForLeave(id);
     return updateLeave(
       id,
@@ -1140,6 +1147,7 @@ export function confirmReturn(
   }
 
   assertLeaveTransition(leave, "CLOSED");
+  assertSafetyClearance(leave.employeeId);
   releaseRelieverForLeave(id);
   return updateLeave(
     id,

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,10 @@ import {
   LeaveRequest,
   LeaveRequestDocument,
 } from '../../../db/schemas/leave-request.schema';
+import {
+  SafetyEvent,
+  SafetyEventDocument,
+} from '../../../db/schemas/safety-event.schema';
 import { assertLeaveTransition } from './leave-transitions';
 import { LeavePolicyService } from './leave-policy.service';
 import type { LeavePolicyInput, LeavePolicyResult } from './leave-policy.engine';
@@ -18,6 +23,8 @@ export class LeavesService {
   constructor(
     @InjectModel(LeaveRequest.name)
     private leaveModel: Model<LeaveRequestDocument>,
+    @InjectModel(SafetyEvent.name)
+    private safetyEventModel: Model<SafetyEventDocument>,
     private readonly leavePolicyService: LeavePolicyService,
   ) {}
 
@@ -132,6 +139,22 @@ export class LeavesService {
       throw new BadRequestException(
         err instanceof Error ? err.message : 'Invalid leave transition',
       );
+    }
+
+    // Return-to-work gate: an injured employee cannot be closed back to duty until Safety clears them
+    if (status === 'CLOSED') {
+      const blocking = await this.safetyEventModel
+        .findOne(
+          { clearance: { $elemMatch: { employeeId: current.employeeId, status: 'pending' } } },
+          { id: 1, title: 1 },
+        )
+        .lean()
+        .exec();
+      if (blocking) {
+        throw new ConflictException(
+          `Safety clearance pending (${blocking.id} · ${blocking.title}). Safety In-charge or Manager must clear return to work before this leave can be closed.`,
+        );
+      }
     }
 
     const { id: _ignoreId, status: _ignoreStatus, ...safeMeta } = meta ?? {};

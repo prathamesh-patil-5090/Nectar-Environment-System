@@ -16,6 +16,7 @@ import {
   LeaveBalanceSchema,
 } from '../../../db/schemas/leave-balance.schema';
 import { Employee, EmployeeSchema } from '../../../db/schemas/employee.schema';
+import { SafetyEvent, SafetyEventSchema } from '../../../db/schemas/safety-event.schema';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { Employee, EmployeeSchema } from '../../../db/schemas/employee.schema';
       { name: LeavePolicy.name, schema: LeavePolicySchema },
       { name: LeaveBalance.name, schema: LeaveBalanceSchema },
       { name: Employee.name, schema: EmployeeSchema },
+      { name: SafetyEvent.name, schema: SafetyEventSchema },
     ]),
   ],
   controllers: [LeavesController],

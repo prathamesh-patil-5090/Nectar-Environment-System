@@ -18,6 +18,7 @@ import {
 import { ArrowLeftOutlined, WarningOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import ShiftImpactPanel from "@/components/leave/ShiftImpactPanel";
+import SafetyClearanceBanner from "@/components/safety/SafetyClearanceBanner";
 import { getSession } from "@/lib/auth";
 import { getEmployeeById, getSiteName } from "@/lib/mock-data";
 import {
@@ -307,6 +308,10 @@ export default function LeaveDetailPage({
       >
         Leave requests
       </Button>
+
+      {!["CLOSED", "REJECTED", "CANCELLED"].includes(leave.status) ? (
+        <SafetyClearanceBanner employeeId={leave.employeeId} />
+      ) : null}
 
       <div style={{ background: nectarColors.white, padding: 24, borderRadius: 10 }}>
         <div style={rowBetweenWrapGap12}>
