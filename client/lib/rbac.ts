@@ -28,6 +28,8 @@ const notEmployee: Check = (user) => normalizeRole(user?.role) !== "employee";
 
 /** Org-wide visibility — Director + HR + Safety In-Charge */
 export const canViewAllSites = allow("director", "hr", "safety_incharge");
+/** New, upcoming and closed plants — Director only */
+export const canViewPlantPipeline = allow("director");
 
 export function scopedSiteId(user: SessionUser | null): string | undefined {
   if (canViewAllSites(user)) return undefined;

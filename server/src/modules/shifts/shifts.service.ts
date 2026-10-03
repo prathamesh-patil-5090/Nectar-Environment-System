@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Site, SiteDocument } from '../../../db/schemas/site.schema';
+import { OPERATIONAL_SITE_FILTER, Site, SiteDocument } from '../../../db/schemas/site.schema';
 import {
   ShiftRoster,
   ShiftRosterDocument,
@@ -17,7 +17,7 @@ export class ShiftsService {
 
   async getSites(siteId?: string): Promise<Site[]> {
     const filter =
-      siteId && siteId !== 'all' && siteId !== 'undefined' ? { siteId } : {};
+      siteId && siteId !== 'all' && siteId !== 'undefined' ? { siteId } : OPERATIONAL_SITE_FILTER;
     return this.siteModel.find(filter).lean().exec();
   }
 
