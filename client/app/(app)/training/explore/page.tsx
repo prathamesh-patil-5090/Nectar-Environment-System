@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Checkbox, Drawer, Empty, Input, Select, Skeleton } from "antd";
-import { FilterOutlined } from "@ant-design/icons";
-import { useState } from "react";
+import { FilterOutlined, SearchOutlined } from "@ant-design/icons";
 import { getCatalog } from "@/lib/api/training";
 import { useAsync, useViewer } from "@/lib/training/hooks";
 import type { CatalogItem } from "@/lib/training/types";
 import TrainingSubNav from "@/components/training/ui/TrainingSubNav";
 import CourseCard from "@/components/training/ui/CourseCard";
-import styles from "@/components/training/ui/training.module.css";
+import { CARD_GRID } from "@/components/training/ui/Shelf";
 
 const PLANTS: Record<string, string> = { ETP: "ETP", RO: "RO / WTP", MEE: "MEE / ZLD" };
 const LEVELS = ["Foundation", "Intermediate", "Advanced"];
@@ -23,7 +22,15 @@ function statusBadge(c: CatalogItem) {
   return undefined;
 }
 
-/** Explore the catalog: one search box, filters (kept in the URL) and sort. */
+/** "Effluent Treatment Plants (ETP)" → "ETP"; names without an abbreviation stay as they are. */
+const shortDomain = (s: string) => s.match(/\(([^)]+)\)\s*$/)?.[1] ?? s;
+
+const chip = (active: boolean) =>
+  `px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors cursor-pointer ${
+    active ? "bg-[#1C4463] border-[#1C4463] text-white" : "bg-white border-slate-200 text-slate-600 hover:border-[#1C4463] hover:text-[#1C4463]"
+  }`;
+
+/** Explore the catalog: search hero, domain chips, filters (kept in the URL) and sort. */
 export default function ExplorePage() {
   const viewer = useViewer();
   const router = useRouter();
@@ -48,8 +55,13 @@ export default function ExplorePage() {
     setShown(PAGE);
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   };
+  const clearAll = () => router.replace(pathname ?? "/training/explore");
 
-  const sections = useMemo(() => [...new Set((data ?? []).map((c) => c.section).filter(Boolean))].sort(), [data]);
+  const sections = useMemo(() => {
+    const counts = new Map<string, number>();
+    (data ?? []).forEach((c) => c.section && counts.set(c.section, (counts.get(c.section) ?? 0) + 1));
+    return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [data]);
 
   const results = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -71,69 +83,97 @@ export default function ExplorePage() {
   const filtersActive = Boolean(section || plant || level || skill || notStarted || qText);
 
   const filters = (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div className="flex flex-col gap-4">
       <label>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Domain</div>
-        <Select allowClear placeholder="All domains" value={section || undefined} onChange={(v) => setParam("section", v ?? null)} options={sections.map((s) => ({ value: s, label: s }))} style={{ width: "100%" }} />
-      </label>
-      <label>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Plant</div>
+        <div className="font-semibold text-slate-900 mb-1">Plant</div>
         <Select allowClear placeholder="Any plant" value={plant || undefined} onChange={(v) => setParam("plant", v ?? null)} options={Object.entries(PLANTS).map(([value, label]) => ({ value, label }))} style={{ width: "100%" }} />
       </label>
       <label>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Level</div>
+        <div className="font-semibold text-slate-900 mb-1">Level</div>
         <Select allowClear placeholder="Any level" value={level || undefined} onChange={(v) => setParam("level", v ?? null)} options={LEVELS.map((l) => ({ value: l, label: l }))} style={{ width: "100%" }} />
+      </label>
+      <label>
+        <div className="font-semibold text-slate-900 mb-1">Sort by</div>
+        <Select value={sort} onChange={(v) => setParam("sort", v === "relevance" ? null : v)} options={Object.entries(SORTS).map(([value, label]) => ({ value, label }))} style={{ width: "100%" }} />
       </label>
       <Checkbox checked={notStarted} onChange={(e) => setParam("new", e.target.checked ? "1" : null)}>Only courses I haven&apos;t started</Checkbox>
       {skill && (
         <Alert type="info" title={`Skill: ${skill}`} action={<Button size="small" type="link" onClick={() => setParam("skill", null)}>Clear</Button>} />
       )}
-      {filtersActive && <Button onClick={() => router.replace(pathname ?? "/training/explore")}>Clear all filters</Button>}
+      {filtersActive && <Button onClick={clearAll}>Clear all filters</Button>}
     </div>
   );
 
   return (
-    <div className={styles.page}>
+    <div className="flex flex-col gap-6 min-w-0">
       <TrainingSubNav />
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <Input.Search
+
+      {/* Search hero */}
+      <header className="rounded-3xl bg-gradient-to-br from-[#1C4463] to-[#0B1A24] p-6 sm:p-8 flex flex-col gap-4">
+        <div>
+          <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Explore courses</h1>
+          <p className="m-0 mt-1 text-white/70">
+            {data ? `${data.length} courses across ${sections.length} domains, built for our plants.` : "Courses built for our plants."}
+          </p>
+        </div>
+        <Input
           allowClear
           size="large"
+          prefix={<SearchOutlined className="text-slate-400" />}
           placeholder="Search courses, skills or codes"
           defaultValue={qText}
-          onSearch={(v) => setParam("q", v || null)}
+          onPressEnter={(e) => setParam("q", (e.target as HTMLInputElement).value || null)}
           onChange={(e) => !e.target.value && setParam("q", null)}
-          style={{ flex: "1 1 320px", maxWidth: 640 }}
+          className="max-w-2xl rounded-full!"
           aria-label="Search courses"
         />
-        <Select value={sort} onChange={(v) => setParam("sort", v === "relevance" ? null : v)} options={Object.entries(SORTS).map(([value, label]) => ({ value, label }))} style={{ width: 170 }} aria-label="Sort" />
-        <Button icon={<FilterOutlined />} onClick={() => setDrawer(true)} className="explore-filter-btn">Filters</Button>
+      </header>
+
+      {/* Domain chips */}
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Domains">
+        <button type="button" role="tab" aria-selected={!section} className={chip(!section)} onClick={() => setParam("section", null)}>
+          All
+        </button>
+        {sections.map(([s, n]) => (
+          <button key={s} type="button" role="tab" aria-selected={section === s} title={s} className={chip(section === s)} onClick={() => setParam("section", section === s ? null : s)}>
+            {shortDomain(s)} <span className="opacity-60">{n}</span>
+          </button>
+        ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 240px) minmax(0, 1fr)", gap: 24 }} className="explore-layout">
-        <aside className={styles.panel} style={{ alignSelf: "start" }} aria-label="Filters">{filters}</aside>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          <div style={{ color: "#4A6375" }}>{loading ? "Loading courses…" : `${results.length} course${results.length === 1 ? "" : "s"}`}</div>
+      <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] items-start">
+        <aside className="hidden lg:block bg-white border border-slate-200 rounded-3xl p-5 lg:sticky lg:top-4" aria-label="Filters">
+          {filters}
+        </aside>
+
+        <div className="flex flex-col gap-5 min-w-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-slate-500">
+              {loading ? "Loading courses…" : `${results.length} course${results.length === 1 ? "" : "s"}`}
+              {qText && <span> for “{qText}”</span>}
+            </div>
+            <Button icon={<FilterOutlined />} onClick={() => setDrawer(true)} className="lg:hidden!">Filters</Button>
+          </div>
           {error ? (
             <Alert type="error" showIcon title="Couldn't load the catalog" description={error} action={<Button onClick={reload}>Try again</Button>} />
           ) : loading ? (
             <Skeleton active />
           ) : results.length === 0 ? (
-            <div className={styles.panel}>
+            <div className="bg-white border border-slate-200 rounded-2xl py-8">
               <Empty description="No courses match these filters">
-                <Button onClick={() => router.replace(pathname ?? "/training/explore")}>Clear filters</Button>
+                <Button onClick={clearAll}>Clear filters</Button>
               </Empty>
             </div>
           ) : (
             <>
-              <div className={styles.grid}>
+              <div className={CARD_GRID}>
                 {results.slice(0, shown).map((c) => (
                   <CourseCard key={c.id} course={c} badge={statusBadge(c)} progressPct={c.myStatus && c.myStatus !== "CERTIFIED" ? c.myProgressPct : undefined} />
                 ))}
               </div>
               {shown < results.length && (
-                <div style={{ textAlign: "center" }}>
-                  <Button onClick={() => setShown((n) => n + PAGE)}>Load more ({results.length - shown} more)</Button>
+                <div className="text-center">
+                  <Button shape="round" onClick={() => setShown((n) => n + PAGE)}>Load more ({results.length - shown})</Button>
                 </div>
               )}
             </>
@@ -144,14 +184,6 @@ export default function ExplorePage() {
       <Drawer title="Filters" open={drawer} onClose={() => setDrawer(false)} placement="left" size={300}>
         {filters}
       </Drawer>
-      <style>{`
-        .explore-filter-btn { display: none; }
-        @media (max-width: 900px) {
-          .explore-layout { grid-template-columns: minmax(0, 1fr) !important; }
-          .explore-layout > aside { display: none; }
-          .explore-filter-btn { display: inline-flex; }
-        }
-      `}</style>
     </div>
   );
 }
