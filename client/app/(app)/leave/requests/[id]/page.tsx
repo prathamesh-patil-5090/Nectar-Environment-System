@@ -63,6 +63,7 @@ import {
   normalizeRole,
   scopedEmployeeId,
   scopedSiteId,
+  isInChargeOf,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
@@ -259,11 +260,13 @@ export default function LeaveDetailPage({
 
   const actor = session?.name ?? "User";
   const role = normalizeRole(session?.role);
-  const canVerify = canSupervisorVerifyLeave(session);
-  const canSite = canSiteApproveLeave(session);
-  const canManager = canManagerDecideLeave(session);
-  const canAdmin = canAdminFinalizeLeave(session);
-  const canReturn = canConfirmLeaveReturn(session);
+  // Approvals only on leave of people in your charge — never your own, never a senior's.
+  const inCharge = isInChargeOf(session, getEmployeeById(leave.employeeId));
+  const canVerify = inCharge && canSupervisorVerifyLeave(session);
+  const canSite = inCharge && canSiteApproveLeave(session);
+  const canManager = inCharge && canManagerDecideLeave(session);
+  const canAdmin = inCharge && canAdminFinalizeLeave(session);
+  const canReturn = inCharge && canConfirmLeaveReturn(session);
   const canWithdraw = canWithdrawLeaveRequest(session, leave);
   const actorLeaveRole = leaveActorRole(session);
   /** Only the employee role who owns the leave may consent */

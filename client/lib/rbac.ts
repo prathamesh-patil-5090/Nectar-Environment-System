@@ -1,6 +1,5 @@
 import type { SessionUser, UserRole } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/auth";
-import type { Employee } from "@/lib/mock-data";
 import { safetyCan, type SafetyAction } from "@/lib/safety/rules";
 import type { SafetyActor } from "@/lib/safety/types";
 
@@ -52,17 +51,55 @@ export function selfEmployeeId(user: SessionUser | null): string | undefined {
   return user?.employeeId;
 }
 
-export function canAccessEmployeeRecord(
-  user: SessionUser | null,
-  employee: Pick<Employee, "id"> & { siteId?: string } | undefined,
-): boolean {
+/** Who an employee record is, for seniority checks (mock and API employees both fit). */
+type EmployeeRef = { id: string; siteId?: string; employeeCategory?: string };
+
+/** Plant seniority of a login role — higher sees and acts on lower. */
+const ROLE_RANK: Partial<Record<UserRole, number>> = {
+  manager: 4,
+  site_incharge: 3,
+  shift_incharge: 3,
+  supervisor: 2,
+  employee: 1,
+};
+
+/** Plant seniority of an employee record (employeeCategory). HR / Director sit above every plant. */
+const CATEGORY_RANK: Record<string, number> = {
+  director: 6,
+  hr: 5,
+  manager: 4,
+  shift_incharge: 3,
+  supervisor: 2,
+  shift: 1,
+  general: 1,
+};
+
+/**
+ * Can `user` see or act on `employee` as someone in their charge?
+ * Never yourself. Director: everyone. HR / Safety In-Charge: everyone below HR.
+ * Plant roles: only people at their own plant who are junior to them (a Site Manager never sees the Plant Manager).
+ */
+export function isInChargeOf(user: SessionUser | null, employee: EmployeeRef | undefined): boolean {
   if (!user || !employee) return false;
-  if (canViewAllSites(user)) return true;
-  if (user.employeeId && user.employeeId === employee.id) return true;
+  if (user.employeeId && user.employeeId === employee.id) return false;
+  const role = normalizeRole(user.role);
+  const targetRank = CATEGORY_RANK[employee.employeeCategory ?? ""] ?? 1;
+  if (role === "director") return true;
+  if (role === "hr" || role === "safety_incharge") return targetRank < CATEGORY_RANK.hr;
+  const rank = ROLE_RANK[role] ?? 0;
   const site = scopedSiteId(user);
-  if (site && employee.siteId === site) return true;
-  return false;
+  return Boolean(site) && employee.siteId === site && targetRank < rank;
 }
+
+/** Profile access: your own record, or someone in your charge. */
+export function canAccessEmployeeRecord(user: SessionUser | null, employee: EmployeeRef | undefined): boolean {
+  if (!user || !employee) return false;
+  if (user.employeeId && user.employeeId === employee.id) return true;
+  return isInChargeOf(user, employee);
+}
+
+/** Employees roster page + sidebar entry — anyone with people in their charge (not plain employees). */
+export const canViewEmployeeRoster = notEmployee;
 
 // ── Overtime ──────────────────────────────────────────────────────────────
 export const canDownloadOtReports = allow(

@@ -53,6 +53,7 @@ import {
   canManageRelieverPool,
   canViewLeaveManagement,
   canViewOtModule,
+  canViewEmployeeRoster,
   canViewRelieverPoolNav,
   canViewShiftsNav,
   canViewSitesNav,
@@ -162,7 +163,7 @@ const leaveChildren = [
 
 const safetyChildren = [
   { key: "/safety", label: "Overview" },
-  { key: "/safety/report", label: "Report" },
+  { key: "/safety/report", label: "Report incident" },
   { key: "/safety/incidents", label: "Incidents & near-miss" },
   { key: "/safety/breakdowns", label: "Breakdowns" },
   { key: "/safety/protocols", label: "Emergency protocols" },
@@ -219,7 +220,7 @@ const pageTitles: Record<string, string> = {
   "/salary": "Salary history",
   "/meetings": "Meetings",
   "/safety": "Safety",
-  "/safety/report": "Safety · Report",
+  "/safety/report": "Safety · Report incident",
   "/safety/incidents": "Safety · Incidents & near-miss",
   "/safety/breakdowns": "Safety · Breakdowns",
   "/safety/protocols": "Safety · Emergency protocols",
@@ -648,7 +649,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const items: MenuProps["items"] = [
       { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-      { key: "/employees", icon: <TeamOutlined />, label: "Employees" },
+      ...(canViewEmployeeRoster(user)
+        ? [{ key: "/employees", icon: <TeamOutlined />, label: "Employees" }]
+        : []),
     ];
 
     if (canViewSitesNav(user)) {

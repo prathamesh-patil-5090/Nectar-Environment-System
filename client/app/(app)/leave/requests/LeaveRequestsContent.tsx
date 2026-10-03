@@ -53,10 +53,24 @@ import {
   scopedEmployeeId,
   scopedSiteId,
   selfEmployeeId,
+  isInChargeOf,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
 import { rowBetweenWrapGap12 } from "@/lib/styles";
+
+/** Statuses where the next step is someone's approval (verify, approve, finalize, confirm return). */
+const DECISION_STATUSES = new Set<LeaveRequest["status"]>([
+  "REQUESTED",
+  "ABSENT",
+  "SUPERVISOR_VERIFIED",
+  "SUPERVISOR_RECORDED",
+  "SITE_APPROVED",
+  "SITE_VERIFIED",
+  "MANAGER_APPROVED",
+  "APPROVED",
+  "EXTENSION_REQUIRED",
+]);
 
 export default function LeaveRequestsContent() {
   const { message } = App.useApp();
@@ -226,6 +240,11 @@ export default function LeaveRequestsContent() {
         const waiting = (text: string) => (
           <span style={{ color: nectarColors.muted, fontSize: 12 }}>{text}</span>
         );
+
+        // Nobody approves their own leave or a senior's — only leave of people in their charge.
+        if (DECISION_STATUSES.has(r.status) && !isInChargeOf(session, getEmployeeById(r.employeeId))) {
+          return waiting(session?.employeeId === r.employeeId ? "With your approver" : "With their approver");
+        }
 
         if (r.status === "REQUESTED" || r.status === "ABSENT") {
           if (canSupervisorVerifyLeave(session)) {
@@ -615,8 +634,8 @@ export default function LeaveRequestsContent() {
               options={employees
                 .filter((e) => {
                   if (filterEmployeeId) return e.id === filterEmployeeId;
-                  if (siteScope) return e.siteId === siteScope;
-                  return true;
+                  // Yourself, or someone in your charge — never leave on behalf of a senior
+                  return e.id === session?.employeeId || isInChargeOf(session, e);
                 })
                 .map((e) => ({ value: e.id, label: `${e.name} · ${e.role}` }))}
             />

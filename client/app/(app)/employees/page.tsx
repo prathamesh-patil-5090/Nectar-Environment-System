@@ -6,7 +6,7 @@ import { Alert, Input, Select, Table, theme } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { getSession } from "@/lib/auth";
-import { canAccessEmployeeRecord, scopedSiteId } from "@/lib/rbac";
+import { canViewEmployeeRoster, isInChargeOf, scopedSiteId } from "@/lib/rbac";
 import { getEmployees } from "@/lib/api/employees";
 import { getSites } from "@/lib/api/sites";
 import type { Employee } from "@/lib/types/employee.types";
@@ -51,19 +51,27 @@ export default function EmployeesPage() {
   const [query, setQuery] = useState("");
   const [siteFilter, setSiteFilter] = useState<string | undefined>(undefined);
 
+  // Plain employees have no roster — send them to their own profile.
+  const hasRoster = canViewEmployeeRoster(session);
   useEffect(() => {
+    if (!hasRoster && session?.employeeId) router.replace(`/employees/${session.employeeId}`);
+  }, [hasRoster, session?.employeeId, router]);
+
+  useEffect(() => {
+    if (!hasRoster) return;
     Promise.all([getEmployees(siteScope), getSites()])
       .then(([emps, siteList]) => {
         setEmployees(emps);
         setSites(siteList);
       })
       .catch((err: Error) => setError(err.message));
-  }, [siteScope]);
+  }, [siteScope, hasRoster]);
 
   const siteName = useMemo(() => new Map(sites.map((s) => [s.id, s.name])), [sites]);
 
+  // Only the people in your charge: never yourself, never someone senior to you.
   const visible = useMemo(
-    () => (employees ?? []).filter((e) => canAccessEmployeeRecord(session, e)),
+    () => (employees ?? []).filter((e) => isInChargeOf(session, e)),
     // session is read from storage on each render; the roster only changes when employees load
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [employees],
