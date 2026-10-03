@@ -1,426 +1,437 @@
 "use client";
 
-import { use, useEffect, useMemo } from "react";
+import { use, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Avatar,
-  Button,
-  Descriptions,
-  Empty,
-  Progress,
-  Table,
-  Tag,
-} from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { App, Avatar, Button, Empty, Result, Skeleton } from "antd";
 import {
   ArrowLeftOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
   EnvironmentOutlined,
+  IdcardOutlined,
   MailOutlined,
+  MedicineBoxOutlined,
   PhoneOutlined,
-  UserOutlined,
+  RightOutlined,
+  SafetyCertificateOutlined,
+  FileTextOutlined,
+  UploadOutlined,
+  LinkedinFilled,
+  LinkOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
-import {
-  getEmployeeById,
-  getEmployeeSkills,
-  getEmployeeTraining,
-  getSiteById,
-  skillLabels,
-  type SkillKey,
-  type TrainingItem,
-  type TrainingPriority,
-} from "@/lib/mock-data";
+import { getEmployeeById as fetchEmployee } from "@/lib/api/employees";
+import { getSiteById as fetchSite } from "@/lib/api/sites";
+import { getLeaveBalances, getLeaves } from "@/lib/api/leaves";
 import { getSession } from "@/lib/auth";
-import {
-  defaultOtFilters,
-  formatHours,
-  formatInr,
-  getEmployeeOtDetail,
-  OT_REASON_LABELS,
-  OT_STATUS_LABELS,
-  type OtRecord,
-} from "@/lib/overtime";
 import { canAccessEmployeeRecord, canViewOtModule, scopedEmployeeId } from "@/lib/rbac";
-import { computeSiteReadiness } from "@/lib/workforce-metrics";
-import { nectarColors } from "@/lib/theme";
-import { sSerifText18Ink, sSerifText18InkMb4 } from "@/lib/styles";
+import { useAsync } from "@/lib/training/hooks";
+import { getCertificates, getCourseById, useTrainingData } from "@/lib/training/store";
+import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS, type LeaveStatus, type LeaveType } from "@/lib/leave/types";
+import type { Employee } from "@/lib/types/employee.types";
 import EmployeeTrainingSection from "@/components/training/records/EmployeeTrainingSection";
-import type { CSSProperties } from "react";
 
-const rowBetweenWrapGap12Mb16: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "baseline",
-  gap: 12,
-  marginBottom: 16,
-  flexWrap: "wrap",
+const CARD = "bg-white border border-slate-200 rounded-3xl p-5 sm:p-6";
+const H2 = "m-0 text-lg font-bold text-slate-900";
+
+const CATEGORY_LABEL: Record<string, string> = {
+  shift: "Shift employee",
+  general: "General shift",
+  supervisor: "Site Manager",
+  shift_incharge: "Shift In-Charge",
+  manager: "Plant Manager",
+  hr: "HR",
+  director: "Director",
+};
+const SHIFT_LABEL: Record<string, string> = { "sh-morning": "Morning", "sh-evening": "Evening", "sh-night": "Night", "sh-general": "General" };
+const title = (s?: string) => (s ? s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—");
+const initials = (name: string) => name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+
+/** Whole years and months since an ISO date. */
+function tenure(iso?: string) {
+  if (!iso) return undefined;
+  const from = new Date(iso);
+  const now = new Date();
+  let months = (now.getFullYear() - from.getFullYear()) * 12 + (now.getMonth() - from.getMonth());
+  if (now.getDate() < from.getDate()) months--;
+  if (months < 0) return undefined;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return [y && `${y} yr`, m && `${m} mo`].filter(Boolean).join(" ") || "Less than a month";
+}
+
+const LEAVE_TONE: Partial<Record<LeaveStatus, string>> = {
+  CLOSED: "bg-slate-100 text-slate-600",
+  APPROVED: "bg-emerald-50 text-emerald-700",
+  HR_VALIDATED: "bg-emerald-50 text-emerald-700",
+  REJECTED: "bg-rose-50 text-rose-700",
+  CANCELLED: "bg-slate-100 text-slate-500",
 };
 
-const statusColor = { compliant: "green", "due-soon": "orange", overdue: "red" } as const;
-
-const statusLabel = { compliant: "Compliant", "due-soon": "Due soon", overdue: "Overdue" } as const;
-
-const priorityColor: Record<TrainingPriority, string> = {
-  critical: nectarColors.alert,
-  high: "#D97706",
-  medium: nectarColors.sky,
-  low: nectarColors.muted,
-};
-
-const trainingStatusLabel: Record<TrainingItem["status"], string> = {
-  overdue: "Overdue",
-  "due-soon": "Due soon",
-  scheduled: "Scheduled",
-  completed: "Completed",
-};
-
-const trainingColumns: ColumnsType<TrainingItem> = [
-  { title: "Course", dataIndex: "course", key: "course" },
-  { title: "Provider", dataIndex: "provider", key: "provider", render: (v?: string) => v ?? "—" },
-  {
-    title: "Date",
-    key: "date",
-    render: (_, r) =>
-      r.status === "completed" && r.completedAt
-        ? r.completedAt
-        : r.dueDate,
-  },
-  {
-    title: "Score",
-    dataIndex: "score",
-    key: "score",
-    width: 80,
-    render: (score?: number) =>
-      score != null ? (
-        <span style={{ fontWeight: 600 }}>{score}%</span>
-      ) : (
-        "—"
-      ),
-  },
-  {
-    title: "Priority",
-    dataIndex: "priority",
-    key: "priority",
-    render: (priority: TrainingPriority) => (
-      <Tag color={priorityColor[priority]} style={{ border: "none", margin: 0 }}>{priority}</Tag>
-    ),
-  },
-  {
-    title: "Status",
-    dataIndex: "status",
-    key: "status",
-    render: (status: TrainingItem["status"]) => (
-      <Tag
-        color={
-          status === "overdue"
-            ? "red"
-            : status === "due-soon"
-              ? "orange"
-              : status === "completed"
-                ? "green"
-                : "default"
-        }
-      >
-        {trainingStatusLabel[status]}
-      </Tag>
-    ),
-  },
-];
-
-function OtStat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+function Fact({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <div
-      style={{ flex: "1 1 140px", minWidth: 120, padding: "12px 16px", background: nectarColors.sand, borderRadius: 8 }}
-    >
-      <div style={{ fontSize: 12, color: nectarColors.muted }}>{label}</div>
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 22, color: nectarColors.ink, marginTop: 2,
-        }}
-      >
-        {value}
+    <div className="flex items-start gap-3 py-2.5">
+      <span className="w-8 h-8 shrink-0 rounded-xl bg-[#1C4463]/[0.07] text-[#1C4463] flex items-center justify-center">{icon}</span>
+      <div className="min-w-0">
+        <div className="text-xs text-slate-500">{label}</div>
+        <div className="text-sm font-semibold text-slate-900 break-words">{children}</div>
       </div>
-      {hint ? (
-        <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{hint}</div>
-      ) : null}
     </div>
   );
 }
 
-export default function EmployeeDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+/** One person in the reporting line, from the database. */
+function Person({ id, role }: { id?: string; role: string }) {
+  const p = useAsync(() => (id ? fetchEmployee(id) : Promise.resolve(null)), [id]);
+  if (!id) return null;
+  return (
+    <li className="relative pl-12 pb-4 last:pb-0">
+      <span className="absolute left-[19px] top-10 bottom-0 w-px bg-slate-200" aria-hidden />
+      <Link href={`/employees/${id}`} className="group flex items-center gap-3 -ml-12">
+        <Avatar size={40} className="bg-[#1C4463]! shrink-0">{p.data ? initials(p.data.name) : "…"}</Avatar>
+        <span className="min-w-0">
+          <span className="block text-xs text-slate-500">{role}</span>
+          <span className="block text-sm font-semibold text-slate-900 truncate group-hover:underline">{p.data?.name ?? (p.loading ? "Loading…" : id)}</span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/** Employee profile (also "My Profile"): everything here is read from the database. */
+export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: routeId } = use(params);
   const router = useRouter();
+  const { message } = App.useApp();
   const session = getSession();
   const selfId = scopedEmployeeId(session);
-  const showOt = canViewOtModule(session) || Boolean(session?.employeeId);
+  const id = selfId && selfId !== routeId ? selfId : routeId;
+  const isSelf = session?.employeeId === id;
+  useTrainingData(); // certificates + course titles
+  const [now] = useState(() => Date.now());
+
+  // Employees may only open their own profile
+  useEffect(() => {
+    if (selfId && selfId !== routeId) router.replace(`/employees/${selfId}`);
+  }, [selfId, routeId, router]);
+
+  const employee = useAsync(() => fetchEmployee(id), [id]);
+  const e = employee.data as Employee | undefined;
+  const site = useAsync(() => (e?.siteId ? fetchSite(e.siteId) : Promise.resolve(null)), [e?.siteId]);
+  const balances = useAsync(() => getLeaveBalances(id), [id]);
+  const leaves = useAsync(() => getLeaves({ employeeId: id }), [id]);
 
   useEffect(() => {
-    if (selfId && selfId !== id) {
-      router.replace(`/employees/${selfId}`);
-    }
-  }, [selfId, id, router]);
+    if (e && !selfId && !canAccessEmployeeRecord(session, e as never)) router.replace("/employees");
+  }, [e, session, selfId, router]);
 
-  const employee = getEmployeeById(selfId && selfId !== id ? selfId : id);
-
-  useEffect(() => {
-    if (employee && !canAccessEmployeeRecord(session, employee) && !selfId) {
-      router.replace("/employees");
-    }
-  }, [employee, session, selfId, router]);
-
-  const otDetail = useMemo(() => {
-    if (!employee || !showOt) return null;
-    return getEmployeeOtDetail(employee.id, defaultOtFilters());
-  }, [employee, showOt]);
-
-  const recentOt = useMemo(
-    () => (otDetail?.records ?? []).slice(0, 8),
-    [otDetail],
-  );
-
-  if (!employee) {
+  if (employee.loading && !e) return <Skeleton active avatar style={{ padding: 24 }} />;
+  if (!e) {
     return (
-      <div style={{ background: nectarColors.white, padding: 40 }}>
-        <Empty description="Employee not found"><Button type="primary" onClick={() => router.push("/employees")}>Back to employees</Button></Empty>
-      </div>
+      <Result
+        status="404"
+        title="Employee not found"
+        subTitle={employee.error ?? undefined}
+        extra={<Button type="primary" onClick={() => router.push("/employees")}>Back to employees</Button>}
+      />
     );
   }
 
-  const site = employee.siteId ? getSiteById(employee.siteId) : undefined;
-  const siteReadiness = employee.siteId ? computeSiteReadiness(employee.siteId) : null;
-  const skills = getEmployeeSkills(employee);
-  const skillKeys = Object.keys(skillLabels) as SkillKey[];
+  const certs = getCertificates(id);
+  const validCerts = certs.filter((c) => !c.expiresAt || Date.parse(c.expiresAt) > now);
+  const leaveList = [...(leaves.data ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const balanceEntries = Object.entries(balances.data?.balances ?? {}).filter(([k]) => k !== "unpaid") as [LeaveType, number][];
+  const paidLeft = balanceEntries.reduce((s, [, n]) => s + n, 0);
 
-  const otColumns: ColumnsType<OtRecord> = [
-    { title: "Date", dataIndex: "date", width: 110 },
-    { title: "Hours", dataIndex: "otHours", width: 80, render: (h: number) => formatHours(h) },
-    { title: "Cost", dataIndex: "otCost", width: 100, render: (c: number) => formatInr(c) },
-    { title: "Reason", dataIndex: "reason", render: (r: OtRecord["reason"]) => OT_REASON_LABELS[r] },
-    {
-      title: "Status",
-      dataIndex: "status",
-      width: 110,
-      render: (s: OtRecord["status"]) => (
-        <Tag style={{ margin: 0 }}>{OT_STATUS_LABELS[s]}</Tag>
-      ),
-    },
+  const stats: [string, ReactNode][] = [
+    ["With Nectar", tenure(e.joinedAt) ?? "—"],
+    ["Experience", e.yearsExperience ? `${e.yearsExperience} yr` : "—"],
+    ["Skill score", `${e.skillScore ?? 0}%`],
+    ["Valid certificates", validCerts.length],
+    ["Paid leave left", balances.data ? `${paidLeft} days` : "—"],
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => router.push(selfId ? "/dashboard" : "/employees")}
-          style={{ paddingInline: 0, color: nectarColors.muted, marginBottom: 8 }}
+    <div className="flex flex-col gap-6 min-w-0">
+      {!isSelf && (
+        <button
+          type="button"
+          onClick={() => router.push("/employees")}
+          className="self-start inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 bg-transparent cursor-pointer"
         >
-          {selfId ? "Dashboard" : "Employees"}
-        </Button>
+          <ArrowLeftOutlined /> Employees
+        </button>
+      )}
 
-        <div
-          style={{
-            background: nectarColors.white, padding: "24px 28px", display: "flex", gap: 20, alignItems: "flex-start",
-            flexWrap: "wrap",
-          }}
-        >
-          <Avatar size={72} icon={<UserOutlined />} style={{ background: nectarColors.leaf, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div
-              style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 28, color: nectarColors.ink,
-                lineHeight: 1.2,
-              }}
-            >
-              {employee.name}
+      {/* Header */}
+      <header className="rounded-3xl overflow-hidden bg-white border border-slate-200">
+        <div className="px-5 sm:px-8 py-6 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0">
+            <div className="w-full h-full rounded-3xl bg-[#1C4463] text-white text-3xl font-extrabold flex items-center justify-center">
+              {initials(e.name)}
             </div>
-            <div style={{ color: nectarColors.muted, marginTop: 4 }}>
-              {employee.role}
-              {site ? ` · ${site.name}` : ""}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{e.name}</h1>
+              {isSelf && <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#1C4463] text-white">You</span>}
             </div>
-            <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Tag color={statusColor[employee.trainingStatus]}>{statusLabel[employee.trainingStatus]}</Tag>
-              <Tag style={{ borderColor: "rgba(28, 68, 99, 0.15)" }}>Skill score {employee.skillScore}%</Tag>
-              {employee.otEligible ? (
-                <Tag color={nectarColors.sky} style={{ border: "none" }}>OT eligible</Tag>
-              ) : null}
+            <p className="m-0 mt-1 text-slate-600">
+              {e.designation}
+              {site.data ? ` · ${site.data.name}` : ""}
+            </p>
+            <div className="flex gap-2 flex-wrap mt-3">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${e.employmentStatus === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                {e.employmentStatus === "active" ? "Active" : "Inactive"}
+              </span>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{CATEGORY_LABEL[e.employeeCategory] ?? title(e.employeeCategory)}</span>
+              {e.employeeType && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{title(e.employeeType)}</span>}
+              {e.otEligible && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">OT eligible</span>}
             </div>
+          </div>
+          <div className="flex gap-2">
+            {e.email && (
+              <a href={`mailto:${e.email}`} aria-label="Email" className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 bg-white! text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
+                <MailOutlined />
+              </a>
+            )}
+            {e.phone && (
+              <a href={`tel:${e.phone.replace(/\s/g, "")}`} aria-label="Call" className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 bg-white! text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
+                <PhoneOutlined />
+              </a>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="nectar-employee-detail-grid">
-        <div style={{ background: nectarColors.white, padding: 24 }}>
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, color: nectarColors.ink,
-              marginBottom: 16,
-            }}
-          >
-            Profile
-          </div>
-          <Descriptions column={1} size="small" styles={{ label: { color: nectarColors.muted, width: 140 } }}>
-            <Descriptions.Item
-              label={
-                <span><MailOutlined /> Email</span>
-              }
-            >
-              {employee.email}
-            </Descriptions.Item>
-            <Descriptions.Item
-              label={
-                <span><PhoneOutlined /> Phone</span>
-              }
-            >
-              {employee.phone}
-            </Descriptions.Item>
-            <Descriptions.Item label="Joined">{employee.joinedAt}</Descriptions.Item>
-            <Descriptions.Item label="Experience">{employee.yearsExperience} years</Descriptions.Item>
-            <Descriptions.Item
-              label={
-                <span><EnvironmentOutlined /> Site</span>
-              }
-            >
-              {site ? (
-                <span>
-                  {site.name}{" "}
-                  <Tag color={nectarColors.leaf} style={{ border: "none" }}>{site.plantType}</Tag>
-                  <span style={{ color: nectarColors.muted }}>
-                    · {site.location}
-                    {siteReadiness ? ` · readiness ${siteReadiness.readiness}%` : ""}
-                  </span>
+        <div className="grid grid-cols-2 sm:grid-cols-5 border-t border-slate-100">
+          {stats.map(([label, value]) => (
+            <div key={label} className="px-5 sm:px-6 py-4 border-slate-100 [&:not(:last-child)]:sm:border-r">
+              <div className="text-xl font-extrabold text-slate-900">{value}</div>
+              <div className="text-xs text-slate-500">{label}</div>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
+        {/* Left: details */}
+        <aside className="flex flex-col gap-6">
+          <section className={CARD} aria-label="Details">
+            <h2 className={H2}>Details</h2>
+            <div className="mt-2 divide-y divide-slate-100">
+              <Fact icon={<IdcardOutlined />} label="Employee ID">{e.id}</Fact>
+              <Fact icon={<MedicineBoxOutlined />} label="Mediclaim ID">
+                <span className="inline-flex items-center gap-2 font-normal text-slate-400">
+                  Not added yet
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">Coming soon</span>
                 </span>
-              ) : (
-                "Corporate HQ (Org-wide)"
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Designation">{employee.designation}</Descriptions.Item>
-            <Descriptions.Item label="Department">{employee.department}</Descriptions.Item>
-            <Descriptions.Item label="Category">{employee.employeeCategory.replace(/_/g, " ")}</Descriptions.Item>
-            <Descriptions.Item label="Manager">
-              {employee.managerId
-                ? (getEmployeeById(employee.managerId)?.name ?? "—")
-                : "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Shift In-Charge">
-              {employee.shiftInChargeId
-                ? (getEmployeeById(employee.shiftInChargeId)?.name ?? "—")
-                : "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Supervisor">
-              {employee.supervisorId
-                ? (getEmployeeById(employee.supervisorId)?.name ?? "—")
-                : "—"}
-            </Descriptions.Item>
-          </Descriptions>
-        </div>
-
-        <div style={{ background: nectarColors.white, padding: 24 }}>
-          <div style={sSerifText18InkMb4}>Skill map</div>
-          <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
-            Personal O&amp;M competency bars for <em>this person</em> (0–100).
-            Built from the skill matrix role baseline, then shifted by their
-            overall skill score.
-          </p>
-          <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
-            Formula: score = clamp(roleBaseline + (skillScore − roleAverage),
-            0–100). Use this when choosing who covers leave or OT for a skill.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {skillKeys.map((key) => {
-              const score = skills[key];
-              return (
-                <div key={key}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, color: nectarColors.ink }}>{skillLabels[key]}</span>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color:
-                          score < 70 ? nectarColors.alert : nectarColors.ink,
-                      }}
-                    >
-                      {score}%
-                    </span>
-                  </div>
-                  <Progress
-                    percent={score}
-                    showInfo={false}
-                    size={["100%", 8]}
-                    strokeColor={
-                      score < 70
-                        ? nectarColors.alert
-                        : score < 85
-                          ? nectarColors.sky
-                          : nectarColors.mint
-                    }
-                    railColor="#E2E8F0"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {showOt && otDetail ? (
-        <div style={{ background: nectarColors.white, padding: 24 }}>
-          <div style={rowBetweenWrapGap12Mb16}>
-            <div>
-              <div style={sSerifText18Ink}>Overtime</div>
-              <p style={{ margin: "4px 0 0", color: nectarColors.muted, fontSize: 13 }}>
-                Engine-generated OT history for this employee
-                {otDetail.shift ? ` · ${otDetail.shift.name}` : ""}.
-              </p>
+              </Fact>
+              <Fact icon={<MailOutlined />} label="Email">{e.email || "—"}</Fact>
+              <Fact icon={<PhoneOutlined />} label="Phone">{e.phone || "—"}</Fact>
+              <Fact icon={<TeamOutlined />} label="Department">{e.department || "—"}</Fact>
+              <Fact icon={<ClockCircleOutlined />} label="Shift">{SHIFT_LABEL[e.shiftId] ?? title(e.shiftId)}</Fact>
+              <Fact icon={<CalendarOutlined />} label="Joined">
+                {e.joinedAt ? new Date(e.joinedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+              </Fact>
             </div>
-            <Link href={`/overtime/employees/${employee.id}`} style={{ fontSize: 13, color: nectarColors.leaf }}>Full OT profile</Link>
-          </div>
+          </section>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-            <OtStat
-              label="This month"
-              value={formatHours(otDetail.summary.currentMonthHours)}
-              hint={`${otDetail.summary.currentMonthDays} days · ${formatInr(otDetail.summary.currentMonthCost)}`}
-            />
-            <OtStat
-              label="Year to date"
-              value={formatHours(otDetail.summary.currentYearHours)}
-              hint={`${otDetail.summary.currentYearDays} days · ${formatInr(otDetail.summary.currentYearCost)}`}
-            />
-            <OtStat label="Prev. month" value={formatHours(otDetail.summary.previousMonthHours)} />
-            <OtStat label="Site OT share" value={`${otDetail.siteSharePct}%`} hint="Of filtered site OT" />
-          </div>
+          <section className={CARD} aria-label="LinkedIn">
+            <div className="flex items-center gap-2">
+              <h2 className={H2}>LinkedIn</h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">Coming soon</span>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <span className="w-11 h-11 shrink-0 rounded-xl bg-[#0A66C2] text-white text-xl flex items-center justify-center">
+                <LinkedinFilled />
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-700">Not linked</div>
+                <div className="text-xs text-slate-500">
+                  {isSelf ? "Link your LinkedIn profile to show it here." : "No LinkedIn profile linked."}
+                </div>
+              </div>
+            </div>
+            {isSelf && (
+              <Button
+                block
+                icon={<LinkOutlined />}
+                onClick={() => message.info("LinkedIn linking — coming soon. This feature is under development.")}
+                className="mt-4 rounded-xl!"
+              >
+                Link LinkedIn profile
+              </Button>
+            )}
+          </section>
 
-          {recentOt.length === 0 ? (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No overtime records in the selected period." />
-          ) : (
-            <Table
-              rowKey="id"
-              columns={otColumns}
-              dataSource={recentOt}
-              pagination={false}
-              size="middle"
-              scroll={{ x: 560 }}
-            />
+          <section className={CARD} aria-label="Site">
+            <h2 className={H2}>Site</h2>
+            {site.data ? (
+              <Link href={`/sites`} className="mt-3 flex items-center gap-3 rounded-2xl bg-slate-50! border border-slate-100 p-4 hover:border-[#1C4463]">
+                <span className="w-11 h-11 shrink-0 rounded-xl bg-emerald-700 text-white font-bold flex items-center justify-center text-sm">{site.data.plantType}</span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-900">{site.data.name}</span>
+                  <span className="block text-xs text-slate-500"><EnvironmentOutlined /> {site.data.location}</span>
+                </span>
+              </Link>
+            ) : (
+              <p className="m-0 mt-2 text-sm text-slate-500">{e.siteId ? "Loading…" : "Corporate (all sites)"}</p>
+            )}
+          </section>
+
+          <section className={CARD} aria-label="Reporting line">
+            <h2 className={H2}>Reporting line</h2>
+            {e.managerId || e.supervisorId || e.shiftInChargeId ? (
+              <ol className="m-0 p-0 list-none mt-4">
+                <Person id={e.managerId} role="Plant Manager" />
+                {e.supervisorId !== e.managerId && <Person id={e.supervisorId} role="Site Manager" />}
+                {e.shiftInChargeId !== e.supervisorId && e.shiftInChargeId !== e.managerId && <Person id={e.shiftInChargeId} role="Shift In-Charge" />}
+              </ol>
+            ) : (
+              <p className="m-0 mt-2 text-sm text-slate-500">No one is set above {isSelf ? "you" : e.name.split(" ")[0]}.</p>
+            )}
+          </section>
+        </aside>
+
+        {/* Right: leave, certificates, training */}
+        <main className="flex flex-col gap-6 min-w-0">
+          <section className={CARD} aria-label="Leave">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h2 className={H2}>Leave</h2>
+              {isSelf && (
+                <Link href="/leave/requests" className="text-sm font-semibold text-emerald-700!">
+                  Apply for leave <RightOutlined className="text-xs" />
+                </Link>
+              )}
+            </div>
+            {balances.loading && !balances.data ? (
+              <Skeleton active paragraph={{ rows: 1 }} />
+            ) : balanceEntries.length ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                {balanceEntries.map(([type, days]) => (
+                  <div key={type} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                    <div className="text-2xl font-extrabold text-slate-900">{days}</div>
+                    <div className="text-xs text-slate-500">{LEAVE_TYPE_LABELS[type] ?? title(type)} left</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="m-0 mt-2 text-sm text-slate-500">No leave balance on record.</p>
+            )}
+
+            <div className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-500">Recent requests</div>
+            {leaves.loading && !leaves.data ? (
+              <Skeleton active paragraph={{ rows: 2 }} />
+            ) : leaveList.length === 0 ? (
+              <p className="m-0 mt-2 text-sm text-slate-500">No leave requests yet.</p>
+            ) : (
+              <ul className="m-0 p-0 list-none mt-2 divide-y divide-slate-100">
+                {leaveList.slice(0, 4).map((l) => (
+                  <li key={l.id}>
+                    <Link href={`/leave/requests/${l.id}`} className="group flex items-center gap-3 py-3">
+                      <span className="w-11 h-11 shrink-0 rounded-xl bg-[#1C4463]/[0.07] text-[#1C4463] flex flex-col items-center justify-center leading-none">
+                        <span className="text-[10px] font-semibold uppercase">{new Date(l.startDate).toLocaleDateString("en-IN", { month: "short" })}</span>
+                        <span className="text-base font-extrabold">{new Date(l.startDate).getDate()}</span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-slate-900 group-hover:underline">
+                          {LEAVE_TYPE_LABELS[l.leaveType as LeaveType] ?? title(l.leaveType)} leave
+                        </span>
+                        <span className="block text-xs text-slate-500">
+                          {l.startDate}
+                          {l.endDate && l.endDate !== l.startDate ? ` → ${l.endDate}` : ""}
+                        </span>
+                      </span>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${LEAVE_TONE[l.status as LeaveStatus] ?? "bg-amber-50 text-amber-700"}`}>
+                        {LEAVE_STATUS_LABELS[l.status as LeaveStatus] ?? title(l.status)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className={CARD} aria-label={isSelf ? "My resume" : "Resume"}>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <h2 className={H2}>{isSelf ? "My resume" : "Resume"}</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">Coming soon</span>
+              </div>
+              {isSelf && (
+                <Button
+                  icon={<UploadOutlined />}
+                  onClick={() => message.info("Resume upload — coming soon. This feature is under development.")}
+                  className="rounded-xl!"
+                >
+                  Upload resume
+                </Button>
+              )}
+            </div>
+            <div className="mt-4 flex items-center gap-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-5 py-6">
+              <span className="w-12 h-12 shrink-0 rounded-2xl bg-white border border-slate-200 text-slate-400 text-xl flex items-center justify-center">
+                <FileTextOutlined />
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-700">No resume uploaded</div>
+                <div className="text-xs text-slate-500">
+                  {isSelf ? "You'll be able to upload a PDF or Word resume here soon." : "Resumes will appear here once uploading is available."}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className={CARD} aria-label="Certificates">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <h2 className={H2}>Certificates <span className="font-normal text-slate-400">{certs.length}</span></h2>
+              <Link href={isSelf ? "/certifications?mine=1" : "/certifications"} className="text-sm font-semibold text-emerald-700!">
+                See all <RightOutlined className="text-xs" />
+              </Link>
+            </div>
+            {certs.length === 0 ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No certificates yet" />
+            ) : (
+              <ul className="m-0 p-0 list-none mt-4 grid gap-3 sm:grid-cols-2">
+                {certs.map((c) => {
+                  const valid = !c.expiresAt || Date.parse(c.expiresAt) > now;
+                  const course = getCourseById(c.courseId);
+                  return (
+                    <li key={c.id} className="rounded-2xl border border-slate-200 p-4 flex gap-3">
+                      <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-lg ${valid ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"}`}>
+                        <SafetyCertificateOutlined />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2">{course?.title ?? c.courseTitle}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {course?.code ? `${course.code} · ` : ""}
+                          {valid ? `Valid until ${c.expiresAt?.slice(0, 10) ?? "—"}` : `Expired ${c.expiresAt?.slice(0, 10)}`}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section className={CARD} aria-label="Training">
+            <EmployeeTrainingSection employeeId={e.id} />
+          </section>
+
+          {canViewOtModule(session) && (
+            <Link
+              href={`/overtime/employees/${e.id}`}
+              className={`${CARD} flex items-center justify-between gap-3 hover:border-[#1C4463]`}
+            >
+              <span>
+                <span className="block font-bold text-slate-900">Overtime</span>
+                <span className="block text-sm text-slate-500">Open the overtime module for this person&apos;s OT history</span>
+              </span>
+              <RightOutlined className="text-slate-400" />
+            </Link>
           )}
-        </div>
-      ) : null}
-
-      <div style={{ background: nectarColors.white, padding: 24 }}>
-        <EmployeeTrainingSection employeeId={employee.id} />
+        </main>
       </div>
     </div>
   );

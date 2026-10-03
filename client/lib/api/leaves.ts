@@ -88,3 +88,9 @@ export async function validateLeave(
     body: JSON.stringify(input),
   });
 }
+
+export type LeaveBalances = { employeeId: string; balances: Partial<Record<string, number>> };
+
+export async function getLeaveBalances(employeeId: string): Promise<LeaveBalances> {
+  return apiClient<LeaveBalances>(`/leaves/balances/${encodeURIComponent(employeeId)}`);
+}
