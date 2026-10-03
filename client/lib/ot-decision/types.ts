@@ -8,7 +8,9 @@ export type OtDecisionTrigger =
   | "leave_cover"
   | "roster_vacancy"
   | "rotation_publish"
-  | "manual_assign";
+  | "manual_assign"
+  /** Repair work on a plant breakdown (Safety → Breakdowns) */
+  | "breakdown_repair";
 
 export type OtPolicyFlag =
   | "reliever_available"
@@ -34,6 +36,8 @@ export type OtDecision = {
   leaveId?: string;
   vacancyId?: string;
   absenceId?: string;
+  /** Safety breakdown this OT repairs (trigger breakdown_repair) */
+  safetyEventId?: string;
   hours: number;
   cost: number;
   flags: OtPolicyFlag[];

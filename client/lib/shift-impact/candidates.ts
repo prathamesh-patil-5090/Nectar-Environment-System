@@ -3,6 +3,7 @@ import {
   type Employee,
 } from "@/lib/mock-data";
 import type { SkillTag } from "@/lib/reliever/pool";
+import { openSeriousIncidentFor } from "@/lib/safety/gates";
 import {
   getCoverageApi,
   getPoolApi,
@@ -95,6 +96,8 @@ export function rankCoverCandidates(opts: {
 
   for (const emp of activeEmps) {
     if (coveringLeave(emp.id, date)) continue;
+    // Involved in an open high/critical safety incident — not offered as cover until resolved
+    if (openSeriousIncidentFor(emp.id)) continue;
     if (!isEmployeeFreeThatDay(emp, date, plannedDay)) continue;
     const skills = employeeSkillTags(emp);
     if (!skillsMatch(skills, requiredSkills)) continue;
@@ -125,6 +128,7 @@ export function rankCoverCandidates(opts: {
   for (const r of pool) {
     if (r.employeeId && excluded.has(r.employeeId)) continue;
     if (r.employeeId && coveringLeave(r.employeeId, date)) continue;
+    if (r.employeeId && openSeriousIncidentFor(r.employeeId)) continue;
     if (site && !r.plantTypes.includes(site.plantType)) continue;
     if (!skillsMatch(r.skills, requiredSkills)) continue;
 

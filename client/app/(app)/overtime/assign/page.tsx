@@ -27,14 +27,17 @@ import { getOtDecisions } from "@/lib/ot-decision";
 import { canAssignOt, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText18Mb12, sWhitePadR10 } from "@/lib/styles";
+import { openSeriousIncidentFor } from "@/lib/safety/gates";
 
 export default function OtAssignPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const canAssign = canAssignOt(session);
   const [tick, setTick] = useState(0);
   const [form] = Form.useForm();
+  const pickedEmployeeId: string | undefined = Form.useWatch("employeeId", form);
+  const safetyHold = pickedEmployeeId ? openSeriousIncidentFor(pickedEmployeeId) : undefined;
 
   const approvedSuggestions = useMemo(() => {
     void tick;
@@ -77,6 +80,18 @@ export default function OtAssignPage() {
       return;
     }
     const values = await form.validateFields();
+    // Soft-block: person is involved in an open high/critical safety incident
+    const hold = openSeriousIncidentFor(values.employeeId);
+    if (hold) {
+      const ok = await modal.confirm({
+        title: "Assign OT despite open safety incident?",
+        content: `This person is involved in "${hold.title}" (${hold.severity}), which is still open. Assign only if they are fit for duty.`,
+        okText: "Assign anyway",
+        okButtonProps: { danger: true },
+      });
+      if (!ok) return;
+      values.notes = [values.notes, `Safety hold overridden by ${session?.name ?? "Manager"} (case ${hold.id})`].filter(Boolean).join(" · ");
+    }
     try {
       assignOt({
         employeeId: values.employeeId,
@@ -147,6 +162,14 @@ export default function OtAssignPage() {
                 options={plantEmployees.map((e) => ({ value: e.id, label: `${e.name} · ${e.role}` }))}
               />
             </Form.Item>
+            {safetyHold ? (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+                title={<>Open safety incident: <Link href={`/safety/incidents/${safetyHold.id}`}>{safetyHold.title}</Link> — confirm they are fit before assigning OT.</>}
+              />
+            ) : null}
             <Form.Item name="date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: "100%" }} /></Form.Item>
             <Form.Item name="hours" label="Hours" rules={[{ required: true }]}><InputNumber min={1} max={12} style={{ width: "100%" }} /></Form.Item>
             <Form.Item name="reason" label="Reason" rules={[{ required: true }]}><Input.TextArea rows={2} /></Form.Item>

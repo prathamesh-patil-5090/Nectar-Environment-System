@@ -5,6 +5,7 @@ import { computeShiftImpact } from "@/lib/shift-impact/engine";
 import { rankCoverCandidates } from "@/lib/shift-impact/candidates";
 import { OT_HOURLY_COST } from "@/lib/shift-impact/types";
 import type { SkillTag } from "@/lib/reliever/pool";
+import { openSeriousIncidentFor } from "@/lib/safety/gates";
 import {
   findClearingOtDecision,
   getOtDecisions,
@@ -55,7 +56,9 @@ function proposeAssignees(
         e.siteId === siteId &&
         e.otEligible &&
         e.employmentStatus === "active" &&
-        e.employeeCategory !== "manager",
+        e.employeeCategory !== "manager" &&
+        // Not proposed for OT while involved in an open high/critical safety incident
+        !openSeriousIncidentFor(e.id),
     )
     .map((e) => ({
       employeeId: e.id,
@@ -254,6 +257,33 @@ export function blockOtDecision(input: {
     actor: input.actor,
     remark: input.remark.trim(),
     decidedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * OT request for repairing a plant breakdown. Always a new decision (never merged with
+ * leave-cover decisions on the same date); goes through the normal approve/block flow.
+ */
+export function createBreakdownOtDecision(input: {
+  siteId: string;
+  date: string;
+  hours: number;
+  safetyEventId: string;
+  breakdownTitle: string;
+}): OtDecision {
+  const ev = evaluateOtDecision({ siteId: input.siteId, date: input.date, hours: input.hours, trigger: "breakdown_repair" });
+  return upsertOtDecision({
+    status: "pending",
+    trigger: "breakdown_repair",
+    siteId: input.siteId,
+    date: input.date,
+    safetyEventId: input.safetyEventId,
+    hours: ev.hours,
+    cost: ev.cost,
+    flags: ev.flags,
+    proposedAssignees: ev.proposedAssignees,
+    title: `Breakdown repair: ${input.breakdownTitle}`,
+    message: ev.message,
   });
 }
 
