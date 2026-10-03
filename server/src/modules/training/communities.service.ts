@@ -18,7 +18,7 @@ export class CommunitiesService {
     private readonly people: PeopleService,
   ) {}
 
-  /** Effective members = explicit + autoJoin matches − opted out. */
+  /** Effective members = explicit + autoJoin matches − opted out; a default community has everyone. */
   async memberIds(communityId: string): Promise<string[]> {
     const c = await this.communityModel.findOne({ id: communityId }).lean().exec();
     if (!c) return [];
@@ -26,6 +26,7 @@ export class CommunitiesService {
   }
 
   private async effectiveMembers(c: Community): Promise<string[]> {
+    if (c.everyone) return this.people.allIds();
     const auto = (await this.people.matching(c.autoJoin ?? {})).map((p) => p.id);
     const out = new Set([...c.memberEmployeeIds, ...auto, ...c.organizerEmployeeIds]);
     c.optedOutEmployeeIds.forEach((id) => out.delete(id));
@@ -103,6 +104,8 @@ export class CommunitiesService {
 
   async leave(slug: string, employeeId: string) {
     if (!employeeId) throw new BadRequestException('employeeId is required');
+    const current = await this.communityModel.findOne({ $or: [{ slug }, { id: slug }] }, { everyone: 1, name: 1 }).lean().exec();
+    if (current?.everyone) throw new BadRequestException(`Everyone is a member of ${current.name}; it can't be left`);
     const c = await this.communityModel
       .findOneAndUpdate(
         { $or: [{ slug }, { id: slug }] },

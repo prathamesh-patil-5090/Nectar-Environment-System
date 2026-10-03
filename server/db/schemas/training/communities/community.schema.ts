@@ -35,6 +35,10 @@ export class Community {
   @Prop({ type: [String], default: [] })
   optedOutEmployeeIds: string[];
 
+  /** Default community: every active employee and leader is a member and nobody can leave (e.g. Safety). */
+  @Prop({ default: false })
+  everyone: boolean;
+
   /** Employees matching these are added automatically. Empty = no auto-join. */
   @Prop({ type: Object, default: {} })
   autoJoin: { roles?: string[]; plantTypes?: string[] };

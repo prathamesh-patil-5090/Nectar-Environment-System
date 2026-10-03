@@ -105,6 +105,15 @@ export class PeopleService {
     return employees.map((e) => this.toPerson(e, sites, new Map()));
   }
 
+  /** Ids of every active employee and leader (the Director, the Safety In-Charge…). */
+  async allIds(): Promise<string[]> {
+    const [employees, leaders] = await Promise.all([
+      this.employeeModel.find({ employmentStatus: { $ne: 'inactive' } }, { id: 1 }).lean().exec(),
+      this.leaderModel.find({ active: true }, { id: 1 }).lean().exec(),
+    ]);
+    return [...employees.map((e) => e.id), ...leaders.map((l) => l.id)];
+  }
+
   async siteName(siteId: string): Promise<string | undefined> {
     return (await this.siteModel.findOne({ id: siteId }).lean().exec())?.name;
   }
