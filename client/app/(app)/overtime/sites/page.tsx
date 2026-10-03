@@ -13,6 +13,8 @@ import {
   getSiteOtRows,
   type SiteOtRow,
 } from "@/lib/overtime";
+import { getSession } from "@/lib/auth";
+import { canDownloadReports } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 
 export default function OtSitesPage() {
@@ -47,7 +49,9 @@ export default function OtSitesPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <OtFiltersBar value={filters} onChange={setFilters} lockedSiteId={lockedSiteId} />
-      <div style={{ display: "flex", justifyContent: "flex-end" }}><Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("site", "xlsx", filters)}>Export</Button></div>
+      {canDownloadReports(getSession()) ? (
+        <div style={{ display: "flex", justifyContent: "flex-end" }}><Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("site", "xlsx", filters)}>Export</Button></div>
+      ) : null}
       <Table
         rowKey="siteId"
         columns={columns}

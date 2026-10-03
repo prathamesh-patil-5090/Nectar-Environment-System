@@ -15,6 +15,8 @@ import {
   OT_STATUS_LABELS,
   type EmployeeOtRow,
 } from "@/lib/overtime";
+import { getSession } from "@/lib/auth";
+import { canDownloadReports } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { rowBetweenWrapGap12 } from "@/lib/styles";
 
@@ -79,7 +81,9 @@ export default function OtEmployeesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("employee", "xlsx", filters)}>Export</Button>
+        {canDownloadReports(getSession()) ? (
+          <Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("employee", "xlsx", filters)}>Export</Button>
+        ) : null}
       </div>
       <Table
         rowKey="employeeId"
