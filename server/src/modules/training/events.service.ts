@@ -89,25 +89,36 @@ export class EventsService {
   /** Events + live counts + the viewer's RSVP. Meet link only for hosts and attendees. */
   private async decorate(events: TrainingEvent[], viewerId?: string) {
     const ids = events.map((e) => e.id);
-    const [rsvps, hosts, communities] = await Promise.all([
+    const [rsvps, communities] = await Promise.all([
       this.rsvpModel.find({ eventId: { $in: ids }, status: { $ne: 'cancelled' } }).lean().exec(),
-      this.people.many(events.flatMap((e) => e.hostEmployeeIds)),
       this.communityModel.find({ id: { $in: events.map((e) => e.communityId).filter(Boolean) } }).lean().exec(),
     ]);
     const communityById = new Map(communities.map((c) => [c.id, c]));
-    return events.map((ev) => {
+    const rows = events.map((ev) => {
       const mine = rsvps.filter((r) => r.eventId === ev.id);
-      const going = mine.filter((r) => r.status === 'going' || r.status === 'attended').length;
-      const waitlist = mine.filter((r) => r.status === 'waitlist').sort((a, b) => a.rsvpAt.localeCompare(b.rsvpAt));
+      const goingRsvps = mine
+        .filter((r) => r.status === 'going' || r.status === 'attended')
+        .sort((a, b) => a.rsvpAt.localeCompare(b.rsvpAt));
       const my = viewerId ? mine.find((r) => r.employeeId === viewerId) : undefined;
       const isHost = Boolean(viewerId && ev.hostEmployeeIds.includes(viewerId));
+      // Same rule as attendees(): only hosts and registered people see who is going
+      const canSeeAttendees = isHost || ['going', 'waitlist', 'attended'].includes(my?.status ?? '');
+      const previewIds = canSeeAttendees ? goingRsvps.slice(0, 3).map((r) => r.employeeId) : [];
+      return { ev, mine, going: goingRsvps.length, my, isHost, previewIds };
+    });
+    const people = await this.people.many(
+      rows.flatMap((r) => [...r.ev.hostEmployeeIds, ...r.previewIds]),
+    );
+    return rows.map(({ ev, mine, going, my, isHost, previewIds }) => {
+      const waitlist = mine.filter((r) => r.status === 'waitlist').sort((a, b) => a.rsvpAt.localeCompare(b.rsvpAt));
       const canSeeLink = isHost || my?.status === 'going' || my?.status === 'attended';
       const community = ev.communityId ? communityById.get(ev.communityId) : undefined;
       const { remindersSent: _r, ...rest } = ev;
       return {
         ...rest,
         meetLink: canSeeLink ? ev.meetLink : undefined,
-        hosts: ev.hostEmployeeIds.map((h) => hosts.get(h)).filter(Boolean) as Person[],
+        hosts: ev.hostEmployeeIds.map((h) => people.get(h)).filter(Boolean) as Person[],
+        attendeePreview: previewIds.map((p) => people.get(p)).filter(Boolean) as Person[],
         community: community ? { id: community.id, name: community.name, slug: community.slug } : undefined,
         goingCount: going,
         waitlistCount: waitlist.length,

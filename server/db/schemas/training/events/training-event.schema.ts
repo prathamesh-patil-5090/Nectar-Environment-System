@@ -43,6 +43,10 @@ export class TrainingEvent {
   @Prop()
   coverUrl?: string;
 
+  /** The manager who assigned this session to their site (the host runs it). */
+  @Prop({ type: Object })
+  assignedBy?: { id: string; name: string };
+
   /** First id is the main host. */
   @Prop({ type: [String], required: true, index: true })
   hostEmployeeIds: string[];
