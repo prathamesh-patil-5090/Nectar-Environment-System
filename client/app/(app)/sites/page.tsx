@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import gsap from "gsap";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Segmented, Table, Tooltip, theme } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { getSession } from "@/lib/auth";
@@ -16,6 +15,7 @@ import {
 } from "@/lib/workforce-metrics";
 import { safetyKpis } from "@/lib/safety/kpis";
 import { useSafetyEvents } from "@/lib/safety/hooks";
+import { useTableMotion } from "@/lib/motion/use-table-motion";
 
 const PLANT_TYPES: PlantType[] = ["ETP", "STP", "WTP", "RO", "MEE"];
 const STATUS_ORDER: SiteStatus[] = ["operational", "new", "upcoming", "closed"];
@@ -92,48 +92,8 @@ export default function SitesPage() {
 
   const data = statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
 
-  // Motion: header + table settle in once; rows stagger and readiness bars fill whenever the rows change.
-  // Everything is skipped for users who ask for reduced motion.
-  /** Elements under `root` matching `selector` — GSAP warns when handed an empty list, so callers skip those. */
-  const pick = (root: HTMLElement | null, selector: string) =>
-    root ? Array.from(root.querySelectorAll<HTMLElement>(selector)) : [];
-
-  const pageRef = useRef<HTMLDivElement>(null);
-  const tableRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      const intro = pick(pageRef.current, "[data-anim='intro']");
-      if (!intro.length) return;
-      gsap.from(intro, {
-        opacity: 0,
-        y: 10,
-        duration: 0.45,
-        ease: "power2.out",
-        stagger: 0.08,
-        clearProps: "transform",
-      });
-    });
-    return () => mm.revert();
-  }, []);
-
-  const rowKey = sites ? data.map((r) => r.id).join("|") : "";
-  useLayoutEffect(() => {
-    if (!rowKey) return;
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      const rowEls = pick(tableRef.current, "tbody tr.ant-table-row");
-      const bars = pick(tableRef.current, "[data-anim='readiness']");
-      if (rowEls.length) {
-        gsap.from(rowEls, { opacity: 0, y: 8, duration: 0.35, ease: "power2.out", stagger: 0.045, clearProps: "transform" });
-      }
-      // Only operational plants have a readiness bar (none when filtered to New / Upcoming / Closed).
-      if (bars.length) {
-        gsap.from(bars, { width: 0, duration: 0.7, ease: "power3.out", stagger: 0.05, delay: 0.1 });
-      }
-    });
-    return () => mm.revert();
-  }, [rowKey]);
+  // Header + table settle in once; rows stagger and readiness bars fill whenever the rows change.
+  const { pageRef, tableRef } = useTableMotion(sites ? data.map((r) => r.id).join("|") : "");
 
   const statusColor: Record<SiteStatus, string> = {
     operational: token.colorSuccess,
@@ -246,7 +206,7 @@ export default function SitesPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ flex: 1, height: 4, borderRadius: 2, background: token.colorFillSecondary }}>
                 <div
-                  data-anim="readiness"
+                  data-anim="bar"
                   style={{ width: `${readiness}%`, height: "100%", borderRadius: 2, background: color }}
                 />
               </div>

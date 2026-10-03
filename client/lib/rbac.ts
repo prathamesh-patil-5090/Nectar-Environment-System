@@ -54,7 +54,7 @@ export function selfEmployeeId(user: SessionUser | null): string | undefined {
 
 export function canAccessEmployeeRecord(
   user: SessionUser | null,
-  employee: Employee | undefined,
+  employee: Pick<Employee, "id"> & { siteId?: string } | undefined,
 ): boolean {
   if (!user || !employee) return false;
   if (canViewAllSites(user)) return true;
