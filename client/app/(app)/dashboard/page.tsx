@@ -6,6 +6,7 @@ import KpiStat from "@/components/KpiStat";
 import SkillHeatmap from "@/components/SkillHeatmap";
 import UrgentTrainingList from "@/components/UrgentTrainingList";
 import SiteReadiness from "@/components/SiteReadiness";
+import SafetySummaryPanel from "@/components/safety/SafetySummaryPanel";
 import { getSession } from "@/lib/auth";
 import {
   getDashboardKpis,
@@ -155,6 +156,8 @@ export default function DashboardPage() {
               tone="positive"
             />
           </div>
+
+          <SafetySummaryPanel siteId={siteScope} />
 
           <div className="nectar-dash-grid">
             <SkillHeatmap />

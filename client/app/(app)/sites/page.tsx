@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import { Progress, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -11,6 +12,8 @@ import {
   type SiteReadinessBreakdown,
 } from "@/lib/workforce-metrics";
 import { nectarColors } from "@/lib/theme";
+import { safetyKpis } from "@/lib/safety/kpis";
+import { useSafetyEvents } from "@/lib/safety/hooks";
 
 const plantColor: Record<Site["plantType"], string> = {
   ETP: nectarColors.leaf,
@@ -32,6 +35,7 @@ export default function SitesPage() {
     () => getSitesWithComputedReadiness(siteScope),
     [siteScope],
   );
+  const { events: safetyEvents } = useSafetyEvents();
 
   const columns: ColumnsType<Row> = [
     { title: "Site", dataIndex: "name", key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
@@ -79,6 +83,22 @@ export default function SitesPage() {
               />
             </div>
           </Tooltip>
+        );
+      },
+    },
+    {
+      title: "Safety",
+      key: "safety",
+      render: (_, row) => {
+        const k = safetyKpis(safetyEvents, row.id);
+        return (
+          <Link href="/safety/incidents" style={{ whiteSpace: "nowrap" }}>
+            {k.open ? <Tag color={k.openCritical ? "red" : "orange"}>{k.open} open</Tag> : <Tag color="green">No open cases</Tag>}
+            {k.activeBreakdowns ? <Tag color="red">Down</Tag> : null}
+            <span style={{ fontSize: 12, color: nectarColors.muted }}>
+              {k.daysSinceLti === null ? "No LTI" : `${k.daysSinceLti} d since LTI`}
+            </span>
+          </Link>
         );
       },
     },

@@ -95,7 +95,13 @@ function OtRow({
 }
 
 const serverKindLabel = (kind: string) =>
-  kind.startsWith("event_") ? "Events" : kind.startsWith("assessment_") ? "Assessment" : "Training";
+  kind.startsWith("safety_")
+    ? "Safety"
+    : kind.startsWith("event_")
+      ? "Events"
+      : kind.startsWith("assessment_")
+        ? "Assessment"
+        : "Training";
 
 /** Server-side notifications (training, events, flags, certificates). */
 function ServerInbox({ personId }: { personId: string }) {
