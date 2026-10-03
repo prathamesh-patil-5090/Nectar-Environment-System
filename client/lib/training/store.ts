@@ -98,6 +98,7 @@ export function loadTrainingData(force = false): Promise<void> {
       ]);
       cache.courses = courses;
       cache.enrollments = enrollments;
+      postedPct.clear(); // fresh server copy → save steps restart from it
       cache.certificates = certificates;
       cache.sessions = sessions;
       cache.assignments = assignments;
@@ -133,8 +134,22 @@ export function resetTrainingStore(): void {
   void loadTrainingData(true);
 }
 
-const replaceEnrollment = (e: CourseEnrollment) => {
+/**
+ * Server copy wins, except watch progress: responses can arrive out of order while the video keeps playing,
+ * so each ability keeps the higher watched % (the server keeps the max too). `force` replaces outright.
+ */
+const replaceEnrollment = (e: CourseEnrollment, opts?: { force?: boolean }) => {
   const i = cache.enrollments.findIndex((x) => x.id === e.id || (x.employeeId === e.employeeId && x.courseId === e.courseId));
+  const local = i >= 0 ? cache.enrollments[i] : undefined;
+  if (local && !opts?.force) {
+    for (const [abilityId, p] of Object.entries(e.abilityProgress ?? {})) {
+      const mine = local.abilityProgress[abilityId];
+      if (mine && mine.videoWatchedPct > p.videoWatchedPct) {
+        p.videoWatchedPct = mine.videoWatchedPct;
+        p.videoComplete = p.videoComplete || mine.videoComplete;
+      }
+    }
+  }
   if (i >= 0) cache.enrollments[i] = e;
   else cache.enrollments.push(e);
   emit();
@@ -143,6 +158,11 @@ const reportError = (err: unknown) => {
   cache.error = (err as Error)?.message ?? String(err);
   emit();
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("training-error", { detail: cache.error }));
+};
+/** A write was rejected: show why, then reload this enrollment from the server so the screen matches the database. */
+const resync = (enr: Pick<CourseEnrollment, "employeeId" | "courseId">) => (err: unknown) => {
+  reportError(err);
+  api.enroll(enr.employeeId, enr.courseId).then((e) => replaceEnrollment(e, { force: true })).catch(() => undefined);
 };
 const refreshCertificates = async (employeeId: string) => {
   try {
@@ -266,13 +286,37 @@ function completeIfNoQuiz(enr: CourseEnrollment, abilityId: string) {
   }
 }
 
-export function updateVideoProgress(enrollmentId: string, abilityId: string, watchedPct: number): AbilityProgress {
+/** Last watch % sent to the server per enrollment+ability, so playback saves in steps instead of every second. */
+const postedPct = new Map<string, number>();
+
+/**
+ * Records watch progress locally at once; saves to the server every 10%, on reaching 90% / 100%, or when `flush` is set
+ * (pause, lesson switch, leaving the page).
+ */
+export function updateVideoProgress(enrollmentId: string, abilityId: string, watchedPct: number, opts?: { flush?: boolean }): AbilityProgress {
   const enr = findEnrollment(enrollmentId);
   const p = (enr.abilityProgress[abilityId] ??= freshProgress(abilityId, true));
+  const before = p.videoWatchedPct;
   p.videoWatchedPct = Math.min(100, Math.max(p.videoWatchedPct, Math.round(watchedPct)));
   if (p.videoWatchedPct >= 90) p.videoComplete = true;
   completeIfNoQuiz(enr, abilityId);
-  api.postVideoProgress(enrollmentId, abilityId, watchedPct).then(replaceEnrollment).catch(reportError);
+  if (p.videoWatchedPct > before) emit();
+  const key = `${enrollmentId}:${abilityId}`;
+  // Nothing new beyond what the database already has → no request
+  if (!postedPct.has(key)) postedPct.set(key, before);
+  const last = postedPct.get(key)!;
+  const pct = p.videoWatchedPct;
+  const due = pct - last >= 10 || (pct >= 90 && last < 90) || (pct === 100 && last < 100) || (opts?.flush && pct > last);
+  if (due) {
+    postedPct.set(key, pct);
+    api
+      .postVideoProgress(enrollmentId, abilityId, pct)
+      .then((e) => replaceEnrollment(e))
+      .catch((err) => {
+        postedPct.delete(key);
+        resync(enr)(err);
+      });
+  }
   return p;
 }
 
@@ -280,7 +324,8 @@ export function acknowledgeReading(enrollmentId: string, abilityId: string): voi
   const enr = findEnrollment(enrollmentId);
   (enr.abilityProgress[abilityId] ??= freshProgress(abilityId, true)).readingAcknowledged = true;
   completeIfNoQuiz(enr, abilityId);
-  api.postReading(enrollmentId, abilityId).then(replaceEnrollment).catch(reportError);
+  emit();
+  api.postReading(enrollmentId, abilityId).then((e) => replaceEnrollment(e)).catch(resync(enr));
 }
 
 const scoreOf = (questions: { id: string; correctOptionId: string }[], answers: Record<string, string>) =>
@@ -309,7 +354,8 @@ export function submitMicroQuiz(
   api
     .postMicroQuiz(enrollmentId, abilityId, answers)
     .then((r) => replaceEnrollment(r.enrollment))
-    .catch(reportError);
+    .catch(resync(enr));
+  emit();
   return { scorePct, passed };
 }
 
@@ -352,7 +398,7 @@ function quizGate(
       replaceEnrollment(r.enrollment);
       if (r.certificate) void refreshCertificates(enr.employeeId);
     })
-    .catch(reportError);
+    .catch(resync(enr));
   return result;
 }
 

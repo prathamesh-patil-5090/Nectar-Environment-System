@@ -414,6 +414,8 @@ export interface TrainingEvent {
   topics: string[];
   audience: { roles?: string[]; plantTypes?: string[] };
   coverUrl?: string;
+  /** The manager who assigned this session to their site (the host runs it) */
+  assignedBy?: { id: string; name: string };
   hostEmployeeIds: string[];
   startsAt: string;
   endsAt: string;
@@ -431,6 +433,8 @@ export interface TrainingEvent {
   recordingUrl?: string;
   // Computed by the server
   hosts: Person[];
+  /** First few people going — only sent to hosts and registered viewers */
+  attendeePreview?: Person[];
   community?: { id: string; name: string; slug: string };
   goingCount: number;
   waitlistCount: number;
@@ -470,6 +474,8 @@ export interface Community {
   organizers: Person[];
   memberCount: number;
   isMember: boolean;
+  /** Default community: everyone is a member and nobody can leave */
+  everyone?: boolean;
 }
 
 export interface MentorProfileRecord {
@@ -534,6 +540,17 @@ export interface TrainingFeed {
   suggestions: { assignment: TrainingAssignment; course?: CourseCardData; matches: CourseCardData[] }[];
   assigned: { assignment: TrainingAssignment; course: CourseCardData; enrollment?: EnrollmentSummary; overdue: boolean }[];
   continueLearning: { course: CourseCardData; enrollment: EnrollmentSummary }[];
+  /** Safety courses with this person's status; compulsory for employee, site manager, shift in-charge, manager and safety in-charge */
+  safety: {
+    compulsory: boolean;
+    done: number;
+    courses: {
+      course: CourseCardData;
+      status: "certified" | "in_progress" | "not_started";
+      enrollment?: EnrollmentSummary;
+      certExpiresAt?: string;
+    }[];
+  };
   recommended: Recommendation[];
   requiredPaths: {
     id: string;
