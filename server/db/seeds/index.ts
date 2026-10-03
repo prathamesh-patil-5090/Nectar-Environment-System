@@ -30,6 +30,9 @@ import { LeavePolicySchema } from '../schemas/leave-policy.schema';
 import { LeaveBalanceSchema } from '../schemas/leave-balance.schema';
 import { ShiftRosterSchema } from '../schemas/shift-roster.schema';
 import { UserSchema } from '../schemas/user.schema';
+import { SafetyProtocolSchema } from '../schemas/safety-protocol.schema';
+import { LeaderSchema } from '../schemas/leader.schema';
+import { safetyLeadersSeed, safetyProtocolsSeed } from './safety.seed';
 import {
   CourseSchema,
   TrainingRecordSchema,
@@ -175,6 +178,17 @@ async function seed() {
   console.log('[13/14] Seeding Manager Training Assignments...');
   await TrainingAssignmentModel.insertMany(trainingAssignmentsSeed);
   console.log(`  ✓ Inserted ${trainingAssignmentsSeed.length} active manager directives & assignments`);
+
+  // 14. Safety protocols + Safety In-Charge person (no incidents — the log holds real reports only)
+  console.log('[14/14] Seeding Safety protocols...');
+  const SafetyProtocolModel = mongoose.model('SafetyProtocol', SafetyProtocolSchema, 'safety_protocols');
+  const LeaderModel = mongoose.model('Leader', LeaderSchema, 'leaders');
+  await SafetyProtocolModel.deleteMany({});
+  await SafetyProtocolModel.insertMany(safetyProtocolsSeed);
+  for (const l of safetyLeadersSeed) {
+    await LeaderModel.updateOne({ id: l.id }, { $setOnInsert: l }, { upsert: true });
+  }
+  console.log(`  ✓ Inserted ${safetyProtocolsSeed.length} safety protocols; ensured Safety In-Charge leader row`);
 
   console.log('\n────────────────────────────────────────────────────────');
   console.log('🎉 Unified database seeding completed successfully!');
