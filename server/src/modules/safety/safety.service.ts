@@ -253,16 +253,15 @@ export class SafetyService {
       (SEVERITIES.includes(body.severity) ? body.severity : 'medium') as SafetySeverity,
     );
 
+    const categoryOther = category === 'other' ? str(body.categoryOther, 120) : '';
+
+    // involved = people it happened to (or nearly happened to); informedBy = people who saw it or informed. Both can be many.
     const involved = idList(body.involved);
     const informedBy = idList(body.informedBy);
-    if (type !== 'breakdown') {
-      // Employee 1: the person it happened to (or nearly happened to). Employee 2: who saw it / prevented it.
-      if (involved.length !== 1) throw new BadRequestException('Choose the one person it happened to (or nearly happened to)');
-      if (informedBy.length > 1) throw new BadRequestException('Choose one person who saw it or prevented it');
-      if (informedBy[0] && informedBy[0] === involved[0]) {
-        throw new BadRequestException('The person who saw / prevented it must be someone else');
-      }
+    if (type !== 'breakdown' && !involved.length) {
+      throw new BadRequestException('Choose at least one person it happened to (or nearly happened to)');
     }
+    if (involved.length > 100 || informedBy.length > 100) throw new BadRequestException('Too many people on one report');
     const known = await this.employeeModel.find({ id: { $in: [...involved, ...informedBy] } }, { id: 1 }).lean().exec();
     const knownIds = new Set(known.map((k) => k.id));
     const unknown = [...involved, ...informedBy].filter((p) => !knownIds.has(p));
@@ -288,6 +287,7 @@ export class SafetyService {
       occurredAt: str(body.occurredAt, 40) || now,
       reportedAt: now,
       category,
+      ...(categoryOther ? { categoryOther } : {}),
       severity,
       status: 'REPORTED',
       reportedBy: { personId: actor.id, name: actor.name, role: actor.role },
@@ -326,7 +326,7 @@ export class SafetyService {
 
     const created = (await this.eventModel.create(doc)).toObject() as SafetyEvent;
 
-    const what = `${SAFETY_CATEGORY_LABELS[category]} · ${severity}`;
+    const what = `${SAFETY_CATEGORY_LABELS[category]}${categoryOther ? ` — ${categoryOther}` : ''} · ${severity}`;
     if (isEmergency) {
       await this.notify(created.emergencyRecipients, actor.id, 'safety_emergency', `EMERGENCY: ${title}`,
         `${what}. Reported by ${actor.name}${created.location ? ` at ${created.location}` : ''}. Open and acknowledge.`, created);
@@ -402,17 +402,81 @@ export class SafetyService {
     severity = effectiveSeverity(category, severity);
     if (severity !== ev.severity) set.severity = severity;
 
-    // Turning a case serious adds pending clearance for involved people (never silently removes it)
-    if (!ev.requiresReturnClearance && defaultRequiresClearance(ev.type as SafetyEventType, category, severity)) {
+    const unset: Record<string, ''> = {};
+    if (category === 'other') {
+      if (typeof body.categoryOther === 'string' && str(body.categoryOther, 120) !== (ev.categoryOther ?? '')) {
+        set.categoryOther = str(body.categoryOther, 120);
+        changed.push('hazard');
+      }
+    } else if (ev.categoryOther) {
+      unset.categoryOther = '';
+    }
+
+    // People it happened to / who saw it — can be added after the report is filed
+    let involved = ev.involved;
+    const people: string[] = [];
+    if (Array.isArray(body.involved)) {
+      const next = idList(body.involved);
+      if (ev.type !== 'breakdown' && !next.length) {
+        throw new BadRequestException('Keep at least one person it happened to');
+      }
+      if (next.join(',') !== ev.involved.join(',')) {
+        involved = next;
+        set.involved = next;
+        people.push(...next);
+        changed.push('people affected');
+      }
+    }
+    if (Array.isArray(body.informedBy)) {
+      const next = idList(body.informedBy);
+      if (next.join(',') !== ev.informedBy.join(',')) {
+        set.informedBy = next;
+        people.push(...next);
+        changed.push('witnesses');
+      }
+    }
+    if (people.length) {
+      if (involved.length > 100 || ((set.informedBy as string[] | undefined)?.length ?? 0) > 100) {
+        throw new BadRequestException('Too many people on one report');
+      }
+      const known = await this.employeeModel.find({ id: { $in: people } }, { id: 1 }).lean().exec();
+      const knownIds = new Set(known.map((k) => k.id));
+      const unknown = [...new Set(people)].filter((p) => !knownIds.has(p));
+      if (unknown.length) throw new BadRequestException(`Unknown employee id(s): ${unknown.join(', ')}`);
+    }
+
+    // Turning a case serious adds pending clearance for involved people (never silently removes it);
+    // people added to a case that already needs clearance get it too.
+    const needsClearance =
+      ev.requiresReturnClearance || defaultRequiresClearance(ev.type as SafetyEventType, category, severity);
+    if (needsClearance) {
       const have = new Set(ev.clearance.map((c) => c.employeeId));
-      set.requiresReturnClearance = true;
-      set.clearance = [
-        ...ev.clearance,
-        ...ev.involved.filter((e) => !have.has(e)).map((employeeId) => ({ employeeId, status: 'pending' })),
-      ];
+      const added = involved.filter((e) => !have.has(e));
+      if (!ev.requiresReturnClearance) set.requiresReturnClearance = true;
+      if (added.length || !ev.requiresReturnClearance) {
+        set.clearance = [...ev.clearance, ...added.map((employeeId) => ({ employeeId, status: 'pending' }))];
+      }
     }
     if (!changed.length) return ev;
-    return this.apply(id, set, [this.entry(actor, 'edit', 'Details updated', changed.join(', '))]);
+    const updated = await this.eventModel
+      .findOneAndUpdate(
+        { id },
+        {
+          $set: set,
+          ...(Object.keys(unset).length ? { $unset: unset } : {}),
+          $push: { timeline: this.entry(actor, 'edit', 'Details updated', changed.join(', ')) },
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
+    if (!updated) throw new NotFoundException(`Safety event ${id} not found`);
+    const newcomers = people.filter((p) => !this.followers(ev).includes(p));
+    if (newcomers.length) {
+      await this.notify(newcomers, actor.id, `safety_${ev.type}`, `Added to ${this.label(ev)}`,
+        `${actor.name} added you to this safety case.`, updated);
+    }
+    return updated;
   }
 
   async changeStatus(id: string, body: Record<string, any>) {
@@ -525,6 +589,7 @@ export class SafetyService {
       location: ev.location,
       occurredAt: ev.occurredAt,
       category: body.category ?? (ev.category === 'other' ? 'other' : ev.category),
+      categoryOther: typeof body.categoryOther === 'string' ? body.categoryOther : ev.categoryOther,
       severity: body.severity ?? ev.severity,
       involved: ev.involved,
       informedBy: ev.informedBy,
@@ -713,7 +778,8 @@ export class SafetyService {
   // ── Protocols ────────────────────────────────────────────────────────────
 
   async listProtocols(siteId?: string) {
-    const filter = siteId ? { $or: [{ siteIds: { $size: 0 } }, { siteIds: siteId }] } : {};
+    const filter: Record<string, unknown> = { archivedAt: { $exists: false } };
+    if (siteId) filter.$or = [{ siteIds: { $size: 0 } }, { siteIds: siteId }];
     return this.protocolModel.find(filter).sort({ category: 1, title: 1 }).lean().exec();
   }
 
@@ -756,10 +822,31 @@ export class SafetyService {
     const fields = this.protocolFields(body);
     if (fields.title === '' || fields.category === '') throw new BadRequestException('title and category cannot be empty');
     const updated = await this.protocolModel
-      .findOneAndUpdate({ id }, { $set: { ...fields, updatedBy: actor.name, updatedAtIso: nowIso() }, $inc: { version: 1 } }, { new: true })
+      .findOneAndUpdate(
+        { id, archivedAt: { $exists: false } },
+        { $set: { ...fields, updatedBy: actor.name, updatedAtIso: nowIso() }, $inc: { version: 1 } },
+        { new: true },
+      )
       .lean()
       .exec();
     if (!updated) throw new NotFoundException(`Protocol ${id} not found`);
     return updated;
+  }
+
+  /** Soft delete — sites stop seeing it; the record stays for history. */
+  async deleteProtocol(id: string, body: Record<string, any>) {
+    const actor = this.actor(body.actor);
+    this.require(actor, 'editProtocols');
+    const at = nowIso();
+    const archived = await this.protocolModel
+      .findOneAndUpdate(
+        { id, archivedAt: { $exists: false } },
+        { $set: { archivedAt: at, archivedBy: actor.name, updatedBy: actor.name, updatedAtIso: at } },
+        { new: true },
+      )
+      .lean()
+      .exec();
+    if (!archived) throw new NotFoundException(`Protocol ${id} not found`);
+    return archived;
   }
 }

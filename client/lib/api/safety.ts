@@ -50,7 +50,7 @@ export const setSafetyActionDone = (id: string, actionId: string, actor: SafetyA
 export const promoteNearMiss = (
   id: string,
   actor: SafetyActor,
-  opts: { category?: string; severity?: string; title?: string; remark?: string; isEmergency?: boolean },
+  opts: { category?: string; categoryOther?: string; severity?: string; title?: string; remark?: string; isEmergency?: boolean },
 ) => send<SafetyEvent>('POST', `/safety/events/${enc(id)}/promote`, { ...opts, actor });
 
 export const decideSafetyClearance = (
@@ -87,6 +87,10 @@ export const createSafetyProtocol = (actor: SafetyActor, protocol: Partial<Safet
 
 export const updateSafetyProtocol = (id: string, actor: SafetyActor, patch: Partial<SafetyProtocol>) =>
   send<SafetyProtocol>('PATCH', `/safety/protocols/${enc(id)}`, { ...patch, actor });
+
+/** Soft delete — the protocol is archived and hidden from sites. */
+export const deleteSafetyProtocol = (id: string, actor: SafetyActor) =>
+  send<SafetyProtocol>('DELETE', `/safety/protocols/${enc(id)}`, { actor });
 
 /** Absolute URL for an uploaded photo / video (server returns a path under /api). */
 export const safetyMediaUrl = (url: string) => (url.startsWith('http') ? url : `${API_BASE_URL}${url}`);

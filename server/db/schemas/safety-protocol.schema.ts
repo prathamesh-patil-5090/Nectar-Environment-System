@@ -38,6 +38,13 @@ export class SafetyProtocol {
 
   @Prop()
   updatedAtIso?: string;
+
+  /** Soft delete: hidden from sites, kept for history. */
+  @Prop({ index: true })
+  archivedAt?: string;
+
+  @Prop()
+  archivedBy?: string;
 }
 
 export const SafetyProtocolSchema = SchemaFactory.createForClass(SafetyProtocol);

@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  SAFETY_CATEGORY_LABELS,
+  safetyCategoryLabel,
   SAFETY_SEVERITY_LABELS,
   SAFETY_STATUS_LABELS,
   SAFETY_TYPE_LABELS,
@@ -32,13 +32,13 @@ export function downloadSafetyReport(ev: SafetyEvent, names: Names) {
     body: [
       ["Site", names.siteName(ev.siteId)],
       ["Status", SAFETY_STATUS_LABELS[ev.status]],
-      ["Category", SAFETY_CATEGORY_LABELS[ev.category]],
+      ["Category", safetyCategoryLabel(ev)],
       ["Severity", SAFETY_SEVERITY_LABELS[ev.severity]],
       ["Occurred", fmt(ev.occurredAt)],
       ["Reported", `${fmt(ev.reportedAt)} by ${ev.reportedBy.name}`],
       ["Location", ev.location || "—"],
-      ["Involved", ev.involved.map(names.empName).join(", ") || "—"],
-      ["Informed by", ev.informedBy.map(names.empName).join(", ") || "—"],
+      ["People it happened to", ev.involved.map(names.empName).join(", ") || "—"],
+      ["Saw it / informed", ev.informedBy.map(names.empName).join(", ") || "—"],
       ["Emergency", ev.isEmergency ? `Yes — ${ev.emergencyAcks.length}/${ev.emergencyRecipients.length} acknowledged` : "No"],
       ["Description", ev.description || "—"],
       ["Root cause", ev.rootCause || "—"],

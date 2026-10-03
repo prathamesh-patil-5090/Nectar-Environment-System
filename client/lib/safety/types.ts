@@ -79,6 +79,8 @@ export type SafetyEvent = {
   occurredAt: string;
   reportedAt: string;
   category: SafetyCategory;
+  /** Custom hazard name when category is "other". */
+  categoryOther?: string;
   severity: SafetySeverity;
   status: SafetyStatus;
   reportedBy: SafetyPersonRef;
@@ -127,6 +129,8 @@ export type SafetyProtocol = {
   version: number;
   updatedBy?: string;
   updatedAtIso?: string;
+  archivedAt?: string;
+  archivedBy?: string;
 };
 
 export type PendingClearance = { eventId: string; title: string; siteId: string; employeeId: string };
@@ -142,6 +146,7 @@ export type NewSafetyEventInput = {
   location?: string;
   occurredAt?: string;
   category?: SafetyCategory;
+  categoryOther?: string;
   severity?: SafetySeverity;
   involved?: string[];
   informedBy?: string[];

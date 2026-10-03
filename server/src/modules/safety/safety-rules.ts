@@ -336,6 +336,12 @@ export const SAFETY_CATEGORY_LABELS: Record<SafetyCategory, string> = {
   other: "Other",
 };
 
+/** "Other — {custom hazard}" when the reporter named it, else the plain category label. */
+export function safetyCategoryLabel(ev: { category: SafetyCategory; categoryOther?: string }): string {
+  const base = SAFETY_CATEGORY_LABELS[ev.category] ?? ev.category;
+  return ev.category === "other" && ev.categoryOther?.trim() ? `${base} — ${ev.categoryOther.trim()}` : base;
+}
+
 export const SAFETY_SEVERITY_LABELS: Record<SafetySeverity, string> = {
   low: "Low",
   medium: "Medium",

@@ -79,6 +79,10 @@ export class SafetyEvent {
   @Prop({ required: true })
   category: string;
 
+  /** Custom hazard name when category is "other". */
+  @Prop()
+  categoryOther?: string;
+
   @Prop({ required: true, enum: ['low', 'medium', 'high', 'critical'] })
   severity: string;
 

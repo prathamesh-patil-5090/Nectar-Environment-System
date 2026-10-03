@@ -489,11 +489,11 @@ Incidents, near-misses and plant breakdowns — every case, big or small, is sto
 | Page | Route | What it does |
 |------|-------|--------------|
 | Overview | `/safety` | Open cases, active emergencies, near-misses (30 d), plants down, return-to-work pending, days since lost-time injury; per-site table |
-| Report | `/safety/report` | Near-miss (everyone) · incident / breakdown (shift in-charge and above). Site, category, severity, people involved / who informed, emergency switch, photos (≤10 MB) and videos (≤50 MB) |
+| Report incident | `/safety/report` | Safety concern (plant manager) · breakdown (plant leads). Works for reports filed after the fact. Site, when, hazard (**Other → free-text name**), severity, **people it happened to (one or more)**, **people who saw it or informed (any number; overlap shows a warning)**, emergency switch, photos (≤10 MB) and videos (≤50 MB) |
 | Incidents & near-miss | `/safety/incidents` | History with search + filters (site, type, severity, status, date) |
-| Case detail | `/safety/incidents/[id]` | Status actions (only those your role + site allow), corrective actions, return-to-work clearance + linked leave, media, Jitsi call, PDF report, comments, full timeline, escalate near-miss → incident |
+| Case detail | `/safety/incidents/[id]` | Status actions (only those your role + site allow), corrective actions, return-to-work clearance + linked leave, photo/video gallery (add more any time), people lists as chips (editable via Edit details; newly added people get clearance + a notification), Jitsi call, PDF report, comments, full timeline, escalate near-miss → incident |
 | Breakdowns | `/safety/breakdowns`, `/[id]` | What/why/how broke, downtime days, OT people + hours, "Request repair OT" (creates an OT decision with trigger `breakdown_repair`) |
-| Emergency protocols | `/safety/protocols` | Readable by all; Safety In-charge + Director add / edit (versioned) |
+| Emergency protocols | `/safety/protocols` | Readable by all; Safety In-charge + Director add / edit (versioned) / delete (soft delete — `archivedAt`, hidden from sites, kept for history) |
 | Safety training | `/safety/training` | Academy courses covering safety (LOTO, confined space, electrical, chemical…) |
 
 **Status flow:** Reported → Acknowledged → Investigating → Action pending → Resolved → Closed (Reopened → Investigating). Resolve needs all corrective actions done; Close also needs every return-to-work clearance decided.

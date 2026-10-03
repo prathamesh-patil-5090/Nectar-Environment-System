@@ -23,11 +23,11 @@ Client feedback (Oct 2026) on top of the existing Safety module. Use this as the
 
 ### To do
 
-- [ ] Add **Delete** on protocol detail (and optionally on list card overflow menu).
-- [ ] Confirm modal: “Delete protocol *{title}*? Sites will no longer see these steps.”
-- [ ] Client store + API: `deleteSafetyProtocol(id)` (prefer soft-delete `archivedAt` so history stays).
-- [ ] Keep **Add** / **Edit** visible for editors; viewers stay read-only.
-- [ ] After delete, select next protocol or empty state; refresh filter counts.
+- [x] Add **Delete** on protocol detail (and optionally on list card overflow menu).
+- [x] Confirm modal: “Delete protocol *{title}*? Sites will no longer see these steps.”
+- [x] Client store + API: `deleteSafetyProtocol(id)` (prefer soft-delete `archivedAt` so history stays).
+- [x] Keep **Add** / **Edit** visible for editors; viewers stay read-only.
+- [x] After delete, select next protocol or empty state; refresh filter counts.
 
 ### Acceptance
 
@@ -65,10 +65,10 @@ Client feedback (Oct 2026) on top of the existing Safety module. Use this as the
 
 ### Media
 
-- [ ] Allow **images and videos** on create (`Upload.Dragger` already present — verify both MIME types + size limits).
-- [ ] On detail: gallery with preview; upload more after create (`uploadSafetyMedia`).
-- [ ] Store `media[] { id, url, kind: "image" \| "video", uploadedBy, at }` (already on `SafetyEvent`).
-- [ ] Show clear errors if upload fails; report should still save if media partially fails (current pattern OK).
+- [x] Allow **images and videos** on create (`Upload.Dragger` already present — verify both MIME types + size limits).
+- [x] On detail: gallery with preview; upload more after create (`uploadSafetyMedia`).
+- [x] Store `media[] { id, url, kind: "image" \| "video", uploadedBy, at }` (already on `SafetyEvent`).
+- [x] Show clear errors if upload fails; report should still save if media partially fails (current pattern OK).
 
 ### Acceptance
 
@@ -83,10 +83,10 @@ Client feedback (Oct 2026) on top of the existing Safety module. Use this as the
 
 ### To do
 
-- [ ] When `hazard === "other"`, show required `Input` e.g. `hazardOther` / `categoryOther`.
-- [ ] Persist on the event (new optional field `categoryOther?: string` on `SafetyEvent` + server schema).
-- [ ] Display on detail / PDF / tables: “Other — {text}” when set.
-- [ ] Clear `categoryOther` when hazard changes away from Other.
+- [x] When `hazard === "other"`, show required `Input` e.g. `hazardOther` / `categoryOther`.
+- [x] Persist on the event (new optional field `categoryOther?: string` on `SafetyEvent` + server schema).
+- [x] Display on detail / PDF / tables: “Other — {text}” when set.
+- [x] Clear `categoryOther` when hazard changes away from Other.
 
 ### Acceptance
 
@@ -106,11 +106,11 @@ Client feedback (Oct 2026) on top of the existing Safety module. Use this as the
 
 ### To do
 
-- [ ] **Affected** → multi-select (searchable people picker, site-scoped). Required ≥ 1 for incident / near-miss.
-- [ ] **Witnesses / who saw it** → multi-select (optional, can be empty). Cannot include people already only in affected unless product allows overlap — prefer allow overlap with a soft warning.
-- [ ] Map to `involved[]` and `informedBy[]` on `SafetyEvent` (already arrays in types).
-- [ ] Detail UI: list all names (chips or bullets), not a single string.
-- [ ] Labels e.g. “People it happened to” / “People who saw it or informed” (drop “Employee 1 / Employee 2”).
+- [x] **Affected** → multi-select (searchable people picker, site-scoped). Required ≥ 1 for incident / near-miss.
+- [x] **Witnesses / who saw it** → multi-select (optional, can be empty). Cannot include people already only in affected unless product allows overlap — prefer allow overlap with a soft warning.
+- [x] Map to `involved[]` and `informedBy[]` on `SafetyEvent` (already arrays in types).
+- [x] Detail UI: list all names (chips or bullets), not a single string.
+- [x] Labels e.g. “People it happened to” / “People who saw it or informed” (drop “Employee 1 / Employee 2”).
 
 ### Acceptance
 

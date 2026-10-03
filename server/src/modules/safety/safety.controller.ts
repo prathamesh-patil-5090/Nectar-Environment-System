@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -199,5 +200,11 @@ export class SafetyController {
   @Patch('protocols/:id')
   updateProtocol(@Param('id') id: string, @Body() body: Record<string, any>) {
     return this.safety.updateProtocol(id, body);
+  }
+
+  @Delete('protocols/:id')
+  @ApiOperation({ summary: 'Archive a protocol (soft delete). Body: { actor }' })
+  deleteProtocol(@Param('id') id: string, @Body() body: Record<string, any>) {
+    return this.safety.deleteProtocol(id, body);
   }
 }
