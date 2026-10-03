@@ -11,3 +11,6 @@ DOC/
 # Environment variables
 .env
 .env.local
+
+# Uploaded safety media (server-side storage)
+server/uploads/
