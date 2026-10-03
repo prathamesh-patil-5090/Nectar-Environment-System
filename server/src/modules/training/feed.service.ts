@@ -28,6 +28,14 @@ const ROLE_LABEL: Record<string, string> = {
   director: 'Directors',
 };
 
+/** Roles for whom safety training is compulsory. */
+export const SAFETY_COMPULSORY_ROLES = ['employee', 'supervisor', 'shift_incharge', 'manager', 'safety_incharge'];
+
+/** A safety course: "Safety" category, or a safety topic in its title or skills (descriptions are too loose). */
+const SAFETY_TOPIC = /safety|loto|lock-?out|confined space|hazard|first aid|\bppe\b|emergency|fire/i;
+export const isSafetyCourse = (c: Pick<Course, 'title' | 'category' | 'skills'>) =>
+  /safety/i.test(c.category ?? '') || SAFETY_TOPIC.test(c.title) || (c.skills ?? []).some((k) => SAFETY_TOPIC.test(k));
+
 /** Which plant a course belongs to (sites.plantType), from its audience or section. */
 const coursePlant = (c: Course): string | undefined => {
   if (c.audience?.plantTypes?.length) return c.audience.plantTypes[0];
@@ -211,6 +219,26 @@ export class FeedService {
       .sort((a, b) => b[1] - a[1])
       .map(([id, n]) => ({ course: courseCard(byId.get(id)!), learners: n }));
 
+    // Safety training: every safety course with this person's status; compulsory for the core plant roles
+    const now = Date.now();
+    const safetyCourses = courses
+      .filter(isSafetyCourse)
+      .map((c) => {
+        const cert = certs.find((x) => x.courseId === c.id && (!x.expiresAt || Date.parse(x.expiresAt) > now));
+        const e = enrollmentFor(c.id);
+        return {
+          course: courseCard(c),
+          status: cert ? ('certified' as const) : e ? ('in_progress' as const) : ('not_started' as const),
+          enrollment: e ? { id: e.id, status: e.status, ...progress(e) } : undefined,
+          certExpiresAt: cert?.expiresAt,
+        };
+      });
+    const safety = {
+      compulsory: SAFETY_COMPULSORY_ROLES.includes(me.role),
+      done: safetyCourses.filter((x) => x.status === 'certified').length,
+      courses: safetyCourses,
+    };
+
     const upcomingEvents = await this.events.list({ viewerId: me.id, view: 'upcoming' });
 
     // Open weak-area flags, shown even when no course matches by name
@@ -232,6 +260,7 @@ export class FeedService {
         certified: certs.filter((c) => !c.expiresAt || Date.parse(c.expiresAt) > Date.now()).length,
       },
       assigned,
+      safety,
       continueLearning,
       recommended,
       requiredPaths,
