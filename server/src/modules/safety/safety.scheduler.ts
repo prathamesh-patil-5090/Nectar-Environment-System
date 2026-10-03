@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { SafetyService } from './safety.service';
-import { ESCALATE_AFTER, SafetySeverity, SafetyStatus, isReminderDue, meetingNudgesDue } from './safety-rules';
+import { ESCALATE_AFTER, SafetySeverity, SafetyStatus, isReminderDue } from './safety-rules';
 
 const TICK_MS = 5 * 60_000;
 
@@ -32,8 +32,7 @@ export class SafetyScheduler implements OnModuleInit, OnModuleDestroy {
     try {
       const events = await this.safety.openEvents();
       for (const ev of events) {
-        const noShows = meetingNudgesDue({ ...ev, status: ev.status as SafetyStatus }, now);
-        if (noShows.length) await this.safety.sendMeetingNudges(ev, noShows);
+        // Safety meetings are coming soon, so there are no "join the meeting" reminders to send.
         const due = isReminderDue(
           {
             status: ev.status as SafetyStatus,

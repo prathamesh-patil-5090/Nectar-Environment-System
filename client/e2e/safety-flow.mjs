@@ -85,6 +85,8 @@ async function caseIdFromUrl(page) {
 }
 
 const api = async (path) => (await fetch(API + path)).json();
+/** Safety reads are scoped to a viewer; DB checks look as the Director (org-wide). */
+const DB_VIEWER = "viewerId=e2e-check&viewerRole=director";
 
 // ───────────────────────────────────────── 1. Employee reports a near-miss
 let nmId;
@@ -174,36 +176,39 @@ let incId;
   await page.getByPlaceholder("e.g. Fix sign board and barricade at tank cap").fill("[E2E] Fit guard on valve wheel");
   await page.getByRole("button", { name: "plus Add", exact: true }).click();
   await page.getByText("Action added").waitFor({ timeout: 10000 }).catch(() => {});
-  const resolve = page.getByRole("button", { name: "Resolved", exact: true });
-  ok(await resolve.isDisabled(), "Resolve disabled while corrective action open");
   await page.getByRole("checkbox").first().click();
   await page.waitForFunction(() => document.querySelector(".ant-checkbox-checked"), null, { timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(1200);
-  ok(await resolve.isEnabled(), "Resolve enabled once action done");
+  ok(!(await page.getByRole("button", { name: "Solved", exact: true }).count()), "manager has no Solved button (Director only)");
   ok(!(await page.getByRole("button", { name: "Closed", exact: true }).count()), "manager has no Close button");
   await btn(page, "Clear for duty").click();
   await page.getByText("Cleared for duty").first().waitFor({ timeout: 10000 }).catch(() => {});
   ok(/Cleared/.test(await body(page)), "manager clears non-critical return to work");
-  await resolve.click();
-  await page.locator(".ant-modal").getByRole("button", { name: "Confirm" }).click();
-  await page.getByText("Moved to Resolved").waitFor({ timeout: 10000 }).catch(() => {});
-  ok(/Resolved/.test(await body(page)), "manager resolves");
-  await page.screenshot({ path: `${OUT}/06-incident-resolved-manager.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/06-incident-worked-manager.png`, fullPage: true });
   await visit(page, "/leave/requests/lv5");
   ok(!/Safety clearance pending/.test(await body(page)), "leave banner gone after clearance");
   await done();
 }
 
-// ───────────────────────────────────────── 6. Safety In-charge closes
+// ───────────────────────────────────────── 6. Director marks it solved, then closes
 {
   const { page, done } = await as(U.safety);
   await visit(page, `/safety/incidents/${incId}`);
+  ok(!(await page.getByRole("button", { name: "Solved", exact: true }).count()), "safety in-charge has no Solved button");
+  await done();
+}
+{
+  const { page, done } = await as(U.director);
+  await visit(page, `/safety/incidents/${incId}`);
+  await page.getByRole("button", { name: "Solved", exact: true }).click();
+  await page.locator(".ant-modal").getByRole("button", { name: "Confirm" }).click();
+  await page.getByText("Moved to Solved").waitFor({ timeout: 10000 }).catch(() => {});
   await page.getByRole("button", { name: "Closed", exact: true }).click();
   await page.locator(".ant-modal").getByRole("button", { name: "Confirm" }).click();
   await page.getByText("Moved to Closed").waitFor({ timeout: 10000 }).catch(() => {});
-  const ev = await api(`/safety/events/${incId}`);
-  ok(ev.status === "CLOSED", "safety in-charge closes the incident (DB status CLOSED)");
-  ok(ev.timeline.some((t) => t.actorRole === "manager" && /Resolved/.test(t.title)), "timeline records manager resolve");
+  const ev = await api(`/safety/events/${incId}?${DB_VIEWER}`);
+  ok(ev.status === "CLOSED", "director closes the incident (DB status CLOSED)");
+  ok(ev.timeline.some((t) => t.actorRole === "director" && /Solved/.test(t.title)), "timeline records the Director marking it solved");
   await done();
 }
 
@@ -270,7 +275,7 @@ let emId;
   ok(/Still down/.test(await body(page)), "breakdown shows Still down");
   await btn(page, "Request repair OT").click();
   await page.getByText("Breakdown updated").waitFor({ timeout: 10000 }).catch(() => {});
-  const ev = await api(`/safety/events/${bdId}`);
+  const ev = await api(`/safety/events/${bdId}?${DB_VIEWER}`);
   ok(ev.otDecisionIds.length === 1, "repair OT decision linked to breakdown in DB");
   await visit(page, "/overtime/decisions");
   ok(/Breakdown repair: \[E2E\] Aeration blower/.test(await body(page)), "OT decision appears in OT → Decisions");

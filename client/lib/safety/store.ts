@@ -5,25 +5,45 @@
  * Writes always go to the API first; the cache is updated from the server's response.
  * Never imports leave / OT / shift code (they import from here).
  */
+import { getSession } from "@/lib/auth";
+import { safetyActorOf } from "@/lib/rbac";
 import { persistJson, readJson } from "@/lib/storage";
 import type { SafetyEvent } from "./types";
 
-const STORAGE_KEY = "nectar-enviro-safety-cache-v1";
+/** Old shared cache — one browser handed the last user's copy (meeting links included) to the next one. */
+const LEGACY_KEY = "nectar-enviro-safety-cache-v1";
+/** Cached per signed-in person: each copy only holds what the server sent them (e.g. meeting links). */
+const storageKey = (owner: string) => `nectar-enviro-safety-cache-v2:${owner}`;
 
 let events: SafetyEvent[] = [];
 let hydrated = false;
+let owner: string | null = null;
 let loadedFromApi = false;
 const listeners = new Set<() => void>();
 
+const viewer = () => safetyActorOf(getSession());
+
+/** (Re)load the cache for whoever is signed in now; switching user drops the previous person's cases. */
 function ensureHydrated() {
-  if (hydrated || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  const who = viewer()?.id ?? null;
+  if (hydrated && who === owner) return;
   hydrated = true;
-  const cached = readJson<SafetyEvent[]>(STORAGE_KEY, []);
+  owner = who;
+  loadedFromApi = false;
+  events = [];
+  try {
+    localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    /* storage blocked */
+  }
+  if (!who) return;
+  const cached = readJson<SafetyEvent[]>(storageKey(who), []);
   if (Array.isArray(cached)) events = cached;
 }
 
 function emit() {
-  persistJson(STORAGE_KEY, events);
+  if (owner) persistJson(storageKey(owner), events);
   for (const l of listeners) l();
 }
 
@@ -61,9 +81,12 @@ export function upsertSafetyEvent(ev: SafetyEvent | null | undefined) {
 export async function syncSafetyWithApi(): Promise<void> {
   if (typeof window === "undefined") return;
   ensureHydrated();
+  const me = viewer();
+  if (!me) return;
   const { listSafetyEvents } = await import("../api/safety");
-  const live = await listSafetyEvents();
-  if (Array.isArray(live)) {
+  const live = await listSafetyEvents(me);
+  // Ignore a late answer if someone else signed in meanwhile
+  if (Array.isArray(live) && me.id === owner) {
     events = live;
     loadedFromApi = true;
     emit();

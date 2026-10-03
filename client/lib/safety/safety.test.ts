@@ -23,6 +23,8 @@ import {
   MEETING_NUDGE_MS,
   REMINDER_INTERVAL_MS,
   SAFETY_PERMISSIONS,
+  canJoinSafetyCall,
+  canActOnSafetyCase,
   SAFETY_STATUSES,
   canTransition,
   closeBlocker,
@@ -160,14 +162,15 @@ describe("safety roles — every demo login", () => {
 
   /** Expected actions per role (site-independent). Mirrors docs/SAFETY_PLAN.md §7. */
   const EXPECTED: Record<string, SafetyAction[]> = {
-    // Only the manager raises safety concerns; only the Director closes (and reopens) a case
-    director: ["view", "reportBreakdown", "comment", "investigate", "resolve", "close", "clearNonCritical", "clearCritical", "waiveClearance", "linkLeave", "startCall", "updateBreakdown", "editProtocols"],
-    safety_incharge: ["view", "reportBreakdown", "comment", "investigate", "resolve", "clearNonCritical", "clearCritical", "linkLeave", "startCall", "updateBreakdown", "editProtocols"],
-    manager: ["view", "reportNearMiss", "reportIncident", "reportBreakdown", "comment", "investigate", "resolve", "clearNonCritical", "linkLeave", "startCall", "updateBreakdown"],
-    site_incharge: ["view", "reportBreakdown", "comment", "investigate", "linkLeave", "startCall", "updateBreakdown"],
-    shift_incharge: ["view", "reportBreakdown", "comment", "investigate", "startCall", "updateBreakdown"],
-    hr: ["view", "comment", "investigate", "linkLeave"],
-    supervisor: ["view", "comment", "investigate"],
+    // Only the manager raises safety concerns; only the Director marks a case solved, closes and reopens it
+    director: ["view", "reportBreakdown", "comment", "investigate", "resolve", "close", "clearNonCritical", "clearCritical", "waiveClearance", "linkLeave", "startCall", "updateBreakdown", "editProtocols", "downloadReport"],
+    safety_incharge: ["view", "reportBreakdown", "comment", "investigate", "clearNonCritical", "clearCritical", "linkLeave", "startCall", "updateBreakdown", "editProtocols", "downloadReport"],
+    manager: ["view", "reportNearMiss", "reportIncident", "reportBreakdown", "comment", "investigate", "clearNonCritical", "linkLeave", "startCall", "updateBreakdown", "downloadReport"],
+    site_incharge: ["view", "reportBreakdown", "comment", "investigate", "linkLeave", "startCall", "updateBreakdown", "downloadReport"],
+    shift_incharge: ["view", "reportBreakdown", "comment", "investigate", "startCall", "updateBreakdown", "downloadReport"],
+    hr: ["view", "comment", "investigate", "linkLeave", "downloadReport"],
+    supervisor: ["view", "comment", "investigate", "downloadReport"],
+    // Plain employees: no report downloads
     employee: ["view", "comment"],
   };
 
@@ -194,6 +197,34 @@ describe("safety roles — every demo login", () => {
       if (["supervisor", "shift_incharge"].includes(role)) expect(canSafety(u, "investigate", other)).toBe(false);
       if (orgWide) expect(canSafety(u, "investigate", other)).toBe(true);
     }
+  });
+
+  it("every case is visible, but plain employees only join or act on cases they are named on", () => {
+    const ev = {
+      siteId: "s-ro",
+      stakeholders: [{ personId: "lead-1" }],
+      involved: ["emp-hurt"],
+      informedBy: ["emp-saw"],
+      reportedBy: { personId: "mgr-1" },
+      callInvited: ["emp-hurt", "emp-saw", "lead-1"],
+      callJoined: ["mgr-1"],
+      correctiveActions: [{ ownerId: "emp-owner" }],
+    };
+    const emp = (id: string, siteId = "s-ro") => ({ id, role: "employee", siteId });
+    // Same plant, not named on the case: can read it, cannot act on it or join its meeting
+    expect(canActOnSafetyCase(emp("emp-stranger"), ev)).toBe(false);
+    expect(canJoinSafetyCall(emp("emp-stranger"), ev)).toBe(false);
+    for (const id of ["emp-hurt", "emp-saw", "emp-owner"]) {
+      expect(canActOnSafetyCase(emp(id), ev)).toBe(true);
+      expect(canJoinSafetyCall(emp(id), ev)).toBe(true);
+    }
+    // Plant leads act on their own plant's cases; org-wide roles on all; nobody joins a meeting they're not on
+    expect(canActOnSafetyCase({ id: "si-1", role: "site_incharge", siteId: "s-ro" }, ev)).toBe(true);
+    expect(canActOnSafetyCase({ id: "si-2", role: "site_incharge", siteId: "s-etp" }, ev)).toBe(false);
+    expect(canActOnSafetyCase({ id: "dir", role: "director" }, ev)).toBe(true);
+    expect(canJoinSafetyCall({ id: "si-1" }, ev)).toBe(false);
+    expect(canJoinSafetyCall({ id: "mgr-1" }, ev)).toBe(true);
+    expect(canJoinSafetyCall(null, ev)).toBe(false);
   });
 
   it("actor id = employee id, or user:<email> for logins without one (matches server notifications)", () => {

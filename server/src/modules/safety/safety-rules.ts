@@ -64,7 +64,7 @@ export const SAFETY_TRANSITIONS: Record<SafetyStatus, SafetyStatus[]> = {
 
 /**
  * Statuses where the case is still open. A case is only finished when the Director closes it,
- * so RESOLVED ("solved — awaiting the Director") is still open and reminders keep firing.
+ * so RESOLVED ("Solved") is still open and reminders keep firing.
  */
 export const OPEN_STATUSES: SafetyStatus[] = [
   "REPORTED",
@@ -132,7 +132,8 @@ export type SafetyAction =
   | "linkLeave"
   | "startCall"
   | "updateBreakdown"
-  | "editProtocols";
+  | "editProtocols"
+  | "downloadReport";
 
 export const SAFETY_PERMISSIONS: Record<SafetyAction, SafetyRole[]> = {
   view: ALL_ROLES,
@@ -147,8 +148,8 @@ export const SAFETY_PERMISSIONS: Record<SafetyAction, SafetyRole[]> = {
    * supervisor, shift in-charge, HR, Director and Safety In-charge, plus the manager who raised it.
    */
   investigate: ["director", "safety_incharge", "manager", "site_incharge", "supervisor", "shift_incharge", "hr"],
-  /** Mark the case solved; it stays open until the Director closes it. */
-  resolve: ["director", "safety_incharge", "manager"],
+  /** Mark the case solved — the Director only; it stays open (reminders keep going) until the Director closes it. */
+  resolve: ["director"],
   /** Close and reopen — the Director only. Closing is what finishes a case. */
   close: ["director"],
   clearNonCritical: ["director", "safety_incharge", "manager"],
@@ -158,6 +159,8 @@ export const SAFETY_PERMISSIONS: Record<SafetyAction, SafetyRole[]> = {
   startCall: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
   updateBreakdown: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
   editProtocols: ["director", "safety_incharge"],
+  /** The case report PDF — everyone who runs a case, never plain employees. */
+  downloadReport: ["director", "manager", "hr", "site_incharge", "shift_incharge", "safety_incharge", "supervisor"],
 };
 
 /** Director, HR and Safety In-charge work across every site. */
@@ -181,6 +184,59 @@ export function safetyCan(
   if (action === "view" || !eventSiteId) return true;
   if (ORG_WIDE_ROLES.includes(role)) return true;
   return Boolean(actor.siteId) && actor.siteId === eventSiteId;
+}
+
+/** The parts of a case that say who is on it. */
+export type SafetyCaseRef = {
+  siteId: string;
+  stakeholders?: { personId: string }[];
+  involved?: string[];
+  informedBy?: string[];
+  reportedBy?: { personId: string };
+  callInvited?: string[];
+  callJoined?: string[];
+  emergencyRecipients?: string[];
+  correctiveActions?: { ownerId?: string }[];
+};
+
+/**
+ * Named on the case: responsible, it happened to them, they saw it, reported it, were called to its meeting,
+ * got its emergency broadcast, or own one of its corrective actions.
+ */
+export function isOnSafetyCase(personId: string | undefined, ev: SafetyCaseRef): boolean {
+  if (!personId) return false;
+  return (
+    (ev.stakeholders ?? []).some((s) => s.personId === personId) ||
+    (ev.involved ?? []).includes(personId) ||
+    (ev.informedBy ?? []).includes(personId) ||
+    ev.reportedBy?.personId === personId ||
+    (ev.callInvited ?? []).includes(personId) ||
+    (ev.callJoined ?? []).includes(personId) ||
+    (ev.emergencyRecipients ?? []).includes(personId) ||
+    (ev.correctiveActions ?? []).some((a) => a.ownerId === personId)
+  );
+}
+
+/**
+ * Every case is visible to everyone; this is who may act on one (comment, upload, work it, call a meeting):
+ * anyone named on it; org-wide roles everywhere; plant leads on their own site.
+ * Plain employees only act on the cases they are named on.
+ */
+export function canActOnSafetyCase(
+  actor: (SafetyScope & { id?: string }) | null | undefined,
+  ev: SafetyCaseRef,
+): boolean {
+  if (!actor) return false;
+  if (isOnSafetyCase(actor.id, ev)) return true;
+  const role = normalizeSafetyRole(actor.role);
+  if (role === "employee") return false;
+  if (ORG_WIDE_ROLES.includes(role)) return true;
+  return Boolean(actor.siteId) && actor.siteId === ev.siteId;
+}
+
+/** Joining the safety meeting — only people named on the case (or already called to it). */
+export function canJoinSafetyCall(actor: { id?: string } | null | undefined, ev: SafetyCaseRef): boolean {
+  return Boolean(actor?.id) && isOnSafetyCase(actor!.id, ev);
 }
 
 export function reportActionFor(type: SafetyEventType): SafetyAction {
@@ -312,7 +368,7 @@ export const SAFETY_STATUS_LABELS: Record<SafetyStatus, string> = {
   ACKNOWLEDGED: "Acknowledged",
   INVESTIGATING: "Investigating",
   ACTION_PENDING: "Action pending",
-  RESOLVED: "Solved — awaiting Director",
+  RESOLVED: "Solved",
   CLOSED: "Closed",
   REOPENED: "Reopened",
 };

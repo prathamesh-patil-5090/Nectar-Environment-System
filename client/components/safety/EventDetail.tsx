@@ -37,6 +37,7 @@ import {
   SAFETY_TRANSITIONS,
   SAFETY_TYPE_LABELS,
   actionForStatus,
+  canActOnSafetyCase,
   clearanceAction,
   closeBlocker,
   downtimeDays,
@@ -55,12 +56,10 @@ import {
   commentSafetyEvent,
   decideSafetyClearance,
   getSafetyEvent,
-  joinSafetyCall,
   linkSafetyLeave,
   promoteNearMiss,
   safetyMediaUrl,
   setSafetyActionDone,
-  startSafetyCall,
   updateSafetyEvent,
   uploadSafetyMedia,
 } from "@/lib/api/safety";
@@ -69,7 +68,7 @@ import { getCachedSafetyEvent, upsertSafetyEvent } from "@/lib/safety/store";
 import { downloadSafetyReport } from "@/lib/safety/report-pdf";
 import { useDirectory, useSessionUser } from "@/lib/safety/hooks";
 import { canSafety, roleLabel, safetyActorOf } from "@/lib/rbac";
-import type { UserRole } from "@/lib/auth";
+import { getSession, type UserRole } from "@/lib/auth";
 import type { LeaveRequest } from "@/lib/leave/types";
 import { LEAVE_STATUS_LABELS } from "@/lib/leave/types";
 import { createBreakdownOtDecision, getOtDecisionById } from "@/lib/ot-decision";
@@ -127,12 +126,14 @@ export default function EventDetail({ id }: { id: string }) {
   const actor = safetyActorOf(user ?? null);
 
   useEffect(() => {
+    const me = safetyActorOf(getSession());
     const cached = getCachedSafetyEvent(id);
     const raf = requestAnimationFrame(() => {
       if (cached) setEv((cur) => cur ?? cached);
     });
     let alive = true;
-    getSafetyEvent(id)
+    if (!me) return () => cancelAnimationFrame(raf);
+    getSafetyEvent(id, me)
       .then((fresh) => {
         if (!alive) return;
         setEv(fresh);
@@ -181,13 +182,15 @@ export default function EventDetail({ id }: { id: string }) {
     }
   };
 
-  const can = (action: Parameters<typeof canSafety>[1]) => canSafety(user ?? null, action, ev?.siteId);
+  // Everyone can read a case; only people on it (and the plant's leads) can act on it
+  const onCase = Boolean(ev) && canActOnSafetyCase(actor, ev!);
+  const can = (action: Parameters<typeof canSafety>[1]) => onCase && canSafety(user ?? null, action, ev?.siteId);
 
   // Header, next step and the case body settle in once the case is on screen.
   const { pageRef } = useTableMotion("", Boolean(ev));
 
   const nextStatuses = useMemo(() => {
-    if (!ev) return [];
+    if (!ev || !canActOnSafetyCase(safetyActorOf(user ?? null), ev)) return [];
     return SAFETY_TRANSITIONS[ev.status].filter((s) => canSafety(user ?? null, actionForStatus(s), ev.siteId));
   }, [ev, user]);
 
@@ -215,7 +218,6 @@ export default function EventDetail({ id }: { id: string }) {
   ];
   const responsible = ev.stakeholders.filter((s) => s.personId !== ev.reportedBy.personId);
   const actionsDone = ev.correctiveActions.filter((a) => a.done).length;
-  const callPeople = [...new Set([...(ev.callJoined ?? []), ...(ev.callInvited ?? [])])];
   const muted = { color: token.colorTextSecondary };
 
   const doStatus = async (s: SafetyStatus, r?: string) => {
@@ -300,26 +302,16 @@ export default function EventDetail({ id }: { id: string }) {
           ) : null}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {ev.meetLink ? (
-            <Button
-              type={actor && ev.callInvited?.includes(actor.id) && !ev.callJoined?.includes(actor.id) ? "primary" : "default"}
-              icon={<PhoneOutlined />}
-              loading={busy === "join"}
-              onClick={async () => {
-                window.open(ev.meetLink, "_blank", "noreferrer");
-                if (actor && ev.callStartedAt && !ev.callJoined?.includes(actor.id)) {
-                  await run("join", () => joinSafetyCall(ev.id, actor), "Marked as joined — your meeting reminders stop");
-                }
-              }}
-            >
-              Join meeting
+          {/* Safety meetings are a coming-soon feature: nothing to call or join yet */}
+          <Tooltip title="Safety meetings are coming soon">
+            <Button icon={<PhoneOutlined />} disabled>
+              Safety meeting
+              <span style={{ marginLeft: 6, fontSize: 12, color: token.colorTextTertiary }}>· Coming soon</span>
             </Button>
-          ) : can("startCall") ? (
-            <Button icon={<PhoneOutlined />} loading={busy === "call"} onClick={() => run("call", () => startSafetyCall(ev.id, actor!), "Meeting called — everyone on the case was notified")}>
-              Call safety meeting
-            </Button>
+          </Tooltip>
+          {canSafety(user ?? null, "downloadReport") ? (
+            <Button icon={<DownloadOutlined />} onClick={() => downloadSafetyReport(ev, dir)}>Report PDF</Button>
           ) : null}
-          <Button icon={<DownloadOutlined />} onClick={() => downloadSafetyReport(ev, dir)}>Report PDF</Button>
           {can("investigate") || (ev.type === "breakdown" && can("updateBreakdown")) ? (
             <Button icon={<EditOutlined />} onClick={() => setEditOpen(true)}>Edit</Button>
           ) : null}
@@ -575,32 +567,6 @@ export default function EventDetail({ id }: { id: string }) {
             )}
           </Section>
 
-          {ev.callStartedAt ? (
-            <Section title="Safety meeting" extra={`${(ev.callJoined ?? []).length} of ${callPeople.length} joined`}>
-              <div style={{ fontSize: 13, marginBottom: 12, ...muted }}>
-                Called {fmt(ev.callStartedAt)}. Anyone who hasn&apos;t joined is reminded in the app every 4 hours until they join or
-                the Director closes the case. Email and WhatsApp reminders are coming soon.
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {callPeople.map((p) => {
-                  const joined = (ev.callJoined ?? []).includes(p);
-                  const stake = ev.stakeholders.find((s) => s.personId === p);
-                  const name = stake?.name ?? (p === ev.reportedBy.personId ? ev.reportedBy.name : dir.empName(p));
-                  const last = ev.callNudgedAt?.[p];
-                  return (
-                    <div key={p} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}>
-                      <span>{name}</span>
-                      <Tooltip title={!joined && last ? `Last reminded ${fmt(last)}` : undefined}>
-                        <span>
-                          <Dot color={joined ? token.colorSuccess : token.colorWarning} label={joined ? "Joined" : "Not joined"} />
-                        </span>
-                      </Tooltip>
-                    </div>
-                  );
-                })}
-              </div>
-            </Section>
-          ) : null}
         </div>
       </div>
 

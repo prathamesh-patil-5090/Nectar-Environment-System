@@ -38,6 +38,8 @@ import {
   OPEN_STATUSES,
   actionForStatus,
   assertSafetyTransition,
+  canJoinSafetyCall,
+  canActOnSafetyCase,
   clearanceAction,
   closeBlocker,
   defaultRequiresClearance,
@@ -97,6 +99,16 @@ export class SafetyService {
     if (!safetyCan(action, actor, siteId)) {
       throw new ForbiddenException(`Your role (${actor.role}) cannot perform "${action}" on this site`);
     }
+  }
+
+  /** Anyone can read a case, but only people on it act on it — plain employees only on cases they are named on. */
+  private requireOnCase(actor: SafetyActorInput, ev: SafetyEvent) {
+    if (!canActOnSafetyCase(actor, ev)) throw new ForbiddenException('You are not on this safety case');
+  }
+
+  /** The meeting link only goes to people who may join it. */
+  private present<T extends SafetyEvent>(ev: T, viewer: SafetyActorInput): T {
+    return canJoinSafetyCall(viewer, ev) ? ev : { ...ev, meetLink: undefined };
   }
 
   private entry(
@@ -192,17 +204,20 @@ export class SafetyService {
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
-  async list(q: { siteId?: string; type?: string; status?: string; employeeId?: string }) {
+  /** Every case is visible to everyone; only the meeting link is kept from people not on the case. */
+  async list(q: { siteId?: string; type?: string; status?: string; employeeId?: string }, viewerRaw: unknown) {
+    const viewer = this.actor(viewerRaw);
     const filter: Record<string, unknown> = {};
     if (q.siteId) filter.siteId = q.siteId;
     if (q.type) filter.type = q.type;
     if (q.status) filter.status = q.status;
     if (q.employeeId) filter.$or = [{ involved: q.employeeId }, { informedBy: q.employeeId }];
-    return this.eventModel.find(filter).sort({ reportedAt: -1 }).limit(500).lean().exec();
+    const rows = await this.eventModel.find(filter).sort({ reportedAt: -1 }).limit(500).lean().exec();
+    return rows.map((ev) => this.present(ev, viewer));
   }
 
-  async get(id: string) {
-    return this.load(id);
+  async get(id: string, viewerRaw: unknown) {
+    return this.present(await this.load(id), this.actor(viewerRaw));
   }
 
   /** Employees with a pending return-to-work clearance (used by the leave close gate). */
@@ -342,6 +357,7 @@ export class SafetyService {
   async updateDetails(id: string, body: Record<string, any>) {
     const actor = this.actor(body.actor);
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, ev.type === 'breakdown' ? 'updateBreakdown' : 'investigate', ev.siteId);
 
     const set: Record<string, unknown> = {};
@@ -484,6 +500,7 @@ export class SafetyService {
     const next = body.status as SafetyStatus;
     if (!SAFETY_STATUSES.includes(next)) throw new BadRequestException('Unknown status');
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, actionForStatus(next), ev.siteId);
     try {
       assertSafetyTransition(ev.status as SafetyStatus, next);
@@ -520,6 +537,7 @@ export class SafetyService {
     const text = str(body.text, 2000);
     if (!text) throw new BadRequestException('text is required');
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, 'comment', ev.siteId);
     return this.apply(id, {}, [this.entry(actor, 'comment', 'Comment', text)]);
   }
@@ -529,6 +547,7 @@ export class SafetyService {
     const text = str(body.text, 1000);
     if (!text) throw new BadRequestException('text is required');
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, 'investigate', ev.siteId);
     if (!['ACKNOWLEDGED', 'INVESTIGATING', 'ACTION_PENDING', 'REOPENED'].includes(ev.status)) {
       throw new ConflictException('Corrective actions can be added while the case is being worked on');
@@ -558,6 +577,7 @@ export class SafetyService {
   async setActionDone(id: string, actionId: string, body: Record<string, any>) {
     const actor = this.actor(body.actor);
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     const action = ev.correctiveActions.find((a) => a.id === actionId);
     if (!action) throw new NotFoundException('Corrective action not found');
     // The owner may tick their own action; otherwise investigation roles
@@ -578,6 +598,7 @@ export class SafetyService {
     if (ev.type !== 'near_miss') throw new BadRequestException('Only near-misses can be promoted');
     if (ev.promotedTo) throw new ConflictException(`Already promoted to ${ev.promotedTo}`);
     if (ev.status === 'CLOSED') throw new ConflictException('Closed near-misses cannot be promoted');
+    this.requireOnCase(actor, ev);
     this.require(actor, 'reportIncident', ev.siteId);
 
     const incident = await this.create({
@@ -613,6 +634,7 @@ export class SafetyService {
     const decision = body.decision === 'waived' ? 'waived' : 'cleared';
     const remark = str(body.remark, 1000);
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, clearanceAction(ev.category as SafetyCategory, ev.severity as SafetySeverity, decision), ev.siteId);
     if (decision === 'waived' && !remark) throw new BadRequestException('A remark is required to waive clearance');
     const row = ev.clearance.find((c) => c.employeeId === employeeId);
@@ -638,6 +660,7 @@ export class SafetyService {
     const leaveId = str(body.leaveId, 80);
     if (!leaveId) throw new BadRequestException('leaveId is required');
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, 'linkLeave', ev.siteId);
     const leave = await this.leaveModel.findOne({ id: leaveId }).lean().exec();
     if (!leave) throw new NotFoundException(`Leave ${leaveId} not found`);
@@ -655,6 +678,7 @@ export class SafetyService {
   async startCall(id: string, body: Record<string, any>) {
     const actor = this.actor(body.actor);
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, 'startCall', ev.siteId);
     const meetLink = ev.meetLink ?? `https://meet.jit.si/neipl-safety-${ev.id}-${randomBytes(3).toString('hex')}`;
     // Everyone on the case is called; whoever starts it has joined
@@ -674,6 +698,7 @@ export class SafetyService {
     const actor = this.actor(body.actor);
     const ev = await this.load(id);
     if (!ev.callStartedAt) throw new BadRequestException('No meeting has been called on this case');
+    if (!canJoinSafetyCall(actor, ev)) throw new ForbiddenException('Only people on this case can join its safety meeting');
     if ((ev.callJoined ?? []).includes(actor.id)) return ev;
     const updated = await this.eventModel
       .findOneAndUpdate(
@@ -720,6 +745,7 @@ export class SafetyService {
     const actor = this.actor(body.actor);
     const ev = await this.load(id);
     if (!ev.isEmergency) throw new BadRequestException('Not an emergency');
+    if (!ev.emergencyRecipients.includes(actor.id)) throw new ForbiddenException('This emergency was not sent to you');
     if (ev.emergencyAcks.includes(actor.id)) return ev;
     const updated = await this.eventModel
       .findOneAndUpdate(
@@ -735,6 +761,7 @@ export class SafetyService {
   async addMedia(id: string, actorRaw: unknown, media: { id: string; url: string; kind: 'image' | 'video'; name: string; size: number }) {
     const actor = this.actor(actorRaw);
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, 'comment', ev.siteId);
     const row = { ...media, uploadedBy: actor.name, at: nowIso() };
     return this.eventModel
@@ -750,6 +777,7 @@ export class SafetyService {
   async assertCanAddMedia(id: string, actorRaw: unknown) {
     const actor = this.actor(actorRaw);
     const ev = await this.load(id);
+    this.requireOnCase(actor, ev);
     this.require(actor, 'comment', ev.siteId);
   }
 

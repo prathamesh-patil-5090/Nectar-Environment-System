@@ -21,10 +21,16 @@ const q = (params: Record<string, string | undefined>) => {
 const send = <T>(method: string, path: string, body: unknown) =>
   apiClient<T>(path, { method, body: JSON.stringify(body) });
 
-export const listSafetyEvents = (filter: { siteId?: string; type?: string; status?: string; employeeId?: string } = {}) =>
-  apiClient<SafetyEvent[]>(`/safety/events${q(filter)}`);
+/** Reads are scoped on the server to what this viewer may see. */
+const viewerQuery = (v: SafetyActor) => ({ viewerId: v.id, viewerRole: v.role, viewerSiteId: v.siteId });
 
-export const getSafetyEvent = (id: string) => apiClient<SafetyEvent>(`/safety/events/${enc(id)}`);
+export const listSafetyEvents = (
+  viewer: SafetyActor,
+  filter: { siteId?: string; type?: string; status?: string; employeeId?: string } = {},
+) => apiClient<SafetyEvent[]>(`/safety/events${q({ ...filter, ...viewerQuery(viewer) })}`);
+
+export const getSafetyEvent = (id: string, viewer: SafetyActor) =>
+  apiClient<SafetyEvent>(`/safety/events/${enc(id)}${q(viewerQuery(viewer))}`);
 
 export const createSafetyEvent = (actor: SafetyActor, input: NewSafetyEventInput) =>
   send<SafetyEvent>('POST', '/safety/events', { ...input, actor });

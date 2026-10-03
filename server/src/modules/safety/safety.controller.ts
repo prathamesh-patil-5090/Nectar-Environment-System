@@ -20,6 +20,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SafetyService } from './safety.service';
 
+/** Calling / joining a safety meeting is switched off until the feature ships. */
+const SAFETY_MEETINGS_COMING_SOON = 'Safety meetings are coming soon';
+
 const MB = 1024 * 1024;
 const IMAGE_MAX = 10 * MB;
 const VIDEO_MAX = 50 * MB;
@@ -41,6 +44,9 @@ const EXT: Record<string, string> = {
   'video/quicktime': 'mov',
 };
 
+/** Reads say who is looking (`viewerId`, `viewerRole`, `viewerSiteId`) so the meeting link only reaches people on the case. */
+const viewerOf = (id?: string, role?: string, siteId?: string) => ({ id, name: id, role, siteId });
+
 /**
  * Safety: incidents, near-misses, breakdowns, return-to-work clearance and protocols.
  * Every write takes `actor { id, name, role, siteId }`; role + site scope are checked in SafetyService.
@@ -57,13 +63,21 @@ export class SafetyController {
     @Query('type') type?: string,
     @Query('status') status?: string,
     @Query('employeeId') employeeId?: string,
+    @Query('viewerId') viewerId?: string,
+    @Query('viewerRole') viewerRole?: string,
+    @Query('viewerSiteId') viewerSiteId?: string,
   ) {
-    return this.safety.list({ siteId, type, status, employeeId });
+    return this.safety.list({ siteId, type, status, employeeId }, viewerOf(viewerId, viewerRole, viewerSiteId));
   }
 
   @Get('events/:id')
-  get(@Param('id') id: string) {
-    return this.safety.get(id);
+  get(
+    @Param('id') id: string,
+    @Query('viewerId') viewerId?: string,
+    @Query('viewerRole') viewerRole?: string,
+    @Query('viewerSiteId') viewerSiteId?: string,
+  ) {
+    return this.safety.get(id, viewerOf(viewerId, viewerRole, viewerSiteId));
   }
 
   @Post('events')
@@ -115,14 +129,16 @@ export class SafetyController {
     return this.safety.linkLeave(id, body);
   }
 
+  // Safety meetings are a coming-soon feature: calling and joining are switched off.
+  // SafetyService.startCall / joinCall are kept for when the feature returns.
   @Post('events/:id/call')
-  startCall(@Param('id') id: string, @Body() body: Record<string, any>) {
-    return this.safety.startCall(id, body);
+  startCall() {
+    throw new BadRequestException(SAFETY_MEETINGS_COMING_SOON);
   }
 
   @Post('events/:id/call/join')
-  joinCall(@Param('id') id: string, @Body() body: Record<string, any>) {
-    return this.safety.joinCall(id, body);
+  joinCall() {
+    throw new BadRequestException(SAFETY_MEETINGS_COMING_SOON);
   }
 
   @Post('events/:id/ack-emergency')
