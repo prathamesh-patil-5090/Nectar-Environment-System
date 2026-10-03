@@ -3,20 +3,29 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Alert, App, Avatar, Button, Dropdown, Empty, Input, Listy, Modal, Popconfirm, Result, Segmented, Skeleton, Tag } from "antd";
 import {
-  CalendarOutlined,
-  CopyOutlined,
+  Alert,
+  App,
+  Button,
+  Dropdown,
+  Input,
+  Modal,
+  Popconfirm,
+  Result,
+  Skeleton,
+  Tag,
+} from "antd";
+import {
+  BookOutlined,
   DownOutlined,
-  EnvironmentOutlined,
-  PushpinFilled,
-  TeamOutlined,
+  ExclamationCircleOutlined,
+  SafetyCertificateOutlined,
+  TagOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
 import {
   addEventPost,
   cancelRsvp,
-  eventCalendarUrl,
   getEvent,
   getEventAttendees,
   getEventPosts,
@@ -24,12 +33,20 @@ import {
   pinEventPost,
   rsvpEvent,
 } from "@/lib/api/training";
-import { fmtTimeRange, useAsync, useViewer } from "@/lib/training/hooks";
+import { useAsync, useViewer } from "@/lib/training/hooks";
 import { getSiteName, useTrainingData } from "@/lib/training/store";
 import type { EventPost, TrainingEvent } from "@/lib/training/types";
-import TrainingSubNav from "@/components/training/ui/TrainingSubNav";
-import EventCard, { EVENT_TYPE_LABEL, spotsText } from "@/components/training/ui/EventCard";
-import styles from "@/components/training/ui/training.module.css";
+import { EventImageCard } from "@/components/training/ui/EventCard";
+
+// Modular Meetup-Grade Components
+import EventHeroBanner, { EventCoverImage } from "@/components/training/events/EventHeroBanner";
+import EventHighlightsBar from "@/components/training/events/EventHighlightsBar";
+import EventAgendaTimeline from "@/components/training/events/EventAgendaTimeline";
+import EventAttendeesSection from "@/components/training/events/EventAttendeesSection";
+import EventHostCard from "@/components/training/events/EventHostCard";
+import EventChatSection from "@/components/training/events/EventChatSection";
+import EventLogisticsCard from "@/components/training/events/EventLogisticsCard";
+import EventStickyBottomBar from "@/components/training/events/EventStickyBottomBar";
 
 const ROLE_LABEL: Record<string, string> = {
   employee: "Plant Operators",
@@ -38,7 +55,7 @@ const ROLE_LABEL: Record<string, string> = {
   safety_incharge: "Safety In-Charges",
   site_incharge: "Site In-Charges",
   manager: "Plant Managers",
-  hr: "HR",
+  hr: "HR & Training Lead",
 };
 
 type Phase = "draft" | "cancelled" | "ended" | "live" | "closed" | "notOpen" | "open";
@@ -55,7 +72,10 @@ function phaseOf(ev: TrainingEvent, now: number): Phase {
   return "open";
 }
 
-/** Meetup-style event page. */
+/**
+ * Meetup-Grade Event Details & Interactive Learning Experience
+ * Benchmarked against Meetup's top-tier AWS event page architecture.
+ */
 export default function EventPage() {
   const { message, modal } = App.useApp();
   const params = useParams();
@@ -64,6 +84,7 @@ export default function EventPage() {
   const viewer = useViewer();
   const me = viewer.personId ?? "";
   useTrainingData();
+
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
@@ -72,10 +93,13 @@ export default function EventPage() {
 
   const ev = useAsync(() => getEvent(eventId, me), [eventId, me]);
   const event = ev.data;
-  const registered = Boolean(event && (event.isHost || ["going", "waitlist", "attended"].includes(event.myRsvp?.status ?? "")));
+  const registered = Boolean(
+    event && (event.isHost || ["going", "waitlist", "attended"].includes(event.myRsvp?.status ?? ""))
+  );
+
   const attendees = useAsync(
     () => (registered ? getEventAttendees(eventId, me) : Promise.resolve(null)),
-    [eventId, me, registered, event?.goingCount],
+    [eventId, me, registered, event?.goingCount]
   );
   const posts = useAsync(() => getEventPosts(eventId), [eventId]);
   const similar = useAsync(() => getSimilarEvents(eventId, me), [eventId, me]);
@@ -83,29 +107,67 @@ export default function EventPage() {
   const [busy, setBusy] = useState(false);
   const [answerOpen, setAnswerOpen] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [postText, setPostText] = useState("");
-  const [postKind, setPostKind] = useState<EventPost["kind"]>("question");
-  const [posting, setPosting] = useState(false);
 
-  if (ev.loading && !event) return <Skeleton active style={{ padding: 24 }} />;
+  if (ev.loading && !event) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <Skeleton.Button active style={{ width: 220, height: 24 }} />
+        <Skeleton active title paragraph={{ rows: 4 }} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton.Image active style={{ width: "100%", height: 320 }} />
+            <Skeleton active paragraph={{ rows: 6 }} />
+          </div>
+          <div className="space-y-4">
+            <Skeleton.Node active style={{ width: "100%", height: 280 }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (ev.error || !event) {
-    return <Result status="404" title="Event not found" subTitle={ev.error ?? undefined} extra={<Link href="/training/events">All events</Link>} />;
+    return (
+      <div className="py-16">
+        <Result
+          status="404"
+          title="Event Not Found"
+          subTitle={ev.error ?? "The requested event or masterclass could not be located."}
+          extra={
+            <Link href="/training/events">
+              <Button type="primary" className="rounded-xl font-bold bg-emerald-600">
+                Browse All Events
+              </Button>
+            </Link>
+          }
+        />
+      </div>
+    );
   }
 
   const phase = phaseOf(event, now);
   const rsvp = event.myRsvp?.status;
   const going = rsvp === "going" || rsvp === "attended";
   const canPost = event.isHost || going;
-  const venue = event.format === "online" ? "Online · Google Meet" : [getSiteName(event.venue?.siteId) ?? "At the plant", event.venue?.room].filter(Boolean).join(" · ");
+  const venue =
+    event.format === "online"
+      ? "Online · Google Meet"
+      : [getSiteName(event.venue?.siteId) ?? "Plant Site", event.venue?.room].filter(Boolean).join(" · ");
+
   const outsideAudience =
     (event.audience.roles?.length ?? 0) > 0 && !event.audience.roles!.includes(viewer.role);
 
+  // ---- RSVP Actions ----
   const doRsvp = async (ans?: string) => {
     setBusy(true);
     try {
       const updated = await rsvpEvent(event.id, me, ans);
       ev.setData(updated);
-      message.success(updated.myRsvp?.status === "waitlist" ? `You're on the waitlist (#${updated.myRsvp.waitlistPosition}).` : "You're going! The host has been notified.");
+      message.success(
+        updated.myRsvp?.status === "waitlist"
+          ? `You're on the waitlist (#${updated.myRsvp.waitlistPosition}).`
+          : "You're going! Session invitation reserved."
+      );
       setAnswerOpen(false);
       void attendees.reload();
     } catch (err) {
@@ -120,6 +182,7 @@ export default function EventPage() {
     try {
       ev.setData(await cancelRsvp(event.id, me));
       message.success("Your RSVP was cancelled.");
+      void attendees.reload();
     } catch (err) {
       message.error((err as Error).message);
     } finally {
@@ -129,362 +192,420 @@ export default function EventPage() {
 
   const attend = () => (event.rsvpQuestion ? setAnswerOpen(true) : doRsvp());
 
-  const submitPost = async () => {
-    if (!postText.trim()) return;
-    setPosting(true);
+  const handlePostSubmit = async (text: string, kind: EventPost["kind"]) => {
+    const updatedPosts = await addEventPost(event.id, me, text, kind);
+    posts.setData(updatedPosts);
+    message.success(
+      kind === "announcement"
+        ? "Announcement broadcasted to everyone registered"
+        : "Message posted to discussion"
+    );
+  };
+
+  const handlePinToggle = async (postId: string, currentPinned: boolean) => {
     try {
-      posts.setData(await addEventPost(event.id, me, postText.trim(), postKind));
-      setPostText("");
-      message.success(postKind === "announcement" ? "Announcement sent to everyone going" : "Posted");
+      const updatedPosts = await pinEventPost(event.id, postId, !currentPinned, me);
+      posts.setData(updatedPosts);
+      message.success(!currentPinned ? "Post pinned to top" : "Post unpinned");
     } catch (err) {
       message.error((err as Error).message);
-    } finally {
-      setPosting(false);
     }
   };
 
-  // ---- primary action (sticky bar) ----
-  let primary: React.ReactNode;
+  // ---- Primary Call to Action Button Engine ----
+  let primaryAction: React.ReactNode;
   if (event.isHost) {
-    primary = <Button type="primary" size="large" onClick={() => router.push(`/training/mentor/events/${event.id}`)}>Manage event</Button>;
+    primaryAction = (
+      <Button
+        type="primary"
+        size="large"
+        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+        onClick={() => router.push(`/training/mentor/events/${event.id}`)}
+      >
+        Manage Event & Attendees
+      </Button>
+    );
   } else if (phase === "cancelled") {
-    primary = <Button size="large" disabled>Cancelled</Button>;
+    primaryAction = (
+      <Button size="large" disabled className="font-bold">
+        Event Cancelled
+      </Button>
+    );
   } else if (phase === "draft") {
-    primary = <Button size="large" disabled>Not published yet</Button>;
+    primaryAction = (
+      <Button size="large" disabled className="font-bold">
+        Draft Preview Only
+      </Button>
+    );
   } else if (phase === "ended") {
-    primary = <Button size="large" disabled>Event ended</Button>;
+    primaryAction = (
+      <Button size="large" disabled className="font-bold">
+        Event Concluded
+      </Button>
+    );
   } else if (phase === "live") {
-    primary =
+    primaryAction =
       going && event.format === "online" && event.meetLink ? (
-        <Button type="primary" size="large" href={event.meetLink} target="_blank" icon={<VideoCameraOutlined />}>Join now</Button>
+        <Button
+          type="primary"
+          size="large"
+          href={event.meetLink}
+          target="_blank"
+          icon={<VideoCameraOutlined />}
+          className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-md animate-pulse"
+        >
+          Join Google Meet Now
+        </Button>
       ) : going ? (
-        <Button size="large" disabled>Happening now · {venue}</Button>
+        <Button size="large" disabled className="font-bold bg-slate-100 text-slate-700">
+          Happening Now · {venue}
+        </Button>
       ) : (
-        <Button size="large" disabled>Registration closed</Button>
+        <Button size="large" disabled className="font-bold">
+          Registration Closed
+        </Button>
       );
   } else if (rsvp === "going") {
-    primary = (
+    primaryAction = (
       <Dropdown
         trigger={["click"]}
         menu={{
           items: [
-            ...(event.rsvpQuestion ? [{ key: "answer", label: "Edit my answer", onClick: () => { setAnswer(event.myRsvp?.answer ?? ""); setAnswerOpen(true); } }] : []),
+            ...(event.rsvpQuestion
+              ? [
+                  {
+                    key: "answer",
+                    label: "Edit my registration answer",
+                    onClick: () => {
+                      setAnswer(event.myRsvp?.answer ?? "");
+                      setAnswerOpen(true);
+                    },
+                  },
+                ]
+              : []),
             {
               key: "cancel",
               danger: true,
-              label: "Cancel RSVP",
+              label: "Cancel my seat (Free up spot)",
               onClick: () =>
                 modal.confirm({
                   title: "Cancel your RSVP?",
-                  content: "Your seat goes to the next person on the waitlist.",
-                  okText: "Cancel RSVP",
+                  content: "Your reserved seat will be assigned to the next engineer on the waitlist.",
+                  okText: "Release Seat",
                   okButtonProps: { danger: true },
-                  cancelText: "Keep my seat",
+                  cancelText: "Keep My Seat",
                   onOk: doCancel,
                 }),
             },
           ],
         }}
       >
-        <Button type="primary" size="large" loading={busy} style={{ background: "#16A34A" }}>
-          Going ✓ <DownOutlined />
+        <Button
+          type="primary"
+          size="large"
+          loading={busy}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-sm"
+        >
+          <span>You&apos;re Going ✓</span>
+          <DownOutlined className="text-xs" />
         </Button>
       </Dropdown>
     );
   } else if (rsvp === "waitlist") {
-    primary = (
-      <Popconfirm title="Leave the waitlist?" onConfirm={doCancel}>
-        <Button size="large" loading={busy}>On waitlist (#{event.myRsvp?.waitlistPosition}) · Leave</Button>
+    primaryAction = (
+      <Popconfirm
+        title="Leave the waitlist?"
+        description="You will lose your position on the queue."
+        onConfirm={doCancel}
+        okText="Leave"
+        cancelText="Stay on Queue"
+      >
+        <Button size="large" loading={busy} className="font-bold border-amber-300 text-amber-900 bg-amber-50">
+          On Waitlist (#{event.myRsvp?.waitlistPosition}) · Leave Queue
+        </Button>
       </Popconfirm>
     );
   } else if (phase === "closed") {
-    primary = <Button size="large" disabled>Registration closed</Button>;
+    primaryAction = (
+      <Button size="large" disabled className="font-bold">
+        Registration Closed
+      </Button>
+    );
   } else if (phase === "notOpen") {
-    primary = <Button size="large" disabled>Registration opens {new Date(event.rsvpOpensAt!).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}</Button>;
+    primaryAction = (
+      <Button size="large" disabled className="font-bold text-xs">
+        Opens{" "}
+        {new Date(event.rsvpOpensAt!).toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          month: "short",
+          day: "numeric",
+        })}
+      </Button>
+    );
   } else if (event.spotsLeft <= 0) {
-    primary = event.waitlistEnabled ? (
-      <Button type="primary" size="large" loading={busy} onClick={attend}>Join waitlist</Button>
+    primaryAction = event.waitlistEnabled ? (
+      <Button
+        type="primary"
+        size="large"
+        loading={busy}
+        onClick={attend}
+        className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+      >
+        Join Waitlist
+      </Button>
     ) : (
-      <Button size="large" disabled>Full</Button>
+      <Button size="large" disabled className="font-bold">
+        Session Full
+      </Button>
     );
   } else {
-    primary = <Button type="primary" size="large" loading={busy} onClick={attend}>Attend</Button>;
+    primaryAction = (
+      <Button
+        type="primary"
+        size="large"
+        loading={busy}
+        onClick={attend}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-98"
+      >
+        Attend Masterclass
+      </Button>
+    );
   }
 
-  const pinned = (posts.data ?? []).filter((p) => p.pinned);
-  const rest = (posts.data ?? []).filter((p) => !p.pinned);
-
   return (
-    <div className={styles.page} style={{ paddingBottom: 0 }}>
-      <TrainingSubNav />
+    <div className="min-h-screen bg-slate-50/50 pb-6 pt-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        {/* Cancelled Banner */}
+        {event.status === "cancelled" && (
+          <Alert
+            type="error"
+            showIcon
+            message="This event was cancelled"
+            description={event.cancelReason || "The session host has cancelled this masterclass."}
+            className="rounded-2xl border-red-200"
+          />
+        )}
 
-      {/* 1. Header */}
-      <header style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Tag color="#1C4463">{EVENT_TYPE_LABEL[event.type]}</Tag>
-          {event.community && <Link href={`/training/communities/${event.community.slug}`}><Tag>{event.community.name}</Tag></Link>}
-          {event.status === "draft" && <Tag>Draft</Tag>}
-        </div>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#0B1A24" }}>{event.title}</h1>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <Avatar.Group>
-            {event.hosts.map((h) => <Avatar key={h.id} src={h.photoUrl}>{h.name[0]}</Avatar>)}
-          </Avatar.Group>
-          <span>
-            Hosted by <strong>{event.hosts.map((h) => h.name).join(", ")}</strong>
-            {event.hosts[0]?.designation ? <span style={{ color: "#4A6375" }}> · {event.hosts[0].designation}</span> : null}
-          </span>
-        </div>
-      </header>
+        {/* Meetup layout: left = header + details, right = cover + date/location (sticky), bottom = recommendations.
+            On mobile the order is header → cover/date → details. */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-8 gap-y-6 items-start">
+          <div className="lg:col-span-7 min-w-0">
+            <EventHeroBanner event={event} />
+          </div>
 
-      {event.status === "cancelled" && <Alert type="error" showIcon title="This event was cancelled" description={event.cancelReason} />}
+          {/* RIGHT COLUMN: cover image, date/time, location, RSVP */}
+          <div className="lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-6 flex flex-col gap-4 min-w-0">
+            <EventCoverImage event={event} />
+            <EventLogisticsCard
+              event={event}
+              primaryAction={primaryAction}
+              going={going}
+              phase={phase}
+            />
+          </div>
 
-      <div className={styles.twoCol}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
-          {/* 3. Details */}
-          <section className={styles.panel}>
-            <h2 className={styles.shelfTitle} style={{ marginBottom: 8 }}>Details</h2>
-            <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{event.description || "No description yet."}</p>
-            {event.agenda.length > 0 && (
-              <>
-                <h3 style={{ fontSize: 15, margin: "16px 0 8px" }}>Agenda</h3>
-                <div>
-                  {event.agenda.map((a, i) => (
-                    <div key={`${a.time}-${i}`} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: "1px solid rgba(5, 5, 5, 0.06)" }}>
-                      <strong style={{ width: 70, flexShrink: 0 }}>{a.time}</strong> {a.item}
+          {/* LEFT COLUMN: Deep Content & Interactions */}
+          <main className="lg:col-span-7 flex flex-col gap-6 min-w-0">
+            {/* Quick 4-Item Highlights Metric Strip */}
+            <EventHighlightsBar event={event} />
+
+            {/* Event Details Card */}
+            <section className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-xl font-bold text-slate-900 m-0">Details</h2>
+                <span className="text-xs text-slate-400 font-medium">Session Overview</span>
+              </div>
+
+              {/* Rich text description */}
+              <div className="text-sm sm:text-base text-slate-700 leading-relaxed whitespace-pre-wrap font-normal">
+                {event.description || "No session description provided."}
+              </div>
+
+              {/* Agenda Stepper Timeline */}
+              {event.agenda && event.agenda.length > 0 && (
+                <div className="mt-2 pt-4 border-t border-slate-100">
+                  <EventAgendaTimeline agenda={event.agenda} />
+                </div>
+              )}
+
+              {/* Target Audience / Prerequisites Callout */}
+              {((event.audience.roles?.length ?? 0) > 0 || (event.audience.plantTypes?.length ?? 0) > 0) && (
+                <div className="mt-2 bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-start gap-3">
+                  <SafetyCertificateOutlined className="text-emerald-700 text-lg mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Target Audience & Roles
                     </div>
+                    <div className="text-xs text-slate-600 mt-1 flex flex-wrap gap-1.5 items-center">
+                      {(event.audience.roles ?? []).map((role) => (
+                        <Tag key={role} color="green" className="text-xs font-semibold m-0">
+                          {ROLE_LABEL[role] ?? role}
+                        </Tag>
+                      ))}
+                      {(event.audience.plantTypes ?? []).map((plant) => (
+                        <Tag key={plant} color="cyan" className="text-xs font-semibold m-0">
+                          {plant} Plant
+                        </Tag>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {outsideAudience && (
+                <Alert
+                  type="info"
+                  showIcon
+                  icon={<ExclamationCircleOutlined className="text-blue-600" />}
+                  message="Cross-Disciplinary Learning"
+                  description={`This masterclass is primarily tailored for ${(event.audience.roles ?? [])
+                    .map((r) => ROLE_LABEL[r] ?? r)
+                    .join(", ")}. However, you are welcome to attend and cross-train.`}
+                  className="rounded-xl border-blue-200 text-xs"
+                />
+              )}
+            </section>
+
+            {/* Related Topics Pill Chips (Meetup Signature) */}
+            {event.topics && event.topics.length > 0 && (
+              <section className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <TagOutlined className="text-emerald-600" />
+                  <h2 className="text-base font-bold text-slate-900 m-0">Related Topics & Skills</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {event.topics.map((topic) => (
+                    <Link key={topic} href={`/training/explore?skill=${encodeURIComponent(topic)}`}>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-slate-200 text-slate-700 transition-colors cursor-pointer">
+                        #{topic}
+                      </span>
+                    </Link>
                   ))}
                 </div>
-              </>
+              </section>
             )}
-            {((event.audience.roles?.length ?? 0) > 0 || (event.audience.plantTypes?.length ?? 0) > 0) && (
-              <p style={{ margin: "12px 0 0", color: "#4A6375" }}>
-                <strong>Who should attend:</strong>{" "}
-                {[...(event.audience.roles ?? []).map((r) => ROLE_LABEL[r] ?? r), ...(event.audience.plantTypes ?? []).map((p) => `${p} plant`)].join(", ")}
-              </p>
-            )}
-          </section>
 
-          {/* 4. Topics */}
-          {event.topics.length > 0 && (
-            <section>
-              <h2 className={styles.shelfTitle} style={{ fontSize: 16, marginBottom: 8 }}>Topics</h2>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {event.topics.map((t) => (
-                  <Link key={t} href={`/training/explore?skill=${encodeURIComponent(t)}`}><Tag style={{ margin: 0 }}>{t}</Tag></Link>
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Event Chat & Discussion Engine */}
+            <EventChatSection
+              event={event}
+              posts={posts.data ?? null}
+              loading={posts.loading}
+              canPost={canPost}
+              isHost={event.isHost}
+              currentUserId={me}
+              onPostSubmit={handlePostSubmit}
+              onPinToggle={handlePinToggle}
+              onAttendClick={attend}
+            />
 
-          {/* 5. Attendees */}
-          <section className={styles.panel}>
-            <h2 className={styles.shelfTitle} style={{ marginBottom: 8 }}>
-              <TeamOutlined /> Attendees ({event.goingCount})
-            </h2>
-            {!registered ? (
-              <p style={{ margin: 0, color: "#4A6375" }}>Register to see who&apos;s going.</p>
-            ) : attendees.loading ? (
-              <Skeleton active paragraph={{ rows: 1 }} />
-            ) : (attendees.data ?? []).length === 0 ? (
-              <p style={{ margin: 0, color: "#4A6375" }}>Nobody has registered yet.</p>
-            ) : (
-              <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-                {(attendees.data ?? [])
-                  .filter((a) => !a.status || a.status === "going" || a.status === "attended")
-                  .map((a) => (
-                    <div key={a.employee.id} style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
-                      <Avatar src={a.employee.photoUrl}>{a.employee.name[0]}</Avatar>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.employee.name}</div>
-                        <div className={styles.line}>{[a.employee.designation, a.employee.siteName].filter(Boolean).join(" · ")}</div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </section>
+            {/* Attendees Social Proof Grid */}
+            <EventAttendeesSection
+              attendees={attendees.data ?? null}
+              loading={attendees.loading}
+              goingCount={event.goingCount}
+              registered={registered}
+              onAttendClick={attend}
+            />
 
-          {/* 6. Hosts */}
-          <section>
-            <h2 className={styles.shelfTitle} style={{ fontSize: 16, marginBottom: 8 }}>Hosts</h2>
-            <div className={styles.grid}>
-              {event.hosts.map((h) => (
-                <Link key={h.id} href={`/training/events?host=${encodeURIComponent(h.id)}`} className={styles.card} style={{ padding: 14, flexDirection: "row", gap: 10, alignItems: "center" }}>
-                  <Avatar size={44} src={h.photoUrl}>{h.name[0]}</Avatar>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{h.name}</div>
-                    <div className={styles.line}>{h.designation}</div>
-                    <div className={styles.line}>More events by this host →</div>
+            {/* Host / Mentor Spotlight */}
+            <EventHostCard hosts={event.hosts} />
+
+            {/* After the Event / Recording Archive (if ended) */}
+            {phase === "ended" && (going || event.isHost) && (
+              <section className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <BookOutlined className="text-emerald-600" />
+                  <h2 className="text-base font-bold text-slate-900 m-0">Post-Session Resources</h2>
+                </div>
+                {event.recordingUrl ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-semibold text-emerald-950">
+                      Recording and session slide deck are available
+                    </span>
+                    <a
+                      href={event.recordingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700"
+                    >
+                      Watch Recording
+                    </a>
                   </div>
-                </Link>
+                ) : (
+                  <p className="text-xs text-slate-500 m-0">
+                    No recording was published for this session. Feel free to leave questions in the discussion above.
+                  </p>
+                )}
+              </section>
+            )}
+          </main>
+        </div>
+
+        {/* BOTTOM: "You May Also Like" Similar Events Discovery Shelf (full width) */}
+        {(similar.data ?? []).length > 0 && (
+          <section className="flex flex-col gap-4 pt-6 border-t border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 m-0">You May Also Like</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Similar engineering workshops and plant masterclasses
+                </p>
+              </div>
+              <Link
+                href="/training/events"
+                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              >
+                See all events →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+              {(similar.data ?? []).slice(0, 3).map((sim) => (
+                <EventImageCard key={sim.id} event={sim} />
               ))}
             </div>
           </section>
+        )}
 
-          {/* 7. Discussion */}
-          <section className={styles.panel} id="discussion">
-            <h2 className={styles.shelfTitle} style={{ marginBottom: 8 }}>Discussion</h2>
-            {canPost ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                <Segmented
-                  value={postKind}
-                  onChange={(v) => setPostKind(v as EventPost["kind"])}
-                  options={[
-                    { value: "question", label: "Question" },
-                    { value: "comment", label: "Comment" },
-                    ...(event.isHost ? [{ value: "announcement", label: "Announcement (notifies everyone going)" }] : []),
-                  ]}
-                />
-                <Input.TextArea
-                  rows={2}
-                  maxLength={500}
-                  showCount
-                  value={postText}
-                  onChange={(e) => setPostText(e.target.value)}
-                  placeholder={postKind === "question" ? "Ask the host something to cover…" : "Write a message"}
-                  aria-label="Discussion message"
-                />
-                <div><Button type="primary" loading={posting} onClick={submitPost} disabled={!postText.trim()}>Post</Button></div>
-              </div>
-            ) : (
-              <Alert type="info" showIcon title="Attend the event to join the discussion." style={{ marginBottom: 12 }} />
-            )}
-            {posts.loading ? (
-              <Skeleton active />
-            ) : (posts.data ?? []).length === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No posts yet" />
-            ) : (
-              <Listy
-                items={[...pinned, ...rest]}
-                rowKey="id"
-                virtual={false}
-                itemRender={(p) => (
-                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 0", borderBottom: "1px solid rgba(5, 5, 5, 0.06)" }}>
-                    <Avatar src={p.author?.photoUrl}>{p.author?.name?.[0] ?? "?"}</Avatar>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                        {p.pinned && <PushpinFilled style={{ color: "#C45C26", marginRight: 6 }} />}
-                        {p.author?.name ?? p.authorEmployeeId}{" "}
-                        {p.kind !== "comment" && <Tag color={p.kind === "announcement" ? "volcano" : "blue"}>{p.kind}</Tag>}
-                        <span style={{ fontWeight: 400, color: "#4A6375", fontSize: 12 }}>
-                          {new Date(p.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
-                        </span>
-                      </div>
-                      <div style={{ color: "#0B1A24", whiteSpace: "pre-wrap" }}>{p.text}</div>
-                    </div>
-                    {event.isHost && (
-                      <Button
-                        size="small"
-                        type="text"
-                        onClick={async () => {
-                          try {
-                            posts.setData(await pinEventPost(event.id, p.id, !p.pinned, me));
-                          } catch (err) {
-                            message.error((err as Error).message);
-                          }
-                        }}
-                      >
-                        {p.pinned ? "Unpin" : "Pin"}
-                      </Button>
-                    )}
-                  </div>
-                )}
-              />
-            )}
-          </section>
-
-          {/* 8. After the event */}
-          {phase === "ended" && (going || event.isHost) && (
-            <section className={styles.panel} id="feedback">
-              <h2 className={styles.shelfTitle} style={{ marginBottom: 8 }}>After the event</h2>
-              {event.recordingUrl ? (
-                <p><a href={event.recordingUrl} target="_blank" rel="noreferrer">Recording / slides</a></p>
-              ) : (
-                <p style={{ color: "#4A6375" }}>No recording was shared.</p>
-              )}
-              {!event.isHost && <p style={{ margin: 0 }}>Share feedback with the host as a comment in the discussion above.</p>}
-            </section>
-          )}
-
-          {/* 9. More events like this */}
-          {(similar.data ?? []).length > 0 && (
-            <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <h2 className={styles.shelfTitle}>More events like this</h2>
-              <div className={styles.grid}>{(similar.data ?? []).map((e) => <EventCard key={e.id} event={e} />)}</div>
-            </section>
-          )}
-        </div>
-
-        {/* 2. Info card */}
-        <aside className={`${styles.panel} ${styles.sticky}`} aria-label="When and where">
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", gap: 10 }}>
-              <CalendarOutlined style={{ fontSize: 18, color: "#1C4463", marginTop: 3 }} />
-              <div>
-                <div style={{ fontWeight: 600 }}>{fmtTimeRange(event.startsAt, event.endsAt)}</div>
-                <a href={eventCalendarUrl(event.id)}>Add to calendar</a>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              {event.format === "online" ? <VideoCameraOutlined style={{ fontSize: 18, color: "#1C4463", marginTop: 3 }} /> : <EnvironmentOutlined style={{ fontSize: 18, color: "#1C4463", marginTop: 3 }} />}
-              <div>
-                <div style={{ fontWeight: 600 }}>{venue}</div>
-                {event.format === "online" && (
-                  <div className={styles.line} style={{ whiteSpace: "normal" }}>
-                    {going || event.isHost ? (event.meetLink ? "The Join button opens 10 minutes before the start." : "The host hasn't added the link yet.") : "The link is shown to attendees."}
-                  </div>
-                )}
-              </div>
-            </div>
-            {event.rsvpClosesAt && phase !== "ended" && (
-              <div className={styles.line} style={{ whiteSpace: "normal" }}>
-                Registration closes {new Date(event.rsvpClosesAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
-              </div>
-            )}
-            <div style={{ fontWeight: 600 }}>{spotsText(event)}</div>
-            {outsideAudience && <Alert type="info" title={`Intended for ${(event.audience.roles ?? []).map((r) => ROLE_LABEL[r] ?? r).join(", ")}. You can still attend.`} />}
-            <Button
-              icon={<CopyOutlined />}
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(window.location.href);
-                  message.success("Link copied");
-                } catch {
-                  message.error("Couldn't copy the link");
-                }
-              }}
-            >
-              Copy link
-            </Button>
-          </div>
-        </aside>
+        {/* Floating Bottom Sticky Bar for Zero-Friction RSVP */}
+        <EventStickyBottomBar
+          event={event}
+          primaryAction={primaryAction}
+          going={going}
+          phase={phase}
+        />
       </div>
 
-      {/* Sticky bottom bar */}
-      <div className={styles.bottomBar}>
-        <div style={{ minWidth: 0 }}>
-          <div className={styles.line}>{fmtTimeRange(event.startsAt, event.endsAt)}</div>
-          <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 520 }}>{event.title}</div>
-          <div className={styles.line}>{spotsText(event)}</div>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {going && phase !== "ended" && <a href={eventCalendarUrl(event.id)}>Add to calendar</a>}
-          {primary}
-        </div>
-      </div>
-
+      {/* RSVP Custom Question Modal */}
       <Modal
         open={answerOpen}
-        title={event.rsvpQuestion}
-        okText={rsvp === "going" ? "Save answer" : "Attend"}
+        title={
+          <div className="flex items-center gap-2">
+            <SafetyCertificateOutlined className="text-emerald-600" />
+            <span>{event.rsvpQuestion || "RSVP Question"}</span>
+          </div>
+        }
+        okText={rsvp === "going" ? "Update Answer" : "Confirm Seat"}
         confirmLoading={busy}
         onOk={() => doRsvp(answer)}
         onCancel={() => setAnswerOpen(false)}
-        okButtonProps={{ disabled: !answer.trim() }}
+        okButtonProps={{
+          disabled: !answer.trim(),
+          className: "bg-emerald-600 font-bold",
+        }}
+        className="rounded-2xl"
       >
-        <p style={{ color: "#4A6375" }}>The host asks this before you register. Only the hosts see your answer.</p>
-        <Input.TextArea rows={3} maxLength={300} showCount value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" />
+        <p className="text-xs text-slate-500 mt-1 mb-3">
+          The facilitator asks this to prepare relevant operational examples. Only session hosts can see your answer.
+        </p>
+        <Input.TextArea
+          rows={3}
+          maxLength={300}
+          showCount
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          placeholder="E.g., Dealing with stage 2 evaporator vacuum drop during night shifts..."
+          className="rounded-xl text-sm"
+        />
       </Modal>
     </div>
   );
