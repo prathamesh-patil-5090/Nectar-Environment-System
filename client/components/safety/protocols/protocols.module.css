@@ -1,0 +1,544 @@
+/* Emergency protocols — colours follow lib/theme.ts; category accent comes from --accent. */
+
+.page,
+.tokens {
+  --ink: var(--nectar-ink, var(--ink));
+  --leaf: var(--nectar-leaf, var(--leaf));
+  --alert: var(--nectar-alert, #c45c26);
+  --sand: var(--nectar-sand, #f4f7fa);
+  --muted: var(--muted);
+  --line: var(--line);
+  --accent: var(--leaf);
+}
+
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* ── Call-first strip ─────────────────────────────────────────── */
+.callStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--leaf);
+  color: #fff;
+}
+.callIntro {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.callTitle {
+  margin: 0;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 20px;
+  line-height: 1.2;
+}
+.callHint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.callButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.callBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1.1;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.callBtn:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.45);
+}
+.callBtn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+.callIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--alert) 14%, #fff);
+  color: var(--alert);
+  font-size: 14px;
+}
+.callNumber {
+  display: block;
+  font-size: 18px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.callLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.reportBtn {
+  flex: 0 0 auto;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.search {
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: 420px;
+}
+.toolbarEnd {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+.chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.chip:hover {
+  border-color: var(--leaf);
+}
+.chip:focus-visible {
+  outline: 3px solid var(--leaf);
+  outline-offset: 1px;
+}
+.chipActive {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #fff;
+}
+.chipCount {
+  font-size: 11px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Two panes ────────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.index {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.item {
+  --accent: var(--leaf);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.item:hover {
+  border-color: var(--accent);
+}
+.item:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+.itemActive {
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent), 0 6px 16px -10px rgba(11, 26, 36, 0.4);
+}
+.tile {
+  /* inherits --accent from .item / .reader */
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+  font-size: 18px;
+}
+.itemBody {
+  min-width: 0;
+  flex: 1;
+}
+.itemTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.itemSummary {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.itemMeta {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.itemChevron {
+  color: var(--muted);
+  align-self: center;
+  display: none;
+}
+
+/* ── Reader ───────────────────────────────────────────────────── */
+.reader {
+  --accent: var(--leaf);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  min-width: 0;
+}
+.readerHead {
+  padding: 20px 24px;
+  background: color-mix(in srgb, var(--accent) 7%, #fff);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, #fff);
+}
+.back {
+  display: none;
+  margin-bottom: 8px;
+}
+.readerTop {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.readerTop .tile {
+  width: 52px;
+  height: 52px;
+  font-size: 24px;
+  background: #fff;
+}
+.readerTitleBox {
+  min-width: 0;
+  flex: 1;
+}
+.kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.readerTitle {
+  margin: 2px 0 0;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--ink);
+  word-break: break-word;
+}
+.readerSummary {
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.readerMeta {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.readerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.readerBody {
+  padding: 20px 24px 24px;
+  display: grid;
+  gap: 20px;
+}
+.sectionTitle {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.step {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--sand);
+}
+.stepNo {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--leaf);
+  color: #fff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stepText {
+  margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.stepFirst {
+  border-color: color-mix(in srgb, var(--alert) 45%, #fff);
+  background: color-mix(in srgb, var(--alert) 7%, #fff);
+}
+.stepFirst .stepNo {
+  background: var(--alert);
+}
+.firstLabel {
+  display: inline-block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--alert);
+}
+.mark {
+  background: color-mix(in srgb, var(--alert) 22%, #fff);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--sand);
+  color: var(--ink);
+  text-decoration: none;
+}
+.contact:hover {
+  color: var(--ink);
+  border-color: var(--leaf);
+}
+.contact :global(.anticon) {
+  color: var(--alert);
+}
+.contactNumber {
+  display: block;
+  font-weight: 700;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.contactLabel {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.empty {
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+/* ── Editor ───────────────────────────────────────────────────── */
+.stepRow {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+.stepRowNo {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--leaf) 10%, #fff);
+  color: var(--leaf);
+  font-size: 12px;
+  font-weight: 700;
+}
+.stepRowTools {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.contactRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .index {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .itemChevron {
+    display: block;
+  }
+  .layout[data-view="list"] .reader {
+    display: none;
+  }
+  .layout[data-view="reader"] .index {
+    display: none;
+  }
+  .back {
+    display: block;
+  }
+  .readerHead,
+  .readerBody {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .readerTitle {
+    font-size: 22px;
+  }
+}
+@media (max-width: 520px) {
+  .callStrip {
+    padding: 14px;
+  }
+  .callBtn {
+    flex: 1 1 140px;
+  }
+  .contactRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .contactRow > :nth-child(2) {
+    grid-column: 1 / 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callBtn,
+  .item,
+  .chip {
+    transition: none;
+  }
+}
+
+/* ── Print: just the open protocol, for the site notice board ──── */
+@media print {
+  :global(.ant-layout-sider),
+  :global(.ant-layout-header),
+  :global([role="alert"]),
+  .callStrip,
+  .toolbar,
+  .chips,
+  .index,
+  .back,
+  .readerActions {
+    display: none !important;
+  }
+  .layout {
+    display: block;
+  }
+  .reader {
+    border: none;
+    display: block !important;
+  }
+  .readerHead {
+    background: none;
+    border-bottom: 2px solid #000;
+  }
+  .step,
+  .stepFirst {
+    break-inside: avoid;
+    background: none;
+  }
+  .contacts {
+    display: flex !important;
+  }
+}
