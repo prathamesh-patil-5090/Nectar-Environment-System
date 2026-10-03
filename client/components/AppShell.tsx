@@ -36,7 +36,10 @@ import {
   WalletOutlined,
   BellOutlined,
   VideoCameraOutlined,
+  MedicineBoxOutlined,
   SettingOutlined,
+  SafetyOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import { getSession, logout, type SessionUser, type UserRole } from "@/lib/auth";
 import { resetDemoLocalData } from "@/lib/demo-reset";
@@ -59,6 +62,9 @@ import {
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { hydrateAllStoresFromApi } from "@/lib/sync";
+import { ackSafetyEmergency, getActiveEmergencies } from "@/lib/api/safety";
+import type { SafetyEvent } from "@/lib/safety/types";
+import { safetyActorOf } from "@/lib/rbac";
 
 const { Header, Sider, Content } = Layout;
 
@@ -71,6 +77,7 @@ const FLYOUT_TITLES: Record<string, string> = {
   academy: "Academy",
   "academic-records": "Academic Records",
   "reliever-pool": "Reliever Pool",
+  safety: "Safety",
 };
 
 /** HR / Manager / Director see Training, Events + Certifications as records; everyone else as Academy. */
@@ -83,6 +90,7 @@ function academyNavGroup(role: UserRole): NonNullable<MenuProps["items"]>[number
     children: [
       { key: "/training", icon: <ReadOutlined />, label: "Training" },
       { key: "/training/events", icon: <CalendarOutlined />, label: "Events" },
+      { key: "/training/mentors", icon: <TeamOutlined />, label: "Mentors" },
       { key: "/certifications", icon: <SafetyCertificateOutlined />, label: "Certifications" },
     ],
   };
@@ -152,6 +160,22 @@ const leaveChildren = [
   { key: "/leave/management", label: "Management" },
 ];
 
+const safetyChildren = [
+  { key: "/safety", label: "Overview" },
+  { key: "/safety/report", label: "Report" },
+  { key: "/safety/incidents", label: "Incidents & near-miss" },
+  { key: "/safety/breakdowns", label: "Breakdowns" },
+  { key: "/safety/protocols", label: "Emergency protocols" },
+];
+
+/** Visible to every role — safety records are open to all. */
+const safetyNavItem: NonNullable<MenuProps["items"]>[number] = {
+  key: "safety",
+  icon: <SafetyOutlined />,
+  label: "Safety",
+  children: safetyChildren,
+};
+
 const shiftChildren = [
   { key: "/shifts", label: "Dashboard" },
   { key: "/shifts/master", label: "Shift Master" },
@@ -194,6 +218,12 @@ const pageTitles: Record<string, string> = {
   "/certifications": "Certifications",
   "/salary": "Salary history",
   "/meetings": "Meetings",
+  "/safety": "Safety",
+  "/safety/report": "Safety · Report",
+  "/safety/incidents": "Safety · Incidents & near-miss",
+  "/safety/breakdowns": "Safety · Breakdowns",
+  "/safety/protocols": "Safety · Emergency protocols",
+  "/safety/training": "Safety · Training",
 };
 
 /** Visible to every role; feature not built yet. */
@@ -203,6 +233,17 @@ const meetingsNavItem: NonNullable<MenuProps["items"]>[number] = {
   label: (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
       Meetings
+      <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
+    </span>
+  ),
+};
+
+const medicalRecordsNavItem: NonNullable<MenuProps["items"]>[number] = {
+  key: "/medical-records",
+  icon: <MedicineBoxOutlined />,
+  label: (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      Medical records
       <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
     </span>
   ),
@@ -290,6 +331,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Server notifications (training events, flags, certificates): poll the unread count
+  // Safety emergencies: pinned banner until this person acknowledges
+  const [emergencies, setEmergencies] = useState<SafetyEvent[]>([]);
+  useEffect(() => {
+    const personId = personIdOf(user);
+    if (!personId) return;
+    const load = () =>
+      getActiveEmergencies(personId)
+        .then(setEmergencies)
+        .catch(() => {});
+    void load();
+    const t = setInterval(load, 30_000);
+    window.addEventListener("safety-emergencies-changed", load);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("safety-emergencies-changed", load);
+    };
+  }, [user, pathname]);
+
+  const acknowledgeEmergency = async (id: string) => {
+    const actor = safetyActorOf(user);
+    if (!actor) return;
+    try {
+      await ackSafetyEmergency(id, actor);
+      setEmergencies((rows) => rows.filter((e) => e.id !== id));
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Could not acknowledge");
+    }
+  };
+
   const [serverUnread, setServerUnread] = useState(0);
   useEffect(() => {
     const personId = personIdOf(user);
@@ -368,6 +438,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/leave")) extras.push("leave");
     if (pathname.startsWith("/overtime")) extras.push("overtime");
     if (pathname.startsWith("/reliever-pool")) extras.push("reliever-pool");
+    if (pathname.startsWith("/safety")) extras.push("safety");
     if (pathname.startsWith("/shifts") && canViewShiftsNav(user)) {
       extras.push("shifts");
     }
@@ -444,6 +515,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return "/overtime/overview";
     }
 
+    // 3b. Safety (detail pages map to their list)
+    if (pathname.startsWith("/safety/incidents")) return "/safety/incidents";
+    if (pathname.startsWith("/safety/breakdowns")) return "/safety/breakdowns";
+    if (pathname.startsWith("/safety/")) {
+      const match = safetyChildren.find((c) => c.key !== "/safety" && pathname.startsWith(c.key));
+      if (match) return match.key;
+    }
+    if (pathname === "/safety") return "/safety";
+
     // 4. Employee directory vs own profile (own profile is navbar-only)
     if (pathname === "/employees" || pathname.startsWith("/employees/")) {
       return "/employees";
@@ -453,6 +533,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/training/events") || pathname.startsWith("/training/communities")) {
       return "/training/events";
     }
+    if (pathname.startsWith("/training/mentors")) return "/training/mentors";
 
     // 6. Direct match from pageTitles
     const match = Object.keys(pageTitles).find(
@@ -489,6 +570,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/leave/requests/")) {
       return "Leave detail";
     }
+    if (pathname.startsWith("/safety/incidents/")) return "Safety · Case";
+    if (pathname.startsWith("/safety/breakdowns/")) return "Safety · Breakdown";
     if (pathname.startsWith("/training/")) {
       const section = pathname.split("/")[2];
       const titles: Record<string, string> = {
@@ -501,6 +584,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         events: "Training · Events",
         communities: "Training · Community",
         mentor: "Training · Mentor Studio",
+        mentors: "Training · Mentors",
         team: "Training · My team",
       };
       return titles[section] ?? "Training";
@@ -538,8 +622,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ],
         },
         academyNavGroup(role),
+        safetyNavItem,
         { key: "/salary", icon: <WalletOutlined />, label: "Salary history" },
         meetingsNavItem,
+        medicalRecordsNavItem,
       ] as MenuProps["items"];
     }
 
@@ -603,7 +689,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       });
     }
 
+    items.push(safetyNavItem);
     items.push(meetingsNavItem);
+    items.push(medicalRecordsNavItem);
 
     return items;
   }, [user]);
@@ -741,6 +829,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               message.info("Meetings — coming soon. This feature is under development.");
               return;
             }
+            if (key === "/medical-records") {
+              message.info("Medical records — coming soon. This feature is under development.");
+              return;
+            }
             router.push(key);
             if (collapsed) setOpenKeys([]);
           }}
@@ -806,7 +898,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </Header>
 
-        <Content style={{ padding: 24, minHeight: 280 }}>{children}</Content>
+        <Content style={{ padding: 24, minHeight: 280 }}>
+          {emergencies.map((e) => (
+            <div
+              key={e.id}
+              role="alert"
+              style={{
+                display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between",
+                background: "#FDECEA", border: "1px solid #F5A39B", color: "#8A1C12", borderRadius: 10,
+                padding: "12px 16px", marginBottom: 16,
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
+                <WarningOutlined style={{ fontSize: 20 }} />
+                <div style={{ minWidth: 0 }}>
+                  <strong>EMERGENCY: {e.title}</strong>
+                  <div style={{ fontSize: 12 }}>{e.location ? `${e.location} · ` : ""}reported by {e.reportedBy.name} · {new Date(e.reportedAt).toLocaleTimeString("en-IN", { timeStyle: "short" })}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Link href={`/safety/incidents/${e.id}`}>View</Link>
+                <button
+                  type="button"
+                  onClick={() => void acknowledgeEmergency(e.id)}
+                  style={{ background: "#C62828", color: "#fff", border: 0, borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}
+                >
+                  Acknowledge
+                </button>
+              </div>
+            </div>
+          ))}
+          {children}
+        </Content>
       </Layout>
 
       <Modal
