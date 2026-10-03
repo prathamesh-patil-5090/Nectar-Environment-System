@@ -13,13 +13,15 @@ const MOTION_OK = "(prefers-reduced-motion: no-preference)";
  * Shared list-page motion (Sites, Employees):
  * - `[data-anim='intro']` under `pageRef` settles in once on mount;
  * - table rows under `tableRef` stagger in, and `[data-anim='bar']` fills grow from 0, whenever `rowsKey` changes.
- * Pass an empty `rowsKey` while data is loading. Skipped entirely for users who ask for reduced motion.
+ * Pass an empty `rowsKey` while data is loading. Pages that show a spinner first pass `introReady = false` until
+ * their content is on screen, so the intro plays on the real content. Skipped entirely for reduced motion.
  */
-export function useTableMotion(rowsKey: string) {
+export function useTableMotion(rowsKey: string, introReady = true) {
   const pageRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
+    if (!introReady) return;
     const mm = gsap.matchMedia();
     mm.add(MOTION_OK, () => {
       const intro = pick(pageRef.current, "[data-anim='intro']");
@@ -28,7 +30,7 @@ export function useTableMotion(rowsKey: string) {
       }
     });
     return () => mm.revert();
-  }, []);
+  }, [introReady]);
 
   useLayoutEffect(() => {
     if (!rowsKey) return;

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Alert, Button, Card, DatePicker, Input, Select, Table, Tag } from "antd";
+import { Alert, Button, DatePicker, Input, Segmented, Select, Table, theme } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { PlusOutlined, ReloadOutlined, WarningOutlined } from "@ant-design/icons";
+import { PlusOutlined, ReloadOutlined, SearchOutlined, WarningOutlined } from "@ant-design/icons";
 import type { Dayjs } from "dayjs";
 import {
-  SAFETY_CATEGORY_LABELS,
+  safetyCategoryLabel,
   SAFETY_SEVERITY_LABELS,
   SAFETY_STATUSES,
   SAFETY_STATUS_LABELS,
@@ -20,31 +21,49 @@ import {
 import type { SafetyEvent } from "@/lib/safety/types";
 import { useDirectory, useSafetyEvents, useSessionUser } from "@/lib/safety/hooks";
 import { canSafety } from "@/lib/rbac";
+import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { SeverityTag, StatusTag, TypeTag } from "./SafetyTags";
+import { Panel } from "./ui";
+
+type Scope = "open" | "closed" | "all";
+
+const isClosed = (e: SafetyEvent) => e.status === "RESOLVED" || e.status === "CLOSED";
 
 /** History of incidents & near-misses, or the breakdown log. Visible to every role. */
 export default function EventsTable({ types, title }: { types: SafetyEventType[]; title: string }) {
+  const { token } = theme.useToken();
+  const router = useRouter();
   const user = useSessionUser();
   const { events, loading, error, reload } = useSafetyEvents();
   const dir = useDirectory();
   const [site, setSite] = useState<string>();
   const [type, setType] = useState<SafetyEventType>();
   const [severity, setSeverity] = useState<SafetySeverity>();
-  const [status, setStatus] = useState<string>("open");
+  const [scope, setScope] = useState<Scope>("open");
+  const [status, setStatus] = useState<string>();
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [text, setText] = useState("");
   const isBreakdown = types.length === 1 && types[0] === "breakdown";
+  const base = isBreakdown ? "breakdowns" : "incidents";
+
+  const ofType = useMemo(() => events.filter((e) => types.includes(e.type)), [events, types]);
+  const counts = useMemo(
+    () => ({
+      open: ofType.filter((e) => !isClosed(e)).length,
+      closed: ofType.filter(isClosed).length,
+      all: ofType.length,
+    }),
+    [ofType],
+  );
 
   const rows = useMemo(() => {
     const q = text.trim().toLowerCase();
-    return events
-      .filter((e) => types.includes(e.type))
+    return ofType
+      .filter((e) => (scope === "all" ? true : scope === "open" ? !isClosed(e) : isClosed(e)))
+      .filter((e) => !status || e.status === status)
       .filter((e) => !site || e.siteId === site)
       .filter((e) => !type || e.type === type)
       .filter((e) => !severity || e.severity === severity)
-      .filter((e) =>
-        status === "all" ? true : status === "open" ? !["RESOLVED", "CLOSED"].includes(e.status) : e.status === status,
-      )
       .filter((e) => {
         if (!range) return true;
         const t = new Date(e.occurredAt).getTime();
@@ -60,85 +79,176 @@ export default function EventsTable({ types, title }: { types: SafetyEventType[]
           e.location.toLowerCase().includes(q) ||
           e.involved.some((p) => dir.empName(p).toLowerCase().includes(q)),
       );
-  }, [events, types, site, type, severity, status, range, text, dir]);
+  }, [ofType, scope, status, site, type, severity, range, text, dir]);
+
+  const { pageRef, tableRef } = useTableMotion(loading && !events.length ? "" : rows.map((e) => e.id).join("|") || "empty");
+
+  const muted = { color: token.colorTextSecondary };
+  const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 
   const columns: ColumnsType<SafetyEvent> = [
     {
       title: "Case",
       key: "title",
       render: (_, e) => (
-        <div style={{ minWidth: 200 }}>
-          <Link href={`/safety/${isBreakdown ? "breakdowns" : "incidents"}/${e.id}`} style={{ fontWeight: 600 }}>
+        <div style={{ minWidth: 220, lineHeight: 1.35 }}>
+          <Link href={`/safety/${base}/${e.id}`} style={{ fontWeight: 500, color: token.colorText }}>
             {e.title}
           </Link>
-          {e.isEmergency ? <Tag color="red" icon={<WarningOutlined />} style={{ marginLeft: 6 }}>Emergency</Tag> : null}
-          <div style={{ fontSize: 12, color: "rgba(0,0,0,0.5)" }}>{e.id}{e.location ? ` · ${e.location}` : ""}</div>
+          {e.isEmergency ? (
+            <span style={{ marginLeft: 8, fontSize: 12, color: token.colorError, whiteSpace: "nowrap" }}>
+              <WarningOutlined /> Emergency
+            </span>
+          ) : null}
+          <div style={{ fontSize: 13, ...muted }}>{e.location || e.id}</div>
         </div>
       ),
     },
     ...(types.length > 1 ? [{ title: "Type", key: "type", render: (_: unknown, e: SafetyEvent) => <TypeTag type={e.type} /> }] : []),
-    { title: "Site", key: "site", render: (_, e) => dir.siteName(e.siteId) },
-    { title: "Category", key: "cat", render: (_, e) => SAFETY_CATEGORY_LABELS[e.category] },
+    {
+      title: "Site",
+      key: "site",
+      render: (_, e) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <div>{dir.siteName(e.siteId)}</div>
+          <div style={{ fontSize: 13, ...muted }}>{safetyCategoryLabel(e)}</div>
+        </div>
+      ),
+    },
     { title: "Severity", key: "sev", render: (_, e) => <SeverityTag severity={e.severity} /> },
     { title: "Status", key: "status", render: (_, e) => <StatusTag status={e.status} /> },
     ...(isBreakdown
       ? [
-          { title: "Downtime", key: "down", render: (_: unknown, e: SafetyEvent) => (e.restoredAt ? `${downtimeDays(e.failedAt, e.restoredAt)} d` : <Tag color="red">Down {downtimeDays(e.failedAt)} d</Tag>) },
-          { title: "OT to fix", key: "ot", render: (_: unknown, e: SafetyEvent) => { const t = otTotals(e.otEntries); return `${t.people} ppl · ${t.hours} h`; } },
+          {
+            title: "Downtime",
+            key: "down",
+            render: (_: unknown, e: SafetyEvent) =>
+              e.restoredAt ? (
+                `${downtimeDays(e.failedAt, e.restoredAt)} d`
+              ) : (
+                <span style={{ color: token.colorError, whiteSpace: "nowrap" }}>Down {downtimeDays(e.failedAt)} d</span>
+              ),
+          },
+          {
+            title: "OT to fix",
+            key: "ot",
+            render: (_: unknown, e: SafetyEvent) => {
+              const t = otTotals(e.otEntries);
+              return <span style={{ whiteSpace: "nowrap" }}>{t.people} people · {t.hours} h</span>;
+            },
+          },
         ]
-      : [{ title: "Involved", key: "inv", render: (_: unknown, e: SafetyEvent) => e.involved.map(dir.empName).join(", ") || "—" }]),
+      : [
+          {
+            title: "People",
+            key: "inv",
+            render: (_: unknown, e: SafetyEvent) => (
+              <div style={{ lineHeight: 1.35, maxWidth: 220 }}>
+                <div>{e.involved.map(dir.empName).join(", ") || "—"}</div>
+                {e.informedBy.length ? <div style={{ fontSize: 13, ...muted }}>{e.informedBy.length} saw it</div> : null}
+              </div>
+            ),
+          },
+        ]),
     {
       title: "Occurred",
       key: "when",
       sorter: (a, b) => a.occurredAt.localeCompare(b.occurredAt),
       defaultSortOrder: "descend",
-      render: (_, e) => new Date(e.occurredAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+      render: (_, e) => <span style={{ whiteSpace: "nowrap" }}>{when(e.occurredAt)}</span>,
     },
   ];
 
+  const scopeLabel: Record<Scope, string> = { open: "Open", closed: "Resolved & closed", all: "All" };
+
   return (
-    <Card
-      title={title}
-      extra={
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button icon={<ReloadOutlined />} onClick={() => void reload()} loading={loading} />
+    <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        data-anim="intro"
+        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+      >
+        <p style={{ margin: 0, fontSize: 14, maxWidth: 640, ...muted }}>
+          {title}.{" "}
+          {isBreakdown
+            ? "Every time a plant stops working — what broke, how long it was down and the overtime it took to fix."
+            : "Every incident and near-miss at every plant, visible to everyone. Open a case to follow it."}
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Button icon={<ReloadOutlined />} onClick={() => void reload()} loading={loading} aria-label="Refresh" />
           {isBreakdown && canSafety(user ?? null, "reportBreakdown") ? (
             <Link href="/safety/report?type=breakdown"><Button type="primary" icon={<PlusOutlined />}>Log breakdown</Button></Link>
           ) : !isBreakdown && canSafety(user ?? null, "reportIncident") ? (
             <Link href="/safety/report"><Button type="primary" icon={<PlusOutlined />}>Raise safety concern</Button></Link>
           ) : null}
         </div>
-      }
-    >
-      {error ? <Alert type="warning" showIcon style={{ marginBottom: 12 }} title={`Server unreachable — showing last saved list (${error})`} /> : null}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-        <Input.Search placeholder="Search title, id, place, person" allowClear style={{ width: 240 }} onChange={(e) => setText(e.target.value)} />
-        <Select allowClear placeholder="Site" style={{ width: 160 }} value={site} onChange={setSite}
+      </div>
+
+      {error ? <Alert type="warning" showIcon title={`Server unreachable — showing the last saved list (${error})`} /> : null}
+
+      <div data-anim="intro" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        <Segmented<Scope>
+          value={scope}
+          onChange={(v) => {
+            setScope(v);
+            setStatus(undefined);
+          }}
+          options={(["open", "closed", "all"] as Scope[]).map((s) => ({ value: s, label: `${scopeLabel[s]} ${counts[s]}` }))}
+        />
+        <Input
+          allowClear
+          prefix={<SearchOutlined style={{ color: token.colorTextQuaternary }} />}
+          placeholder="Search title, ID, place or person"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          style={{ width: 260, maxWidth: "100%" }}
+        />
+        <Select allowClear placeholder="All sites" style={{ width: 200 }} value={site} onChange={setSite}
           options={dir.sites.map((s) => ({ value: s.id, label: s.name }))} />
         {types.length > 1 ? (
-          <Select allowClear placeholder="Type" style={{ width: 140 }} value={type} onChange={setType}
+          <Select allowClear placeholder="Any type" style={{ width: 130 }} value={type} onChange={setType}
             options={types.map((t) => ({ value: t, label: SAFETY_TYPE_LABELS[t] }))} />
         ) : null}
-        <Select allowClear placeholder="Severity" style={{ width: 130 }} value={severity} onChange={setSeverity}
+        <Select allowClear placeholder="Any severity" style={{ width: 140 }} value={severity} onChange={setSeverity}
           options={(Object.keys(SAFETY_SEVERITY_LABELS) as SafetySeverity[]).map((s) => ({ value: s, label: SAFETY_SEVERITY_LABELS[s] }))} />
-        <Select style={{ width: 160 }} value={status} onChange={setStatus}
-          options={[
-            { value: "open", label: "Open (not resolved)" },
-            { value: "all", label: "All statuses" },
-            ...SAFETY_STATUSES.map((s) => ({ value: s, label: SAFETY_STATUS_LABELS[s] })),
-          ]} />
+        <Select allowClear placeholder="Any status" style={{ width: 150 }} value={status} onChange={setStatus}
+          options={SAFETY_STATUSES.filter((s) => (scope === "all" ? true : scope === "open" ? s !== "RESOLVED" && s !== "CLOSED" : s === "RESOLVED" || s === "CLOSED"))
+            .map((s) => ({ value: s, label: SAFETY_STATUS_LABELS[s] }))} />
         <DatePicker.RangePicker value={range} onChange={(v) => setRange(v)} allowEmpty={[true, true]} />
       </div>
-      <Table<SafetyEvent>
-        rowKey="id"
-        size="middle"
-        loading={loading && !events.length}
-        columns={columns}
-        dataSource={rows}
-        pagination={{ pageSize: 20, hideOnSinglePage: true }}
-        scroll={{ x: "max-content" }}
-        locale={{ emptyText: status === "open" ? "Nothing open — switch to “All statuses” to see history." : "No records" }}
-      />
-    </Card>
+
+      <div ref={tableRef} data-anim="intro">
+        <Panel>
+          <Table<SafetyEvent>
+            rowKey="id"
+            loading={loading && !events.length}
+            columns={columns}
+            dataSource={rows}
+            pagination={{
+              pageSize: 20,
+              hideOnSinglePage: true,
+              showSizeChanger: false,
+              showTotal: (total, [from, to]) => `${from}–${to} of ${total} cases`,
+              style: { padding: "0 16px" },
+            }}
+            scroll={{ x: "max-content" }}
+            onRow={(e) => ({
+              onClick: (ev) => {
+                if ((ev.target as HTMLElement).closest("a")) return;
+                router.push(`/safety/${base}/${e.id}`);
+              },
+              style: { cursor: "pointer" },
+            })}
+            locale={{
+              emptyText:
+                scope === "open" && counts.all
+                  ? "Nothing open. Switch to “All” to see the history."
+                  : isBreakdown
+                    ? "No breakdowns recorded."
+                    : "No cases recorded.",
+            }}
+          />
+        </Panel>
+      </div>
+    </div>
   );
 }

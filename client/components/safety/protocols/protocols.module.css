@@ -1,13 +1,15 @@
-/* Emergency protocols — colours follow lib/theme.ts; category accent comes from --accent. */
+/* Emergency protocols — quiet, theme-coloured (lib/theme.ts). Red is kept for the one thing that is urgent: calling. */
 
 .page,
 .tokens {
-  --ink: var(--nectar-ink, var(--ink));
-  --leaf: var(--nectar-leaf, var(--leaf));
+  --ink: var(--nectar-ink, #0b1a24);
+  --leaf: var(--nectar-leaf, #1c4463);
   --alert: var(--nectar-alert, #c45c26);
   --sand: var(--nectar-sand, #f4f7fa);
-  --muted: var(--muted);
-  --line: var(--line);
+  --muted: #4a6375;
+  --faint: #8a9aa6;
+  --line: #e6ebf0;
+  --fill: #f2f5f8;
   --accent: var(--leaf);
 }
 
@@ -24,9 +26,10 @@
   align-items: center;
   gap: 12px 20px;
   padding: 16px 20px;
-  border-radius: 14px;
-  background: var(--leaf);
-  color: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
 }
 .callIntro {
   flex: 1 1 220px;
@@ -34,14 +37,14 @@
 }
 .callTitle {
   margin: 0;
-  font-family: var(--font-fraunces), Georgia, serif;
-  font-size: 20px;
-  line-height: 1.2;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 .callHint {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   font-size: 13px;
-  opacity: 0.85;
+  color: var(--muted);
 }
 .callButtons {
   display: flex;
@@ -52,44 +55,44 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px 8px 10px;
-  border-radius: 999px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
   text-decoration: none;
   line-height: 1.1;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 .callBtn:hover {
   color: var(--ink);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.45);
+  border-color: var(--alert);
+  background: color-mix(in srgb, var(--alert) 4%, #fff);
 }
 .callBtn:focus-visible {
-  outline: 3px solid #fff;
+  outline: 2px solid var(--alert);
   outline-offset: 2px;
 }
 .callIcon {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--alert) 14%, #fff);
+  background: color-mix(in srgb, var(--alert) 10%, #fff);
   color: var(--alert);
-  font-size: 14px;
+  font-size: 13px;
 }
 .callNumber {
   display: block;
-  font-size: 18px;
-  font-weight: 750;
+  font-size: 16px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .callLabel {
   display: block;
   font-size: 11px;
-  font-weight: 500;
-  opacity: 0.8;
+  color: var(--muted);
 }
 .reportBtn {
   flex: 0 0 auto;
@@ -125,8 +128,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
+  padding: 5px 12px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
@@ -136,16 +139,18 @@
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .chip:hover {
-  border-color: var(--leaf);
+  border-color: var(--faint);
 }
 .chip:focus-visible {
-  outline: 3px solid var(--leaf);
+  outline: 2px solid var(--leaf);
   outline-offset: 1px;
 }
 .chipActive {
-  background: var(--leaf);
-  border-color: var(--leaf);
-  color: #fff;
+  background: var(--fill);
+  border-color: var(--ink);
+}
+.chip :global(.anticon) {
+  color: var(--muted);
 }
 .chipCount {
   font-size: 11px;
@@ -178,36 +183,36 @@
   width: 100%;
   text-align: left;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--line);
   background: #fff;
   color: inherit;
   cursor: pointer;
   font: inherit;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 .item:hover {
-  border-color: var(--accent);
+  border-color: var(--faint);
 }
 .item:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 2px solid var(--leaf);
   outline-offset: 1px;
 }
 .itemActive {
-  border-color: var(--accent);
-  box-shadow: inset 4px 0 0 var(--accent), 0 6px 16px -10px rgba(11, 26, 36, 0.4);
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 .tile {
   /* inherits --accent from .item / .reader */
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, #fff);
-  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--fill);
+  font-size: 16px;
 }
 .itemBody {
   min-width: 0;
@@ -216,7 +221,7 @@
 .itemTitle {
   margin: 0;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 500;
   line-height: 1.3;
 }
 .itemSummary {
@@ -247,14 +252,14 @@
   --accent: var(--leaf);
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
   min-width: 0;
 }
 .readerHead {
   padding: 20px 24px;
-  background: color-mix(in srgb, var(--accent) 7%, #fff);
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, #fff);
+  background: #fff;
+  border-bottom: 1px solid var(--line);
 }
 .back {
   display: none;
@@ -266,34 +271,30 @@
   align-items: flex-start;
 }
 .readerTop .tile {
-  width: 52px;
-  height: 52px;
-  font-size: 24px;
-  background: #fff;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
 }
 .readerTitleBox {
   min-width: 0;
   flex: 1;
 }
 .kicker {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--accent);
+  font-size: 13px;
+  color: var(--muted);
 }
 .readerTitle {
   margin: 2px 0 0;
-  font-family: var(--font-fraunces), Georgia, serif;
-  font-size: 26px;
-  line-height: 1.2;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--ink);
   word-break: break-word;
 }
 .readerSummary {
   margin: 12px 0 0;
   font-size: 15px;
-  font-weight: 500;
+  line-height: 1.55;
   color: var(--ink);
 }
 .readerMeta {
@@ -316,12 +317,10 @@
   gap: 20px;
 }
 .sectionTitle {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .steps {
@@ -329,27 +328,29 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 10px;
 }
 .step {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--sand);
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.step:first-child {
+  border-top: none;
+  padding-top: 4px;
 }
 .stepNo {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--leaf);
-  color: #fff;
-  font-weight: 700;
+  background: var(--fill);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .stepText {
@@ -358,20 +359,15 @@
   line-height: 1.5;
   color: var(--ink);
 }
-.stepFirst {
-  border-color: color-mix(in srgb, var(--alert) 45%, #fff);
-  background: color-mix(in srgb, var(--alert) 7%, #fff);
-}
 .stepFirst .stepNo {
   background: var(--alert);
+  color: #fff;
 }
 .firstLabel {
   display: inline-block;
   margin-bottom: 2px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--alert);
 }
 .mark {
@@ -389,24 +385,24 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px 8px 10px;
-  border-radius: 10px;
+  padding: 6px 14px 6px 10px;
+  border-radius: 8px;
   border: 1px solid var(--line);
-  background: var(--sand);
+  background: #fff;
   color: var(--ink);
   text-decoration: none;
 }
 .contact:hover {
   color: var(--ink);
-  border-color: var(--leaf);
+  border-color: var(--alert);
 }
 .contact :global(.anticon) {
   color: var(--alert);
 }
 .contactNumber {
   display: block;
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 600;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 .contactLabel {
@@ -417,8 +413,8 @@
 
 .empty {
   background: #fff;
-  border: 1px dashed var(--line);
-  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   padding: 40px 16px;
   text-align: center;
 }
@@ -438,10 +434,10 @@
   height: 28px;
   margin-top: 6px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--leaf) 10%, #fff);
-  color: var(--leaf);
+  background: var(--fill);
+  color: var(--ink);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .stepRowTools {
   display: flex;

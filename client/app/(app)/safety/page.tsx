@@ -1,23 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { Alert, Button, Card, Empty, Listy, Table, Tag } from "antd";
-import {
-  AlertOutlined,
-  BookOutlined,
-  PlusOutlined,
-  ToolOutlined,
-  WarningOutlined,
-} from "@ant-design/icons";
-import KpiStat from "@/components/KpiStat";
+import { Alert, Button, Table, theme } from "antd";
+import { BookOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
 import { SeverityTag, StatusTag, TypeTag } from "@/components/safety/SafetyTags";
+import { NumberRow, Panel, Quiet, Section } from "@/components/safety/ui";
 import { isOpenStatus, downtimeDays } from "@/lib/safety/rules";
+import type { SafetyEvent } from "@/lib/safety/types";
 import { safetyKpis } from "@/lib/safety/kpis";
 import { useDirectory, useSafetyEvents, useSessionUser } from "@/lib/safety/hooks";
 import { canSafety } from "@/lib/rbac";
+import { useTableMotion } from "@/lib/motion/use-table-motion";
 
 export default function SafetyOverviewPage() {
+  const { token } = theme.useToken();
+  const router = useRouter();
   const user = useSessionUser();
   const { events, loading, error } = useSafetyEvents();
   const dir = useDirectory();
@@ -28,93 +27,133 @@ export default function SafetyOverviewPage() {
     () =>
       dir.sites.map((s) => {
         const sk = safetyKpis(events, s.id);
-        return { key: s.id, site: s.name, ...sk };
+        return { key: s.id, site: s.name, location: s.location, ...sk };
       }),
     [dir.sites, events],
   );
 
+  const ready = !loading || events.length > 0;
+  const { pageRef, tableRef } = useTableMotion(ready ? open.map((e) => e.id).join("|") || "empty" : "");
+
+  const muted = { color: token.colorTextSecondary };
+  const href = (e: SafetyEvent) => `/safety/${e.type === "breakdown" ? "breakdowns" : "incidents"}/${e.id}`;
+  const canConcern = canSafety(user ?? null, "reportIncident");
+  const canBreakdown = canSafety(user ?? null, "reportBreakdown");
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ color: "rgba(0,0,0,0.6)", maxWidth: 640, flex: "1 1 260px", minWidth: 0 }}>
-          Every incident, near-miss and breakdown — big or small — is recorded here and visible to everyone.
-          Safety concerns are raised by the plant manager; open cases keep notifying everyone responsible until the Director closes them.
-        </div>
+    <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div data-anim="intro" style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center" }}>
+        <p style={{ margin: 0, fontSize: 14, maxWidth: 640, ...muted }}>
+          Every incident, near-miss and breakdown, big or small, is recorded here and visible to everyone. Plant managers raise
+          safety concerns; open cases keep reminding everyone responsible until the Director closes them.
+        </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {canSafety(user ?? null, "reportIncident") ? (
+          <Link href="/safety/training"><Button>Safety training</Button></Link>
+          <Link href="/safety/protocols"><Button icon={<BookOutlined />}>Emergency protocols</Button></Link>
+          {canConcern ? (
             <Link href="/safety/report"><Button type="primary" icon={<PlusOutlined />}>Raise safety concern</Button></Link>
-          ) : canSafety(user ?? null, "reportBreakdown") ? (
+          ) : canBreakdown ? (
             <Link href="/safety/report?type=breakdown"><Button type="primary" icon={<PlusOutlined />}>Log breakdown</Button></Link>
           ) : null}
-          <Link href="/safety/protocols"><Button icon={<BookOutlined />}>Emergency protocols</Button></Link>
         </div>
       </div>
-      {error ? <Alert type="warning" showIcon title={`Server unreachable — showing last saved data (${error})`} /> : null}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 1, background: "#f0f0f0", borderRadius: 10, overflow: "hidden" }}>
-        <KpiStat label="Open cases" value={k.open} hint={`${k.openCritical} critical / high`} tone={k.openCritical ? "alert" : "default"} />
-        <KpiStat label="Active emergencies" value={k.activeEmergencies} tone={k.activeEmergencies ? "alert" : "default"} hint={k.activeEmergencies ? "Acknowledge from the case" : "None"} />
-        <KpiStat label="Near-misses (30 days)" value={k.nearMiss30d} hint="Reporting them prevents injuries" />
-        <KpiStat label="Plants down now" value={k.activeBreakdowns} tone={k.activeBreakdowns ? "alert" : "default"} hint={`${k.breakdownOtHours30d} OT h on repairs (30 d)`} />
-        <KpiStat label="Return-to-work pending" value={k.pendingClearances} tone={k.pendingClearances ? "alert" : "default"} hint="Leave can't close until cleared" />
-        <KpiStat label="Days since lost-time injury" value={k.daysSinceLti ?? "—"} hint={k.daysSinceLti === null ? "None recorded" : "All sites"} />
+      {error ? <Alert type="warning" showIcon title={`Server unreachable — showing the last saved data (${error})`} /> : null}
+
+      <div data-anim="intro">
+        <NumberRow
+          items={[
+            { label: "Open cases", value: k.open, hint: `${k.openCritical} high or critical`, alert: k.openCritical > 0 },
+            { label: "Active emergencies", value: k.activeEmergencies, hint: k.activeEmergencies ? "Acknowledge from the case" : "None", alert: k.activeEmergencies > 0 },
+            { label: "Near-misses, 30 days", value: k.nearMiss30d, hint: "Reporting them prevents injuries" },
+            { label: "Plants down now", value: k.activeBreakdowns, hint: `${k.breakdownOtHours30d} repair OT hours, 30 days`, alert: k.activeBreakdowns > 0 },
+            { label: "Return to work pending", value: k.pendingClearances, hint: "Leave can't close until cleared", alert: k.pendingClearances > 0 },
+            { label: "Days since lost-time injury", value: k.daysSinceLti ?? "—", hint: k.daysSinceLti === null ? "None recorded" : "All plants" },
+          ]}
+        />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 16 }}>
-        <Card title="Needs attention" extra={<Link href="/safety/incidents">All history</Link>}>
-          {open.length ? (
-            <Listy
-              items={open}
-              rowKey="id"
-              itemRender={(e) => (
-                <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  <div style={{ minWidth: 0, width: "100%" }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
-                      <TypeTag type={e.type} />
-                      <StatusTag status={e.status} />
-                      <SeverityTag severity={e.severity} />
-                      {e.isEmergency ? <Tag color="red" icon={<WarningOutlined />}>Emergency</Tag> : null}
-                    </div>
-                    <Link href={`/safety/${e.type === "breakdown" ? "breakdowns" : "incidents"}/${e.id}`} style={{ fontWeight: 600 }}>{e.title}</Link>
-                    <div style={{ fontSize: 12, color: "rgba(0,0,0,0.5)" }}>
-                      {dir.siteName(e.siteId)} · {new Date(e.reportedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                      {e.type === "breakdown" && !e.restoredAt ? ` · down ${downtimeDays(e.failedAt)} d` : ""}
-                    </div>
-                  </div>
-                </div>
-              )}
-            />
-          ) : (
-            <Empty description={loading ? "Loading…" : "No open cases"} />
-          )}
-        </Card>
+      <div data-anim="intro" className="safety-case-grid">
+        <div ref={tableRef}>
+          <Section title="Needs attention" extra={<Link href="/safety/incidents">All cases</Link>} flush>
+            {open.length ? (
+              <Table<SafetyEvent>
+                rowKey="id"
+                dataSource={open}
+                pagination={false}
+                showHeader={false}
+                scroll={{ x: "max-content" }}
+                onRow={(e) => ({
+                  onClick: (ev) => {
+                    if ((ev.target as HTMLElement).closest("a")) return;
+                    router.push(href(e));
+                  },
+                  style: { cursor: "pointer" },
+                })}
+                columns={[
+                  {
+                    key: "case",
+                    render: (_, e) => (
+                      <div style={{ minWidth: 220, lineHeight: 1.35 }}>
+                        <Link href={href(e)} style={{ fontWeight: 500, color: token.colorText }}>{e.title}</Link>
+                        {e.isEmergency ? (
+                          <span style={{ marginLeft: 8, fontSize: 12, color: token.colorError, whiteSpace: "nowrap" }}>
+                            <WarningOutlined /> Emergency
+                          </span>
+                        ) : null}
+                        <div style={{ fontSize: 13, ...muted }}>
+                          <TypeTag type={e.type} /> · {dir.siteName(e.siteId)} ·{" "}
+                          {new Date(e.reportedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                          {e.type === "breakdown" && !e.restoredAt ? ` · down ${downtimeDays(e.failedAt)} d` : ""}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  { key: "sev", render: (_, e) => <SeverityTag severity={e.severity} /> },
+                  { key: "status", render: (_, e) => <StatusTag status={e.status} /> },
+                ]}
+              />
+            ) : (
+              <div style={{ padding: 16 }}>
+                <Quiet>{loading ? "Loading…" : "Nothing open right now."}</Quiet>
+              </div>
+            )}
+          </Section>
+        </div>
 
-        <Card title="By site">
+        <Panel>
           <Table
-            size="small"
+            rowKey="key"
             pagination={false}
             dataSource={siteRows}
             scroll={{ x: "max-content" }}
             columns={[
-              { title: "Site", dataIndex: "site" },
-              { title: "Open", dataIndex: "open" },
-              { title: "Near-miss 30d", dataIndex: "nearMiss30d" },
-              { title: "Down now", dataIndex: "activeBreakdowns", render: (v: number) => (v ? <Tag color="red">{v}</Tag> : 0) },
-              { title: "Days since LTI", dataIndex: "daysSinceLti", render: (v: number | null) => (v === null ? "—" : v) },
+              {
+                title: "Site",
+                dataIndex: "site",
+                render: (name: string, r) => (
+                  <div style={{ lineHeight: 1.35 }}>
+                    <div style={{ fontWeight: 500 }}>{name}</div>
+                    <div style={{ fontSize: 13, ...muted }}>{r.location}</div>
+                  </div>
+                ),
+              },
+              { title: "Open", dataIndex: "open", align: "right" },
+              {
+                title: "Down",
+                dataIndex: "activeBreakdowns",
+                align: "right",
+                render: (v: number) => (v ? <span style={{ color: token.colorError }}>{v}</span> : 0),
+              },
+              {
+                title: "Since LTI",
+                dataIndex: "daysSinceLti",
+                align: "right",
+                render: (v: number | null) => (v === null ? <span style={muted}>—</span> : `${v} d`),
+              },
             ]}
           />
-        </Card>
-
-        <Card title="Quick links">
-          <div style={{ display: "grid", gap: 8 }}>
-            {canSafety(user ?? null, "reportIncident") ? (
-              <Link href="/safety/report"><Button block icon={<AlertOutlined />}>Raise a safety concern</Button></Link>
-            ) : null}
-            <Link href="/safety/breakdowns"><Button block icon={<ToolOutlined />}>Breakdown log</Button></Link>
-            <Link href="/safety/protocols"><Button block icon={<BookOutlined />}>Emergency protocols</Button></Link>
-            <Link href="/safety/training"><Button block>Safety training</Button></Link>
-          </div>
-        </Card>
+        </Panel>
       </div>
     </div>
   );

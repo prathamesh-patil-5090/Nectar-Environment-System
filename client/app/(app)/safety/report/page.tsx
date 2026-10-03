@@ -3,9 +3,9 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, App, Button, Card, DatePicker, Form, Input, Radio, Select, Switch, Upload } from "antd";
+import { Alert, App, Button, DatePicker, Form, Input, Radio, Segmented, Select, Switch, Upload, theme } from "antd";
 import type { UploadFile } from "antd";
-import { InboxOutlined, LockOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, InboxOutlined, LockOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import {
   SAFETY_CATEGORY_LABELS,
@@ -18,6 +18,8 @@ import { createSafetyEvent, uploadSafetyMedia } from "@/lib/api/safety";
 import { upsertSafetyEvent } from "@/lib/safety/store";
 import { useDirectory, useSessionUser } from "@/lib/safety/hooks";
 import { canSafety, canViewAllSites, safetyActorOf } from "@/lib/rbac";
+import { Panel, Section } from "@/components/safety/ui";
+import { useTableMotion } from "@/lib/motion/use-table-motion";
 
 /** What the manager reports: a near-miss, or the injury outcome (fatal injury and death included). */
 type Outcome = "near_miss" | "first_aid" | "medical" | "lost_time" | "fatal" | "death";
@@ -37,14 +39,15 @@ type FormValues = {
   kind: Kind;
   outcome: Outcome;
   hazard?: SafetyCategory;
+  hazardOther?: string;
   siteId: string;
   title: string;
   description?: string;
   location?: string;
   occurredAt?: Dayjs;
   severity: SafetySeverity;
-  affected?: string;
-  witness?: string;
+  affected?: string[];
+  witnesses?: string[];
   involved?: string[];
   isEmergency?: boolean;
   equipment?: string;
@@ -58,6 +61,7 @@ const GRID = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(mi
 
 function ReportForm() {
   const { message } = App.useApp();
+  const { token } = theme.useToken();
   const router = useRouter();
   const params = useSearchParams();
   const user = useSessionUser();
@@ -75,7 +79,9 @@ function ReportForm() {
   const kind = Form.useWatch("kind", form) ?? defaultKind;
   const outcome = Form.useWatch("outcome", form) ?? "near_miss";
   const siteId = Form.useWatch("siteId", form);
+  const hazard = Form.useWatch("hazard", form);
   const affected = Form.useWatch("affected", form);
+  const witnesses = Form.useWatch("witnesses", form);
   const isEmergency = Form.useWatch("isEmergency", form);
 
   const siteOptions = useMemo(
@@ -87,6 +93,7 @@ function ReportForm() {
     [employees, siteId],
   );
   const peopleOptions = sitePeople.map((e) => ({ value: e.id, label: `${e.name} · ${e.designation || e.role}` }));
+  const overlap = (affected ?? []).filter((id) => (witnesses ?? []).includes(id));
   // Who becomes responsible: the site's supervisor and shift in-charge, plus HR, the Director and the Safety In-charge
   const responsible = useMemo(() => {
     const site = sitePeople.filter((e) => e.employeeCategory === "supervisor" || e.employeeCategory === "shift_incharge");
@@ -99,23 +106,27 @@ function ReportForm() {
     ];
   }, [sitePeople, employees]);
 
+  // Sections settle in once the form is on screen.
+  const { pageRef } = useTableMotion("", user !== undefined);
+  const muted = { color: token.colorTextSecondary };
+
   if (user === undefined) return null;
   if (!user) return <Alert type="warning" title="Please log in to report." />;
 
   if (!canConcern && !canBreakdown) {
     return (
-      <Card style={{ maxWidth: 720 }}>
+      <Panel style={{ maxWidth: 720, padding: 20 }}>
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-          <LockOutlined style={{ fontSize: 28, color: "#1C4463", marginTop: 4 }} />
+          <LockOutlined style={{ fontSize: 22, color: token.colorTextSecondary, marginTop: 4 }} />
           <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>Only your plant manager raises safety concerns</h2>
-            <p style={{ margin: "8px 0 0", color: "rgba(0,0,0,0.6)" }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Only your plant manager raises safety concerns</h2>
+            <p style={{ margin: "8px 0 0", ...muted }}>
               Seen a near-miss, an injury or anything unsafe? Tell your manager straight away — they record it here and everyone responsible is
               brought in. You can follow every case in <Link href="/safety/incidents">Incidents &amp; near-miss</Link>.
             </p>
           </div>
         </div>
-      </Card>
+      </Panel>
     );
   }
 
@@ -129,6 +140,7 @@ function ReportForm() {
       return;
     }
     const category: SafetyCategory = !isConcern ? (v.hazard ?? "plant_problem") : v.outcome === "near_miss" ? (v.hazard ?? "other") : v.outcome;
+    const categoryOther = category === "other" ? v.hazardOther?.trim() : undefined;
     setSaving(true);
     try {
       const occurred = (v.occurredAt ?? dayjs()).toISOString();
@@ -140,9 +152,10 @@ function ReportForm() {
         location: v.location,
         occurredAt: occurred,
         category,
+        ...(categoryOther ? { categoryOther } : {}),
         severity: effectiveSeverity(category, v.severity),
-        involved: isConcern ? (v.affected ? [v.affected] : []) : (v.involved ?? []),
-        informedBy: isConcern && v.witness ? [v.witness] : [],
+        involved: isConcern ? (v.affected ?? []) : (v.involved ?? []),
+        informedBy: isConcern ? (v.witnesses ?? []) : [],
         isEmergency: isConcern && Boolean(v.isEmergency),
         ...(!isConcern ? { equipment: v.equipment, whatFailed: v.whatFailed, why: v.why, how: v.how, failedAt: occurred } : {}),
       });
@@ -173,12 +186,29 @@ function ReportForm() {
   const lockedCritical = kind === "concern" && (outcome === "fatal" || outcome === "death");
 
   return (
-    <Card title={kind === "concern" ? "Raise a safety concern" : "Log a plant breakdown"} style={{ maxWidth: 900 }}>
-      {dirError ? <Alert type="error" showIcon title={`People list unavailable: ${dirError}`} style={{ marginBottom: 16 }} /> : null}
+    <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <header data-anim="intro">
+        <Link href="/safety" style={{ fontSize: 13, ...muted }}>
+          <ArrowLeftOutlined style={{ marginRight: 6 }} />
+          Safety
+        </Link>
+        <h2 style={{ margin: "10px 0 0", fontSize: 22, fontWeight: 600, color: token.colorText }}>
+          {kind === "concern" ? "Raise a safety concern" : "Log a plant breakdown"}
+        </h2>
+        <p style={{ margin: "4px 0 0", fontSize: 14, ...muted }}>
+          {kind === "concern"
+            ? "Record it as soon as you can. Everyone responsible at the site is notified the moment you submit."
+            : "Record what stopped working. Repair overtime is requested later from the case page."}
+        </p>
+      </header>
+
+      {dirError ? <Alert type="error" showIcon title={`People list unavailable: ${dirError}`} /> : null}
+
       <Form<FormValues>
         form={form}
         layout="vertical"
         onFinish={onFinish}
+        requiredMark="optional"
         initialValues={{
           kind: defaultKind,
           outcome: "near_miss",
@@ -189,155 +219,205 @@ function ReportForm() {
           isEmergency: false,
         }}
         onValuesChange={(changed) => {
-          if (changed.kind === "breakdown") form.setFieldsValue({ hazard: "plant_problem", isEmergency: false });
-          if (changed.kind === "concern") form.setFieldsValue({ hazard: "other" });
+          if (changed.kind === "breakdown") form.setFieldsValue({ hazard: "plant_problem", hazardOther: undefined, isEmergency: false });
+          if (changed.kind === "concern") form.setFieldsValue({ hazard: "other", hazardOther: undefined });
           if (changed.outcome) form.setFieldsValue({ severity: OUTCOMES.find((o) => o.value === changed.outcome)?.severity ?? "medium" });
-          if (changed.affected && changed.affected === form.getFieldValue("witness")) form.setFieldsValue({ witness: undefined });
+          if ("hazard" in changed && changed.hazard !== "other") form.setFieldsValue({ hazardOther: undefined });
         }}
       >
-        {canConcern && canBreakdown ? (
-          <Form.Item name="kind" label="What are you recording?">
-            <Radio.Group
-              optionType="button"
-              buttonStyle="solid"
-              options={[
-                { value: "concern", label: "Safety concern (near miss / injury)" },
-                { value: "breakdown", label: "Plant breakdown" },
-              ]}
-            />
-          </Form.Item>
-        ) : (
-          <Form.Item name="kind" hidden><Input /></Form.Item>
-        )}
-        {!canConcern ? (
-          <Alert type="info" showIcon style={{ marginBottom: 16 }} title="Safety concerns (near miss, injury, fatal injury, death) are raised by the plant manager only. You can log plant breakdowns." />
-        ) : null}
+        <div className="safety-case-grid">
+          {/* Main column: what happened, who, evidence */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            <div data-anim="intro">
+              <Section title="What happened">
+                {canConcern && canBreakdown ? (
+                  <Form.Item name="kind" label="What are you recording?">
+                    <Segmented
+                      options={[
+                        { value: "concern", label: "Safety concern" },
+                        { value: "breakdown", label: "Plant breakdown" },
+                      ]}
+                    />
+                  </Form.Item>
+                ) : (
+                  <Form.Item name="kind" hidden><Input /></Form.Item>
+                )}
+                {!canConcern ? (
+                  <p style={{ margin: "0 0 16px", fontSize: 13, ...muted }}>
+                    Safety concerns (near-miss, injury, fatal injury, death) are raised by the plant manager only. You can log plant breakdowns.
+                  </p>
+                ) : null}
 
-        {kind === "concern" ? (
-          <Form.Item name="outcome" label="What happened?" rules={[{ required: true }]}>
-            <Radio.Group optionType="button" options={OUTCOMES.map((o) => ({ value: o.value, label: o.label }))} />
-          </Form.Item>
-        ) : null}
+                {kind === "concern" ? (
+                  <Form.Item name="outcome" label="Outcome" rules={[{ required: true }]}>
+                    <Radio.Group optionType="button" options={OUTCOMES.map((o) => ({ value: o.value, label: o.label }))} />
+                  </Form.Item>
+                ) : null}
 
-        <div style={GRID}>
-          <Form.Item name="siteId" label="Site" rules={[{ required: true, message: "Choose the site" }]}>
-            <Select options={siteOptions} disabled={!orgWide} placeholder="Site" showSearch optionFilterProp="label" />
-          </Form.Item>
-          <Form.Item name="occurredAt" label={kind === "breakdown" ? "Failed at" : "When did it happen?"}>
-            <DatePicker showTime style={{ width: "100%" }} disabledDate={(d) => d.isAfter(dayjs())} />
-          </Form.Item>
-          {kind === "breakdown" || outcome === "near_miss" ? (
-            <Form.Item name="hazard" label={kind === "breakdown" ? "Type of problem" : "Hazard"}>
-              <Select options={HAZARDS.map((c) => ({ value: c, label: SAFETY_CATEGORY_LABELS[c] }))} />
-            </Form.Item>
-          ) : null}
-          <Form.Item name="severity" label="Severity" rules={[{ required: true }]}>
-            <Select
-              disabled={lockedCritical}
-              options={(Object.keys(SAFETY_SEVERITY_LABELS) as SafetySeverity[]).map((s) => ({ value: s, label: SAFETY_SEVERITY_LABELS[s] }))}
-            />
-          </Form.Item>
+                <Form.Item name="title" label="Short title" rules={[{ required: true, whitespace: true, message: "Add a title" }, { max: 200 }]}>
+                  <Input placeholder={kind === "breakdown" ? "e.g. Aeration blower B-2 tripped" : "e.g. Operator nearly stepped into open tank — no sign board"} />
+                </Form.Item>
+                <Form.Item name="description" label="Describe what happened">
+                  <Input.TextArea autoSize={{ minRows: 4, maxRows: 12 }} maxLength={4000} showCount />
+                </Form.Item>
+
+                <div style={GRID}>
+                  {kind === "breakdown" || outcome === "near_miss" ? (
+                    <Form.Item name="hazard" label={kind === "breakdown" ? "Type of problem" : "Hazard"}>
+                      <Select options={HAZARDS.map((c) => ({ value: c, label: SAFETY_CATEGORY_LABELS[c] }))} />
+                    </Form.Item>
+                  ) : null}
+                  {(kind === "breakdown" || outcome === "near_miss") && hazard === "other" ? (
+                    <Form.Item
+                      name="hazardOther"
+                      label={kind === "breakdown" ? "Name the problem" : "Name the hazard"}
+                      rules={[{ required: true, whitespace: true, message: "Say what the hazard was" }, { max: 120 }]}
+                    >
+                      <Input placeholder="e.g. Slippery floor, falling object" maxLength={120} />
+                    </Form.Item>
+                  ) : null}
+                  <Form.Item
+                    name="severity"
+                    label="Severity"
+                    rules={[{ required: true }]}
+                    extra={lockedCritical ? `${SAFETY_CATEGORY_LABELS[outcome as SafetyCategory]} is always critical.` : undefined}
+                  >
+                    <Select
+                      disabled={lockedCritical}
+                      options={(Object.keys(SAFETY_SEVERITY_LABELS) as SafetySeverity[]).map((s) => ({ value: s, label: SAFETY_SEVERITY_LABELS[s] }))}
+                    />
+                  </Form.Item>
+                </div>
+              </Section>
+            </div>
+
+            {kind === "concern" ? (
+              <div data-anim="intro">
+                <Section title="People">
+                  <div style={GRID}>
+                    <Form.Item
+                      name="affected"
+                      label="It happened (or nearly happened) to"
+                      rules={[{ required: true, type: "array", min: 1, message: "Choose at least one person" }]}
+                    >
+                      <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={peopleOptions} placeholder="Search names" />
+                    </Form.Item>
+                    <Form.Item name="witnesses" label="Saw it or informed">
+                      <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={peopleOptions} placeholder="Search names" />
+                    </Form.Item>
+                  </div>
+                  {overlap.length ? (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 16 }}
+                      title={`${overlap.map((id) => sitePeople.find((e) => e.id === id)?.name ?? id).join(", ")} ${overlap.length > 1 ? "are" : "is"} in both lists — check that's right.`}
+                    />
+                  ) : null}
+                  <div style={{ fontSize: 13, ...muted }}>
+                    <span style={{ color: token.colorText, fontWeight: 500 }}>Responsible, added automatically: </span>
+                    you (raising it), {responsible.join(", ")}. The case stays open, with reminders, until the Director closes it.
+                  </div>
+                </Section>
+              </div>
+            ) : (
+              <div data-anim="intro">
+                <Section title="Breakdown">
+                  <div style={GRID}>
+                    <Form.Item name="equipment" label="Equipment" rules={[{ required: true, message: "Which equipment?" }]}>
+                      <Input maxLength={200} />
+                    </Form.Item>
+                    <Form.Item name="whatFailed" label="What broke?">
+                      <Input maxLength={1000} />
+                    </Form.Item>
+                    <Form.Item name="why" label="Why is the plant not working?">
+                      <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} maxLength={2000} />
+                    </Form.Item>
+                    <Form.Item name="how" label="How did it break?">
+                      <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} maxLength={2000} />
+                    </Form.Item>
+                  </div>
+                  <Form.Item name="involved" label="People affected" style={{ marginBottom: 0 }}>
+                    <Select mode="multiple" showSearch optionFilterProp="label" options={peopleOptions} placeholder="Search names" />
+                  </Form.Item>
+                </Section>
+              </div>
+            )}
+
+            <div data-anim="intro">
+              <Section title="Photos & videos" extra="Photo up to 10 MB · video up to 50 MB">
+                <Upload.Dragger
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                  fileList={files}
+                  beforeUpload={(file) => {
+                    const limit = file.type.startsWith("video/") ? 50 * MB : 10 * MB;
+                    if (file.size > limit) {
+                      message.error(`${file.name} is too large`);
+                      return Upload.LIST_IGNORE;
+                    }
+                    return false; // upload after the event is created
+                  }}
+                  onChange={({ fileList }) => setFiles(fileList)}
+                >
+                  <p className="ant-upload-drag-icon" style={{ color: token.colorTextQuaternary }}><InboxOutlined /></p>
+                  <p className="ant-upload-text">Click or drag files here</p>
+                  <p className="ant-upload-hint">Reporting after the fact? Add what you have now; more can be added from the case page later.</p>
+                </Upload.Dragger>
+              </Section>
+            </div>
+
+          </div>
+
+          {/* Side column stays in view: where and when, then submit */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0, position: "sticky", top: 16 }}>
+            <div data-anim="intro">
+              <Section title="When and where">
+                <div style={GRID}>
+                  <Form.Item name="siteId" label="Site" rules={[{ required: true, message: "Choose the site" }]}>
+                    <Select options={siteOptions} disabled={!orgWide} placeholder="Site" showSearch optionFilterProp="label" />
+                  </Form.Item>
+                  <Form.Item name="occurredAt" label={kind === "breakdown" ? "Failed at" : "When did it happen?"}>
+                    <DatePicker showTime style={{ width: "100%" }} disabledDate={(d) => d.isAfter(dayjs())} />
+                  </Form.Item>
+                </div>
+                <Form.Item name="location" label="Exact location" style={{ marginBottom: 0 }}>
+                  <Input placeholder="e.g. Equalisation tank, north walkway" maxLength={200} />
+                </Form.Item>
+              </Section>
+            </div>
+
+            <div data-anim="intro">
+              <Panel style={{ padding: 16 }}>
+                {kind === "concern" ? (
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
+                    <Form.Item name="isEmergency" valuePropName="checked" style={{ marginBottom: 0 }}>
+                      <Switch />
+                    </Form.Item>
+                    <div style={{ lineHeight: 1.4 }}>
+                      <div style={{ fontWeight: 500 }}>Emergency — alert everyone at this site now</div>
+                      <div style={{ fontSize: 13, color: isEmergency ? token.colorError : token.colorTextSecondary }}>
+                        {isEmergency
+                          ? "Every employee at the site, plus everyone responsible, gets an alert they must acknowledge."
+                          : lockedCritical
+                            ? "Reminders go out every hour until the Director closes the case."
+                            : "Leave off unless people at the site need to act right now."}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
+                  <Link href="/safety"><Button>Cancel</Button></Link>
+                  <Button type="primary" htmlType="submit" loading={saving} danger={Boolean(isEmergency)}>
+                    {kind === "breakdown" ? "Log breakdown" : isEmergency ? "Raise emergency" : "Raise safety concern"}
+                  </Button>
+                </div>
+              </Panel>
+            </div>
+          </div>
         </div>
-
-        <Form.Item name="title" label="Short title" rules={[{ required: true, whitespace: true, message: "Add a title" }, { max: 200 }]}>
-          <Input placeholder={kind === "breakdown" ? "e.g. Aeration blower B-2 tripped" : "e.g. Operator nearly stepped into open tank — no sign board"} />
-        </Form.Item>
-        <Form.Item name="location" label="Exact location">
-          <Input placeholder="e.g. Equalisation tank, north walkway" maxLength={200} />
-        </Form.Item>
-        <Form.Item name="description" label="What happened?">
-          <Input.TextArea rows={4} maxLength={4000} showCount />
-        </Form.Item>
-
-        {kind === "concern" ? (
-          <>
-            <div style={GRID}>
-              <Form.Item
-                name="affected"
-                label="Employee 1 — who it happened to (or nearly happened to)"
-                rules={[{ required: true, message: "Choose the person it happened to" }]}
-              >
-                <Select showSearch optionFilterProp="label" options={peopleOptions} placeholder="Search name" />
-              </Form.Item>
-              <Form.Item name="witness" label="Employee 2 — who saw it / prevented it">
-                <Select
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  options={peopleOptions.filter((o) => o.value !== affected)}
-                  placeholder="Search name"
-                />
-              </Form.Item>
-            </div>
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-              title="Responsible for this case — added automatically"
-              description={
-                <>
-                  You (raising it), {responsible.join(", ")}. The case stays open, with reminders, until the <strong>Director closes it</strong>.
-                </>
-              }
-            />
-            <Form.Item name="isEmergency" label="Emergency — alert everyone at this site now" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            {isEmergency ? (
-              <Alert type="error" showIcon style={{ marginBottom: 16 }} title="Every employee at the site, plus everyone responsible, gets an alert they must acknowledge." />
-            ) : null}
-            {lockedCritical ? (
-              <Alert type="warning" showIcon style={{ marginBottom: 16 }} title={`${SAFETY_CATEGORY_LABELS[outcome as SafetyCategory]} is always critical. Reminders go out every hour until the Director closes the case.`} />
-            ) : null}
-          </>
-        ) : (
-          <>
-            <div style={GRID}>
-              <Form.Item name="equipment" label="Equipment" rules={[{ required: true, message: "Which equipment?" }]}>
-                <Input maxLength={200} />
-              </Form.Item>
-              <Form.Item name="whatFailed" label="What broke?">
-                <Input maxLength={1000} />
-              </Form.Item>
-              <Form.Item name="why" label="Why is the plant not working?">
-                <Input.TextArea rows={2} maxLength={2000} />
-              </Form.Item>
-              <Form.Item name="how" label="How did it break?">
-                <Input.TextArea rows={2} maxLength={2000} />
-              </Form.Item>
-            </div>
-            <Form.Item name="involved" label="People affected">
-              <Select mode="multiple" showSearch optionFilterProp="label" options={peopleOptions} placeholder="Search name" />
-            </Form.Item>
-            <Alert type="info" showIcon style={{ marginBottom: 16 }} title="Repair overtime for a breakdown is requested from the case page and approved in Overtime → Decisions." />
-          </>
-        )}
-
-        <Form.Item label="Photos / videos (photo ≤10 MB, video ≤50 MB)">
-          <Upload.Dragger
-            multiple
-            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
-            fileList={files}
-            beforeUpload={(file) => {
-              const limit = file.type.startsWith("video/") ? 50 * MB : 10 * MB;
-              if (file.size > limit) {
-                message.error(`${file.name} is too large`);
-                return Upload.LIST_IGNORE;
-              }
-              return false; // upload after the event is created
-            }}
-            onChange={({ fileList }) => setFiles(fileList)}
-          >
-            <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-            <p className="ant-upload-text">Click or drag files here</p>
-          </Upload.Dragger>
-        </Form.Item>
-
-        <Button type="primary" htmlType="submit" loading={saving} danger={Boolean(isEmergency)} size="large">
-          {kind === "breakdown" ? "Log breakdown" : isEmergency ? "Raise emergency" : "Raise safety concern"}
-        </Button>
       </Form>
-    </Card>
+    </div>
   );
 }
 

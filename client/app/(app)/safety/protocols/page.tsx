@@ -7,6 +7,7 @@ import { Alert, App, Button, Input, Select, Skeleton } from "antd";
 import {
   AlertOutlined,
   ArrowLeftOutlined,
+  DeleteOutlined,
   EditOutlined,
   EnvironmentOutlined,
   LinkOutlined,
@@ -16,7 +17,7 @@ import {
   RightOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
-import { createSafetyProtocol, listSafetyProtocols, updateSafetyProtocol } from "@/lib/api/safety";
+import { createSafetyProtocol, deleteSafetyProtocol, listSafetyProtocols, updateSafetyProtocol } from "@/lib/api/safety";
 import type { SafetyProtocol } from "@/lib/safety/types";
 import { useDirectory, useSessionUser } from "@/lib/safety/hooks";
 import { canEditSafetyProtocols, canViewAllSites, safetyActorOf } from "@/lib/rbac";
@@ -24,6 +25,7 @@ import ProtocolEditor from "@/components/safety/protocols/ProtocolEditor";
 import { categoryMeta } from "@/components/safety/protocols/protocol-meta";
 import styles from "@/components/safety/protocols/protocols.module.css";
 import { nectarColors } from "@/lib/theme";
+import { useTableMotion } from "@/lib/motion/use-table-motion";
 
 type Contact = { label: string; phone: string };
 type ProtocolInput = Omit<SafetyProtocol, "id" | "version" | "updatedBy" | "updatedAtIso">;
@@ -58,7 +60,7 @@ function matches(p: SafetyProtocol, q: string) {
 }
 
 function ProtocolsView() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const router = useRouter();
   const params = useSearchParams();
   const user = useSessionUser();
@@ -73,6 +75,8 @@ function ProtocolsView() {
   const [editing, setEditing] = useState<SafetyProtocol | "new" | null>(null);
   const [saving, setSaving] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // Call strip, search and the protocol panes settle in once the list has loaded.
+  const { pageRef } = useTableMotion("", rows !== null || error !== null);
 
   const orgWide = canViewAllSites(user ?? null);
   const canEdit = canEditSafetyProtocols(user ?? null);
@@ -152,6 +156,36 @@ function ProtocolsView() {
     }
   };
 
+  const remove = (p: SafetyProtocol) => {
+    const actor = safetyActorOf(user ?? null);
+    if (!actor) return;
+    modal.confirm({
+      title: `Delete protocol “${p.title}”?`,
+      content: "Sites will no longer see these steps. The record is kept for history.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteSafetyProtocol(p.id, actor);
+          // Open the neighbour in the list, or fall back to the empty state
+          const i = filtered.findIndex((x) => x.id === p.id);
+          const next = filtered[i + 1] ?? filtered[i - 1];
+          setRows((cur) => (cur ?? []).filter((x) => x.id !== p.id));
+          if (next) router.replace(`/safety/protocols?p=${encodeURIComponent(next.id)}`, { scroll: false });
+          else {
+            router.replace("/safety/protocols", { scroll: false });
+            setView("list");
+          }
+          setReloadKey((k) => k + 1);
+          message.success("Protocol deleted");
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Delete failed");
+          throw err;
+        }
+      },
+    });
+  };
+
   const copyLink = async (id: string) => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/safety/protocols?p=${encodeURIComponent(id)}`);
@@ -169,9 +203,9 @@ function ProtocolsView() {
   };
 
   return (
-    <div className={styles.page}>
+    <div ref={pageRef} className={styles.page}>
       {/* Call first */}
-      <section className={styles.callStrip} aria-label="Emergency numbers">
+      <section className={styles.callStrip} aria-label="Emergency numbers" data-anim="intro">
         <div className={styles.callIntro}>
           <h2 className={styles.callTitle}>In an emergency, call first.</h2>
           <p className={styles.callHint}>Then follow the protocol and report it so everyone at the site is alerted.</p>
@@ -190,17 +224,16 @@ function ProtocolsView() {
           </div>
         ) : null}
         <Link href="/safety/report?type=incident" className={styles.reportBtn}>
-          <Button size="large" icon={<AlertOutlined />} style={{ fontWeight: 600 }}>Report emergency</Button>
+          <Button danger icon={<AlertOutlined />}>Report emergency</Button>
         </Link>
       </section>
 
       {/* Find */}
-      <div className={styles.toolbar}>
+      <div className={styles.toolbar} data-anim="intro">
         <Input
           className={styles.search}
           allowClear
-          size="large"
-          prefix={<SearchOutlined />}
+          prefix={<SearchOutlined style={{ color: nectarColors.muted }} />}
           placeholder="Search protocols and steps — e.g. chlorine, shock, burn"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -209,7 +242,6 @@ function ProtocolsView() {
         {orgWide ? (
           <Select
             allowClear
-            size="large"
             placeholder="All sites"
             style={{ minWidth: 170 }}
             value={site}
@@ -220,7 +252,7 @@ function ProtocolsView() {
         ) : null}
         {canEdit ? (
           <div className={styles.toolbarEnd}>
-            <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setEditing("new")}>New protocol</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing("new")}>New protocol</Button>
           </div>
         ) : null}
       </div>
@@ -267,7 +299,7 @@ function ProtocolsView() {
       ) : null}
 
       {selected ? (
-        <div className={styles.layout} data-view={view}>
+        <div className={styles.layout} data-view={view} data-anim="intro">
           <nav className={styles.index} aria-label="Protocols">
             {filtered.map((p) => {
               const m = categoryMeta(p.category);
@@ -307,6 +339,7 @@ function ProtocolsView() {
             canEdit={canEdit}
             onBack={() => setView("list")}
             onEdit={() => setEditing(selected)}
+            onDelete={() => remove(selected)}
             onCopy={() => copyLink(selected.id)}
           />
         </div>
@@ -332,6 +365,7 @@ function ProtocolReader({
   canEdit,
   onBack,
   onEdit,
+  onDelete,
   onCopy,
 }: {
   protocol: SafetyProtocol;
@@ -340,6 +374,7 @@ function ProtocolReader({
   canEdit: boolean;
   onBack: () => void;
   onEdit: () => void;
+  onDelete: () => void;
   onCopy: () => void;
 }) {
   const m = categoryMeta(p.category);
@@ -371,6 +406,7 @@ function ProtocolReader({
           <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Print for notice board</Button>
           <Button icon={<LinkOutlined />} onClick={onCopy}>Copy link</Button>
           {canEdit ? <Button icon={<EditOutlined />} onClick={onEdit}>Edit</Button> : null}
+          {canEdit ? <Button danger icon={<DeleteOutlined />} onClick={onDelete}>Delete</Button> : null}
         </div>
       </header>
 

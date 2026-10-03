@@ -1,31 +1,31 @@
 "use client";
 
-import { Timeline, Typography } from "antd";
+import { Timeline, theme } from "antd";
 import type { SafetyTimelineEntry } from "@/lib/safety/types";
 import { roleLabel } from "@/lib/rbac";
 import type { UserRole } from "@/lib/auth";
 
-const COLOR: Partial<Record<SafetyTimelineEntry["kind"], string>> = {
-  created: "red",
-  status: "blue",
-  clearance: "green",
-  action: "orange",
-  call: "purple",
-  promote: "red",
-};
-
 export default function EventTimeline({ entries }: { entries: SafetyTimelineEntry[] }) {
+  const { token } = theme.useToken();
+  // Quiet by default; only the moments that change the case's course get a colour.
+  const color = (kind: SafetyTimelineEntry["kind"]) =>
+    kind === "created" || kind === "promote"
+      ? token.colorError
+      : kind === "status" || kind === "clearance"
+        ? token.colorPrimary
+        : token.colorTextQuaternary;
+
   const items = [...entries].reverse().map((t, i) => ({
     key: `${t.at}-${i}`,
-    color: COLOR[t.kind] ?? "gray",
+    color: color(t.kind),
     content: (
       <div>
-        <Typography.Text strong>{t.title}</Typography.Text>
-        <div style={{ fontSize: 12, color: "rgba(0,0,0,0.55)" }}>
+        <div style={{ fontWeight: 500, color: token.colorText }}>{t.title}</div>
+        <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
           {t.actorName} · {roleLabel(t.actorRole as UserRole)} · {new Date(t.at).toLocaleString("en-IN")}
         </div>
         {t.detail ? (
-          <div style={{ marginTop: 4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{t.detail}</div>
+          <div style={{ marginTop: 4, whiteSpace: "pre-wrap", wordBreak: "break-word", color: token.colorText }}>{t.detail}</div>
         ) : null}
       </div>
     ),
