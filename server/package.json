@@ -12,7 +12,8 @@
     "start:prod": "node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
-    "seed": "ts-node db/seeds/index.ts"
+    "seed": "ts-node db/seeds/index.ts",
+    "seed:safety": "ts-node db/seeds/safety-only.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

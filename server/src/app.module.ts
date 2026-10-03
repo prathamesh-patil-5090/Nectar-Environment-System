@@ -13,6 +13,7 @@ import { SitesModule } from './modules/sites/sites.module';
 import { HealthModule } from './modules/health/health.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SafetyModule } from './modules/safety/safety.module';
 
 /** Resolve server/.env whether Nest runs from src/ or dist/src/, any cwd. */
 function resolveEnvFile(): string {
@@ -43,6 +44,7 @@ function resolveEnvFile(): string {
     RelieversModule,
     MeetingsModule,
     NotificationsModule,
+    SafetyModule,
     HealthModule,
   ],
 })
