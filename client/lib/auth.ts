@@ -7,7 +7,7 @@ export const AUTH_STORAGE_KEY = "nectar-enviro-session";
  * - hr: policy / leave / compliance (org-wide)
  * - site_incharge: site manpower (hidden from demo login)
  * - shift_incharge: shift rotation / coverage (plant-scoped)
- * - safety_incharge: safety training visibility (hidden from demo login)
+ * - safety_incharge: Safety section owner — incidents, clearance, protocols (on demo login)
  * - supervisor: first-line leave/absence (plant-scoped)
  * - employee: self-service
  * - management: legacy alias → manager
@@ -296,8 +296,11 @@ export const DEMO_USERS_HIDDEN: DemoUser[] = [
   },
 ];
 
-/** Accounts shown on the login page */
-export const DEMO_USERS_VISIBLE = DEMO_USERS;
+/** Accounts shown on the login page (+ Safety In-Charge, who owns the Safety section) */
+export const DEMO_USERS_VISIBLE = [
+  ...DEMO_USERS,
+  ...DEMO_USERS_HIDDEN.filter((u) => u.role === "safety_incharge"),
+];
 
 const ALL_LOGIN_USERS = [...DEMO_USERS, ...DEMO_USERS_HIDDEN];
 

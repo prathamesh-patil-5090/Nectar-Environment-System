@@ -1,6 +1,8 @@
 import type { SessionUser, UserRole } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/auth";
 import type { Employee } from "@/lib/mock-data";
+import { safetyCan, type SafetyAction } from "@/lib/safety/rules";
+import type { SafetyActor } from "@/lib/safety/types";
 
 export { ROLE_LABELS };
 
@@ -175,3 +177,31 @@ export function visibleShiftNavKeys(user: SessionUser | null): string[] | null {
     "/shifts/deviations",
   ];
 }
+
+// ── Safety ────────────────────────────────────────────────────────────────
+// Thin wrappers over lib/safety/rules.ts — the same table the server enforces.
+
+/** Identity sent with every safety write: employee id, or "user:<email>" for org-wide logins. */
+export function safetyActorOf(user: SessionUser | null): SafetyActor | null {
+  if (!user) return null;
+  return {
+    id: user.employeeId ?? `user:${user.email}`,
+    name: user.name,
+    role: normalizeRole(user.role),
+    siteId: user.siteId,
+  };
+}
+
+/** Role + site check. Omit `siteId` for "can this role ever do it" (e.g. show a button). */
+export function canSafety(
+  user: SessionUser | null,
+  action: SafetyAction,
+  siteId?: string,
+): boolean {
+  if (!user) return false;
+  return safetyCan(action, { role: normalizeRole(user.role), siteId: user.siteId }, siteId);
+}
+
+export const canViewSafety: Check = (user) => canSafety(user, "view");
+export const canReportSafetyIncident: Check = (user) => canSafety(user, "reportIncident");
+export const canEditSafetyProtocols: Check = (user) => canSafety(user, "editProtocols");
