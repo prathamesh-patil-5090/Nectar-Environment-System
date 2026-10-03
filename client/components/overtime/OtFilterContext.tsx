@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { getSession } from "@/lib/auth";
+import { scopedSiteId } from "@/lib/rbac";
 import {
   defaultOtFilters,
-  scopedSiteId,
   type OtFilters,
 } from "@/lib/overtime";
 import { createContext, useContext } from "react";
@@ -31,11 +31,7 @@ export function OtFilterProvider({ children }: { children: React.ReactNode }) {
   });
 
   const value = useMemo(
-    () => ({
-      filters: lockedSiteId ? { ...filters, siteId: lockedSiteId } : filters,
-      setFilters,
-      lockedSiteId,
-    }),
+    () => ({ filters: lockedSiteId ? { ...filters, siteId: lockedSiteId } : filters, setFilters, lockedSiteId }),
     [filters, lockedSiteId],
   );
 

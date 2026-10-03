@@ -2,8 +2,17 @@
 
 import { skillLabels, skillMatrix, type SkillKey } from "@/lib/mock-data";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18InkMb4, sWhitePad } from "@/lib/styles";
 
 const skillKeys = Object.keys(skillLabels) as SkillKey[];
+
+/** Legend swatches — same colours as cellColor() bands. */
+const LEGEND = [
+  ["rgba(28, 68, 99, 0.35)", "≥85 strong"],
+  ["rgba(28, 68, 99, 0.18)", "70–84 OK"],
+  ["rgba(196, 92, 38, 0.16)", "55–69 watch"],
+  ["rgba(196, 92, 38, 0.32)", "<55 gap"],
+] as const;
 
 function cellColor(score: number): string {
   if (score >= 85) return "rgba(28, 68, 99, 0.35)";
@@ -14,23 +23,8 @@ function cellColor(score: number): string {
 
 export default function SkillHeatmap() {
   return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-        height: "100%",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          color: nectarColors.ink,
-          marginBottom: 4,
-        }}
-      >
-        Skill mapping
-      </div>
+    <div style={sWhitePad}>
+      <div style={sSerifText18InkMb4}>Skill mapping</div>
       <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
         This is the <strong>skill matrix</strong> for O&amp;M (Operations &amp;
         Maintenance): rows = job roles, columns = skills, cells = expected
@@ -44,90 +38,27 @@ export default function SkillHeatmap() {
       </p>
       <div
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 10,
-          marginBottom: 12,
-          fontSize: 11,
-          color: nectarColors.muted,
+          display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 12, fontSize: 11, color: nectarColors.muted,
         }}
       >
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(28, 68, 99, 0.35)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          ≥85 strong
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(28, 68, 99, 0.18)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          70–84 OK
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(196, 92, 38, 0.16)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          55–69 watch
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(196, 92, 38, 0.32)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          &lt;55 gap
-        </span>
+        {LEGEND.map(([background, label]) => (
+          <span key={label}>
+            <span
+              style={{ display: "inline-block", width: 12, height: 12, background, marginRight: 4, borderRadius: 2,
+                verticalAlign: "middle" }}
+            />
+            {label}
+          </span>
+        ))}
       </div>
 
       <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 4,
-            minWidth: 520,
-          }}
-        >
+        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 4, minWidth: 520 }}>
           <thead>
             <tr>
               <th
                 style={{
-                  textAlign: "left",
-                  fontWeight: 500,
-                  fontSize: 12,
-                  color: nectarColors.muted,
-                  padding: "4px 8px",
+                  textAlign: "left", fontWeight: 500, fontSize: 12, color: nectarColors.muted, padding: "4px 8px",
                 }}
               >
                 Role
@@ -136,11 +67,7 @@ export default function SkillHeatmap() {
                 <th
                   key={key}
                   style={{
-                    fontWeight: 500,
-                    fontSize: 11,
-                    color: nectarColors.muted,
-                    padding: "4px 6px",
-                    textAlign: "center",
+                    fontWeight: 500, fontSize: 11, color: nectarColors.muted, padding: "4px 6px", textAlign: "center",
                   }}
                 >
                   {skillLabels[key]}
@@ -151,16 +78,7 @@ export default function SkillHeatmap() {
           <tbody>
             {skillMatrix.map((row) => (
               <tr key={row.role}>
-                <td
-                  style={{
-                    fontSize: 13,
-                    color: nectarColors.ink,
-                    padding: "4px 8px",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {row.role}
-                </td>
+                <td style={{ fontSize: 13, color: nectarColors.ink, padding: "4px 8px", whiteSpace: "nowrap" }}>{row.role}</td>
                 {skillKeys.map((key) => {
                   const score = row[key];
                   return (
@@ -168,14 +86,8 @@ export default function SkillHeatmap() {
                       <div
                         title={`${row.role} · ${skillLabels[key]}: ${score}`}
                         style={{
-                          background: cellColor(score),
-                          color: nectarColors.ink,
-                          textAlign: "center",
-                          fontSize: 12,
-                          fontVariantNumeric: "tabular-nums",
-                          fontWeight: 600,
-                          padding: "10px 6px",
-                          borderRadius: 4,
+                          background: cellColor(score), color: nectarColors.ink, textAlign: "center", fontSize: 12,
+                          fontVariantNumeric: "tabular-nums", fontWeight: 600, padding: "10px 6px", borderRadius: 4,
                         }}
                       >
                         {score}

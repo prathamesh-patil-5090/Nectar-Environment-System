@@ -4,6 +4,7 @@
 
 import { getEmployeeById } from "@/lib/mock-data";
 import { pushNotification } from "@/lib/notifications";
+import { readJson, writeJson } from "@/lib/storage";
 
 export const OT_ASSIGNMENTS_KEY = "nectar-enviro-ot-assignments";
 
@@ -30,87 +31,78 @@ export type OtAssignment = {
 
 const DEMO_OT: OtAssignment[] = [
   {
-    id: "seed-ota-asha-1",
-    employeeId: "e-etp-s1",
-    employeeName: "Asha Patil",
+    id: "seed-ota-shilpa-1",
+    employeeId: "emp0126",
+    employeeName: "Shilpa Hotkar",
     siteId: "s-etp",
     date: "2026-09-27",
     hours: 4,
-    reason: "Coverage during Rohan's leave",
-    assignedBy: "Rajesh Kulkarni",
-    assignedByEmployeeId: "e-etp-mgr",
+    reason: "Coverage during Rohit's leave",
+    assignedBy: "Anand Dakave",
+    assignedByEmployeeId: "emp0123",
     status: "assigned",
     createdAt: "2026-09-25T09:15:00Z",
-    notes: "Report by 06:00 — coordinate with Sanjay Jadhav",
+    notes: "Report by 06:00 — coordinate with Bidhichand Rajbhar",
   },
   {
-    id: "seed-ota-asha-2",
-    employeeId: "e-etp-s1",
-    employeeName: "Asha Patil",
+    id: "seed-ota-shilpa-2",
+    employeeId: "emp0126",
+    employeeName: "Shilpa Hotkar",
     siteId: "s-etp",
     date: "2026-09-12",
     hours: 3,
     reason: "Plant upset — aeration recovery",
-    assignedBy: "Rajesh Kulkarni",
-    assignedByEmployeeId: "e-etp-mgr",
+    assignedBy: "Anand Dakave",
+    assignedByEmployeeId: "emp0123",
     status: "completed",
     createdAt: "2026-09-12T18:00:00Z",
   },
   {
-    id: "seed-ota-rohan-1",
-    employeeId: "e-etp-s2",
-    employeeName: "Rohan Deshmukh",
+    id: "seed-ota-rohit-1",
+    employeeId: "emp0127",
+    employeeName: "Rohit Kumar Singh",
     siteId: "s-etp",
     date: "2026-09-26",
     hours: 6,
     reason: "Plant upset coverage",
-    assignedBy: "Rajesh Kulkarni",
-    assignedByEmployeeId: "e-etp-mgr",
+    assignedBy: "Anand Dakave",
+    assignedByEmployeeId: "emp0123",
     status: "assigned",
     createdAt: "2026-09-24T08:00:00Z",
   },
   {
-    id: "seed-ota-imran-1",
-    employeeId: "e-ro-s1",
-    employeeName: "Imran Shaikh",
+    id: "seed-ota-rafik-1",
+    employeeId: "emp0134",
+    employeeName: "Rafik Shaikh",
     siteId: "s-ro",
     date: "2026-09-25",
     hours: 8,
     reason: "Membrane CIP support",
-    assignedBy: "Priya Iyer",
-    assignedByEmployeeId: "e-ro-mgr",
+    assignedBy: "Uday Patil",
+    assignedByEmployeeId: "emp0131",
     status: "acknowledged",
     createdAt: "2026-09-24T16:00:00Z",
   },
   {
-    id: "seed-ota-vikram-1",
-    employeeId: "e-mee-s1",
-    employeeName: "Vikram Nair",
+    id: "seed-ota-abhinandan-1",
+    employeeId: "emp0142",
+    employeeName: "Abhinandan Sanjay Pawane",
     siteId: "s-mee",
     date: "2026-09-26",
     hours: 5,
     reason: "Evaporator restart after shutdown",
-    assignedBy: "Anil Desai",
-    assignedByEmployeeId: "e-mee-mgr",
+    assignedBy: "Sanjay Waghaskar",
+    assignedByEmployeeId: "emp0139",
     status: "assigned",
     createdAt: "2026-09-25T06:30:00Z",
   },
 ];
 
-function readAll(): OtAssignment[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(OT_ASSIGNMENTS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as OtAssignment[];
-  } catch {
-    return [];
-  }
+function readAll() {
+  return readJson<OtAssignment[]>(OT_ASSIGNMENTS_KEY, []);
 }
-
 function writeAll(rows: OtAssignment[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(OT_ASSIGNMENTS_KEY, JSON.stringify(rows));
+  writeJson(OT_ASSIGNMENTS_KEY, rows);
 }
 
 export function ensureOtAssignmentSeed(): void {

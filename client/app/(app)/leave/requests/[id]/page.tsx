@@ -1,13 +1,12 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   App,
   Button,
   DatePicker,
-  Descriptions,
   Empty,
   Input,
   Modal,
@@ -16,17 +15,19 @@ import {
   Tag,
   Timeline,
 } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, WarningOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import LeaveImpactPanel from "@/components/leave/LeaveImpactPanel";
+import ShiftImpactPanel from "@/components/leave/ShiftImpactPanel";
+import SafetyClearanceBanner from "@/components/safety/SafetyClearanceBanner";
 import { getSession } from "@/lib/auth";
-import { getSiteName } from "@/lib/mock-data";
+import { getEmployeeById, getSiteName } from "@/lib/mock-data";
 import {
+  cancelLeave,
   computeLeaveImpact,
-  confirmReturn,
   employeeConsentLeave,
   escalateLeave,
   getLeaveById,
+  getPlantOverlappingLeaves,
   LEAVE_STATUS_LABELS,
   LEAVE_TYPE_LABELS,
   managerDecideLeave,
@@ -35,19 +36,84 @@ import {
   siteApprove,
   supervisorVerify,
 } from "@/lib/leave";
+import {
+  confirmReturnLifecycle,
+  getLifecycleReport,
+  reportCoverDisruption,
+} from "@/lib/leave-lifecycle";
+import {
+  candidateDisplaySource,
+  computeShiftImpact,
+} from "@/lib/shift-impact";
+import {
+  assertCanSiteApproveLeave,
+  getManpowerConflictReport,
+  leaveRequiresCoverChoice,
+} from "@/lib/manpower-conflict";
 import { pushNotification } from "@/lib/notifications";
 import {
   canConfirmLeaveReturn,
   canManagerDecideLeave,
   canAdminFinalizeLeave,
+  canManageRelieverPool,
   canSiteApproveLeave,
   canSupervisorVerifyLeave,
+  canWithdrawLeaveRequest,
+  leaveActorRole,
   normalizeRole,
   scopedEmployeeId,
   scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
-import { getRelievers, listReplacementOptions } from "@/lib/reliever/pool";
+import { listReplacementOptions } from "@/lib/reliever/pool";
+import {
+  detectContests,
+  hasCompetitionAck,
+} from "@/lib/reliever-competition";
+import {
+  evaluateOtDecision,
+  findClearingOtDecision,
+} from "@/lib/ot-decision";
+import { rowBetweenWrapGap12, sSerifText18Ink, sSerifText18InkMb122, sSerifText18Mb12, sSerifText26Ink, sWhitePadR10 } from "@/lib/styles";
+import type { CSSProperties } from "react";
+
+const sText12MutedMt2: CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  color: nectarColors.muted,
+  fontWeight: 400,
+  marginTop: 2,
+};
+
+function InfoTile({
+  label,
+  children,
+  wide,
+}: {
+  label: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        gridColumn: wide ? "1 / -1" : undefined, padding: "12px 14px", borderRadius: 8, background: nectarColors.sand,
+        border: "1px solid rgba(11, 26, 36, 0.06)", minHeight: 64,
+      }}
+    >
+      <div
+        style={{ fontSize: 11, letterSpacing: "0.04em", color: nectarColors.muted, marginBottom: 4, fontWeight: 600 }}
+      >
+        {label}
+      </div>
+      <div
+        style={{ fontSize: 14, color: nectarColors.ink, fontWeight: 500, lineHeight: 1.45, wordBreak: "break-word" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function LeaveDetailPage({
   params,
@@ -62,7 +128,11 @@ export default function LeaveDetailPage({
   const [returnDate, setReturnDate] = useState(dayjs());
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawNote, setWithdrawNote] = useState("");
   const [coverChoice, setCoverChoice] = useState<string>();
+  const [otRemark, setOtRemark] = useState("");
+  const [extensionRemark, setExtensionRemark] = useState("");
 
   const leave = useMemo(() => {
     void tick;
@@ -75,19 +145,102 @@ export default function LeaveDetailPage({
       : null;
   }, [leave, tick]);
 
+  const shiftReport = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return computeShiftImpact({
+      siteId: leave.siteId,
+      from: leave.startDate,
+      to: leave.endDate,
+      focusLeaveId: leave.id,
+    });
+  }, [leave, tick]);
+
+  const manpowerReport = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return getManpowerConflictReport({
+      siteId: leave.siteId,
+      from: leave.startDate,
+      to: leave.endDate,
+      focusLeaveId: leave.id,
+    });
+  }, [leave, tick]);
+
+  const leaveGate = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return assertCanSiteApproveLeave(leave.id, {
+      relieverId: coverChoice && coverChoice !== "ot" ? coverChoice : undefined,
+      otFallback: coverChoice === "ot",
+    });
+  }, [leave, tick, coverChoice]);
+
+  const needsCoverChoice = useMemo(() => {
+    void tick;
+    if (!leave) return false;
+    return leaveRequiresCoverChoice(leave.id);
+  }, [leave, tick]);
+
   const replacementOptions = useMemo(() => {
     void tick;
     if (!leave) return { local: [], cluster: [] };
-    return listReplacementOptions(leave.siteId);
+    return listReplacementOptions(leave.siteId, { date: leave.startDate, excludeEmployeeId: leave.employeeId });
+  }, [leave, tick]);
+
+  const leaveContests = useMemo(() => {
+    void tick;
+    if (!leave) return [];
+    return detectContests({
+      siteId: leave.siteId,
+      from: leave.startDate,
+      to: leave.endDate,
+    }).filter((c) =>
+      c.claims.some(
+        (cl) => cl.leaveId === leave.id || cl.absenceId === leave.id,
+      ),
+    );
+  }, [leave, tick]);
+
+  const otEval = useMemo(() => {
+    void tick;
+    if (!leave) return null;
+    return evaluateOtDecision({
+      siteId: leave.siteId,
+      date: leave.startDate,
+      shiftId: leave.shiftId,
+      leaveId: leave.id,
+      trigger: "leave_cover",
+    });
+  }, [leave, tick]);
+
+  const otCleared = useMemo(() => {
+    void tick;
+    if (!leave) return false;
+    return Boolean(
+      findClearingOtDecision({
+        siteId: leave.siteId,
+        date: leave.startDate,
+        leaveId: leave.id,
+      }),
+    );
+  }, [leave, tick]);
+
+  const lifecycleCases = useMemo(() => {
+    void tick;
+    if (!leave) return [];
+    return getLifecycleReport({ leaveId: leave.id }).cases;
+  }, [leave, tick]);
+
+  const plantOverlaps = useMemo(() => {
+    void tick;
+    if (!leave) return [];
+    return getPlantOverlappingLeaves(leave.id);
   }, [leave, tick]);
 
   if (!leave || !impact) {
     return (
-      <Empty description="Leave request not found">
-        <Button type="primary" onClick={() => router.push("/leave/requests")}>
-          Back
-        </Button>
-      </Empty>
+      <Empty description="Leave request not found"><Button type="primary" onClick={() => router.push("/leave/requests")}>Back</Button></Empty>
     );
   }
 
@@ -95,20 +248,12 @@ export default function LeaveDetailPage({
   const empScope = scopedEmployeeId(session);
   if (empScope && leave.employeeId !== empScope) {
     return (
-      <Empty description="You can only view your own leave requests.">
-        <Button type="primary" onClick={() => router.push("/leave/requests")}>
-          My leave
-        </Button>
-      </Empty>
+      <Empty description="You can only view your own leave requests."><Button type="primary" onClick={() => router.push("/leave/requests")}>My leave</Button></Empty>
     );
   }
   if (siteScope && leave.siteId !== siteScope && !empScope) {
     return (
-      <Empty description="This leave request is outside your plant scope.">
-        <Button type="primary" onClick={() => router.push("/leave/requests")}>
-          Back
-        </Button>
-      </Empty>
+      <Empty description="This leave request is outside your plant scope."><Button type="primary" onClick={() => router.push("/leave/requests")}>Back</Button></Empty>
     );
   }
 
@@ -119,6 +264,8 @@ export default function LeaveDetailPage({
   const canManager = canManagerDecideLeave(session);
   const canAdmin = canAdminFinalizeLeave(session);
   const canReturn = canConfirmLeaveReturn(session);
+  const canWithdraw = canWithdrawLeaveRequest(session, leave);
+  const actorLeaveRole = leaveActorRole(session);
   /** Only the employee role who owns the leave may consent */
   const canGiveConsent =
     role === "employee" &&
@@ -162,25 +309,14 @@ export default function LeaveDetailPage({
         Leave requests
       </Button>
 
+      {!["CLOSED", "REJECTED", "CANCELLED"].includes(leave.status) ? (
+        <SafetyClearanceBanner employeeId={leave.employeeId} />
+      ) : null}
+
       <div style={{ background: nectarColors.white, padding: 24, borderRadius: 10 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={rowBetweenWrapGap12}>
           <div>
-            <div
-              style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 26,
-                color: nectarColors.ink,
-              }}
-            >
-              {leave.employeeName}
-            </div>
+            <div style={sSerifText26Ink}>{leave.employeeName}</div>
             <div style={{ color: nectarColors.muted }}>
               <Link href={`/employees/${leave.employeeId}`}>{leave.employeeId}</Link>
               {" · "}
@@ -188,10 +324,8 @@ export default function LeaveDetailPage({
             </div>
           </div>
           <Space wrap>
-            <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>
-              {leave.mode}
-            </Tag>
-            <Tag>{LEAVE_STATUS_LABELS[leave.status]}</Tag>
+            <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>{leave.mode}</Tag>
+            <Tag color={leave.status === "CANCELLED" ? "default" : undefined}>{LEAVE_STATUS_LABELS[leave.status]}</Tag>
             <Tag>
               {leave.entrySource === "supervisor_on_behalf"
                 ? "Entered by supervisor"
@@ -200,70 +334,242 @@ export default function LeaveDetailPage({
           </Space>
         </div>
 
-        <Descriptions style={{ marginTop: 20 }} column={1} size="small">
-          <Descriptions.Item label="Leave type">
-            {LEAVE_TYPE_LABELS[leave.leaveType]}
-          </Descriptions.Item>
-          <Descriptions.Item label="Dates">
-            {leave.startDate} → {leave.endDate} ({leave.daysRequested}d)
-          </Descriptions.Item>
-          <Descriptions.Item label="Expected return">
-            {leave.expectedReturnDate}
-          </Descriptions.Item>
-          <Descriptions.Item label="Actual return">
-            {leave.actualReturnDate ?? "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Leave balance">
-            {leave.leaveBalanceDays} days
-          </Descriptions.Item>
-          <Descriptions.Item label="Supervisor">
-            {leave.supervisorName}
-          </Descriptions.Item>
-          <Descriptions.Item label="Shift In-Charge">
-            {leave.siteInChargeName}
-          </Descriptions.Item>
-          <Descriptions.Item label="Manager">
-            {leave.managerName ?? "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Entered by">
-            {leave.enteredByName} ({leave.enteredByRole})
-          </Descriptions.Item>
-          {leave.employeeConsent ? (
-            <Descriptions.Item label="Employee consent">
-              {leave.employeeConsent}
-              {leave.employeeConsentAt
-                ? ` · ${leave.employeeConsentAt.slice(0, 16).replace("T", " ")}`
+        {leave.status === "CANCELLED" ? (
+          <div
+            style={{
+              marginTop: 16, padding: "14px 16px", borderRadius: 8, background: "rgba(74, 99, 117, 0.08)",
+              border: "1px solid rgba(74, 99, 117, 0.25)",
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              Withdrawn
+              {leave.cancelledByName ? ` by ${leave.cancelledByName}` : ""}
+              {leave.cancelledByRole ? ` (${leave.cancelledByRole})` : ""}
+            </div>
+            <div style={{ fontSize: 13, color: nectarColors.ink }}>{leave.cancellationReason ?? "No reason recorded"}</div>
+            {leave.cancelledAt ? (
+              <div style={{ marginTop: 6, fontSize: 12, color: nectarColors.muted }}>{leave.cancelledAt.slice(0, 16).replace("T", " ")}</div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {leave.policyVerdict === "WARN" && leave.policyFlags?.length ? (
+          <div
+            style={{
+              marginTop: 16, padding: 12, borderRadius: 8, background: "rgba(217, 119, 6, 0.1)",
+              border: "1px solid #D97706",
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Policy warnings</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+              {leave.policyFlags
+                .filter((f) => f.severity === "warn")
+                .map((f) => (
+                  <li key={f.code + f.message}>{f.message}</li>
+                ))}
+            </ul>
+            {leave.policySuggestions?.length ? (
+              <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>{leave.policySuggestions.join(" · ")}</div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 22 }}>
+          <div style={sSerifText18InkMb122}>Leave details</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            <InfoTile label="Leave type">
+              {LEAVE_TYPE_LABELS[leave.leaveType]}
+              {leave.isHalfDay
+                ? ` · Half-day (${leave.halfDaySlot ?? "—"})`
                 : ""}
-            </Descriptions.Item>
-          ) : null}
-          {leave.managerDecision ? (
-            <Descriptions.Item label="Manager decision">
-              {leave.managerDecision}
-              {leave.managerDecisionAt
-                ? ` · ${leave.managerDecisionAt.slice(0, 16).replace("T", " ")}`
-                : ""}
-            </Descriptions.Item>
-          ) : null}
-          {leave.rejectionReason ? (
-            <Descriptions.Item label="Rejection reason">
-              {leave.rejectionReason}
-            </Descriptions.Item>
-          ) : null}
-          <Descriptions.Item label="Reason">{leave.reason}</Descriptions.Item>
-          {leave.lastCommunication ? (
-            <Descriptions.Item label="Last communication">
-              {leave.lastCommunication}
-            </Descriptions.Item>
-          ) : null}
-          {leave.replacementPlan ? (
-            <Descriptions.Item label="Replacement plan">
-              {leave.replacementPlan}
-            </Descriptions.Item>
-          ) : null}
-        </Descriptions>
+            </InfoTile>
+            <InfoTile label="Dates">
+              {leave.startDate} → {leave.endDate}
+              <span style={sText12MutedMt2}>{leave.daysRequested} day{leave.daysRequested === 1 ? "" : "s"}</span>
+            </InfoTile>
+            <InfoTile label="Expected return">{leave.expectedReturnDate}</InfoTile>
+            <InfoTile label="Actual return">{leave.actualReturnDate ?? "—"}</InfoTile>
+            <InfoTile label="Lifecycle" wide>
+              {lifecycleCases.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {lifecycleCases.slice(0, 3).map((c) => (
+                    <div key={c.id} style={{ fontSize: 13 }}>
+                      <Tag>{c.kind.replaceAll("_", " ")}</Tag> {c.message}
+                    </div>
+                  ))}
+                  <Link href={`/leave/lifecycle?leaveId=${leave.id}`}>
+                    Open Lifecycle queue
+                  </Link>
+                </div>
+              ) : (
+                "No active lifecycle flags"
+              )}
+            </InfoTile>
+            <InfoTile label="Leave balance">{leave.leaveBalanceDays} days</InfoTile>
+            <InfoTile label="Supervisor">{leave.supervisorName}</InfoTile>
+            <InfoTile label="Shift In-Charge">{leave.siteInChargeName}</InfoTile>
+            <InfoTile label="Manager">{leave.managerName ?? "—"}</InfoTile>
+            <InfoTile label="Entered by">
+              {leave.enteredByName}
+              <span style={sText12MutedMt2}>{leave.enteredByRole}</span>
+            </InfoTile>
+            {leave.employeeConsent ? (
+              <InfoTile label="Employee consent">
+                {leave.employeeConsent}
+                {leave.employeeConsentAt
+                  ? ` · ${leave.employeeConsentAt.slice(0, 16).replace("T", " ")}`
+                  : ""}
+              </InfoTile>
+            ) : null}
+            {leave.managerDecision ? (
+              <InfoTile label="Manager decision">
+                {leave.managerDecision}
+                {leave.managerDecisionAt
+                  ? ` · ${leave.managerDecisionAt.slice(0, 16).replace("T", " ")}`
+                  : ""}
+              </InfoTile>
+            ) : null}
+            {leave.rejectionReason ? (
+              <InfoTile label="Rejection reason" wide>{leave.rejectionReason}</InfoTile>
+            ) : null}
+            <InfoTile label="Reason" wide>{leave.reason}</InfoTile>
+            {leave.lastCommunication ? (
+              <InfoTile label="Last communication" wide>{leave.lastCommunication}</InfoTile>
+            ) : null}
+            {leave.replacementPlan ? (
+              <InfoTile label="Replacement plan" wide>{leave.replacementPlan}</InfoTile>
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      <LeaveImpactPanel impact={impact} />
+      {plantOverlaps.length > 0 ? (
+        <div
+          style={{
+            background: nectarColors.white, padding: 20, borderRadius: 10, border: "1px solid rgba(196, 92, 38, 0.35)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+            <WarningOutlined style={{ color: nectarColors.alert, fontSize: 18, marginTop: 2 }} />
+            <div>
+              <div style={sSerifText18Ink}>Same-plant date overlap</div>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: nectarColors.muted, lineHeight: 1.45 }}>
+                {plantOverlaps.length} other active leave
+                {plantOverlaps.length === 1 ? "" : "s"} at{" "}
+                {getSiteName(leave.siteId)} cover overlapping dates. Review
+                coverage before approving.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {plantOverlaps.map((o) => (
+              <Link
+                key={o.id}
+                href={`/leave/requests/${o.id}`}
+                style={{
+                  display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 14px", padding: "12px 14px",
+                  borderRadius: 8, background: "rgba(196, 92, 38, 0.06)", color: nectarColors.ink,
+                  textDecoration: "none",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: nectarColors.leaf }}>{o.employeeName}</span>
+                <span style={{ fontSize: 13 }}>{o.startDate} → {o.endDate}</span>
+                <Tag color={o.mode === "emergency" ? nectarColors.alert : nectarColors.sky} style={{ margin: 0 }}>{o.mode}</Tag>
+                <Tag style={{ margin: 0 }}>{LEAVE_STATUS_LABELS[o.status]}</Tag>
+                {o.potentialOtHours > 0 ? (
+                  <span style={{ fontSize: 12, color: nectarColors.alert, fontWeight: 600 }}>+{o.potentialOtHours} hrs OT risk</span>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <ShiftImpactPanel impact={impact} report={shiftReport ?? undefined} />
+
+      {manpowerReport && manpowerReport.issues.length > 0 ? (
+        <div
+          style={{
+            background: nectarColors.white,
+            padding: 16,
+            borderRadius: 10,
+            border:
+              (leaveGate && !leaveGate.ok) || manpowerReport.attentionCount > 0
+                ? "1px solid rgba(196, 92, 38, 0.4)"
+                : "1px solid rgba(28, 68, 99, 0.12)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 8,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-fraunces), Georgia, serif",
+                fontSize: 18,
+              }}
+            >
+              Manpower conflicts
+            </div>
+            <Space size={4} wrap>
+              <Tag color={manpowerReport.attentionCount ? nectarColors.alert : undefined}>
+                {manpowerReport.attentionCount} attention
+              </Tag>
+              {canSite ? (
+                <Tag color={leaveGate?.ok ? nectarColors.mint : nectarColors.alert}>
+                  {leaveGate?.ok
+                    ? "Site-approve clear"
+                    : "Site-approve blocked"}
+                </Tag>
+              ) : null}
+            </Space>
+          </div>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              fontSize: 13,
+              color: nectarColors.ink,
+              lineHeight: 1.55,
+            }}
+          >
+            {manpowerReport.issues
+              .filter((i) => i.severity === "attention" || i.kind === "plant_overlap")
+              .slice(0, 8)
+              .map((i) => (
+                <li key={i.id}>
+                  <Tag
+                    color={
+                      i.severity === "attention" ? nectarColors.alert : "#D97706"
+                    }
+                    style={{ marginRight: 6 }}
+                  >
+                    {i.kind.replaceAll("_", " ")}
+                  </Tag>
+                  {i.message}
+                </li>
+              ))}
+          </ul>
+          {needsCoverChoice && canSite ? (
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: 12,
+                color: nectarColors.muted,
+              }}
+            >
+              Assign cover or accept OT below before site approval. Leave-on-roster
+            is expected until the leave is approved; rest / double-booking still
+            block and need a schedule edit.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {(() => {
         const awaitingCover = [
@@ -275,55 +581,53 @@ export default function LeaveDetailPage({
         const canPick =
           canSite &&
           ["SUPERVISOR_VERIFIED", "SUPERVISOR_RECORDED"].includes(leave.status);
-        const assigned = leave.assignedRelieverId
-          ? getRelievers().find((r) => r.id === leave.assignedRelieverId)
-          : undefined;
+        const assignedName =
+          leave.replacementPlan ??
+          (leave.assignedCoverEmployeeId
+            ? getEmployeeById(leave.assignedCoverEmployeeId)?.name
+            : undefined);
         const people = [
-          ...replacementOptions.local.map((p) => ({ ...p, label: "This site" })),
+          ...replacementOptions.local.map((p) => ({
+            ...p,
+            label: p.coverSource
+              ? candidateDisplaySource(p.coverSource)
+              : "This site",
+          })),
           ...replacementOptions.cluster.map((p) => ({
             ...p,
-            label: p.homeSiteId
-              ? `Cluster · ${getSiteName(p.homeSiteId)}`
-              : "Cluster",
+            label: p.coverSource
+              ? candidateDisplaySource(p.coverSource)
+              : p.homeSiteId
+                ? `Cluster · ${getSiteName(p.homeSiteId)}`
+                : "Cluster",
           })),
         ];
         const showPanel =
           awaitingCover ||
           Boolean(leave.replacementPlan) ||
-          Boolean(assigned) ||
+          Boolean(leave.assignedRelieverId) ||
+          Boolean(leave.assignedCoverEmployeeId) ||
           canPick;
 
         if (!showPanel) return null;
 
         return (
-          <div
-            style={{
-              background: nectarColors.white,
-              padding: 20,
-              borderRadius: 10,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-fraunces), Georgia, serif",
-                fontSize: 18,
-                marginBottom: 8,
-              }}
-            >
-              Replacement
-            </div>
-            {assigned || leave.replacementPlan ? (
+          <div style={sWhitePadR10}>
+            <div style={{ fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, marginBottom: 8 }}>Replacement</div>
+            {leave.assignedRelieverId ||
+            leave.assignedCoverEmployeeId ||
+            leave.replacementPlan ? (
               <p style={{ margin: "0 0 12px", color: nectarColors.ink, fontSize: 14 }}>
                 {leave.replacementPlan ??
-                  (assigned
-                    ? `${assigned.name} assigned`
+                  (assignedName
+                    ? `${assignedName} assigned`
                     : "Replacement arranged")}
               </p>
             ) : (
               <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
                 {canPick
-                  ? "Choose who covers this shift. People at this site are listed first, then the cluster."
-                  : "People available to cover this leave once the Shift In-Charge arranges replacement."}
+                  ? "Choose cover from same-plant employees, cluster employees, or the reliever pool."
+                  : "Cover candidates appear once the Shift In-Charge arranges replacement."}
               </p>
             )}
 
@@ -334,31 +638,126 @@ export default function LeaveDetailPage({
                   onChange={(e) => setCoverChoice(e.target.value)}
                   style={{ display: "flex", flexDirection: "column", gap: 8 }}
                 >
-                  {people.map((person) => (
-                    <Radio key={person.relieverId} value={person.relieverId}>
-                      {person.name} · {person.label} · {person.phone}
-                    </Radio>
-                  ))}
-                  <Radio value="ot">No one — accept overtime</Radio>
+                  {people.map((person) => {
+                    const contest = leaveContests.find(
+                      (c) =>
+                        c.candidateId === person.relieverId ||
+                        c.employeeId === person.relieverId,
+                    );
+                    const cleared =
+                      contest &&
+                      hasCompetitionAck(leave.id, person.relieverId);
+                    return (
+                      <Radio key={person.relieverId} value={person.relieverId}>
+                        {person.name} · {person.label}
+                        {person.kind === "employee" ? " · employee" : " · pool"}
+                        {person.phone ? ` · ${person.phone}` : ""}
+                        {contest ? (
+                          <Tag
+                            color={cleared ? nectarColors.sky : nectarColors.alert}
+                            style={{ marginLeft: 8 }}
+                          >
+                            {cleared
+                              ? "Contested · acknowledged"
+                              : "Contested — needs Manager"}
+                          </Tag>
+                        ) : null}
+                      </Radio>
+                    );
+                  })}
+                  <Radio value="ot">
+                    No one — accept overtime
+                    {otEval?.needsManagerRemark && !otCleared ? (
+                      <Tag color={nectarColors.alert} style={{ marginLeft: 8 }}>
+                        Needs Manager OT decision
+                      </Tag>
+                    ) : null}
+                    {otCleared ? (
+                      <Tag color={nectarColors.mint} style={{ marginLeft: 8 }}>
+                        OT approved
+                      </Tag>
+                    ) : null}
+                  </Radio>
                 </Radio.Group>
+                {coverChoice === "ot" && otEval ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: 12,
+                      borderRadius: 8,
+                      background: nectarColors.sand,
+                      fontSize: 13,
+                    }}
+                  >
+                    <div>
+                      {otEval.hours}h · ₹{otEval.cost}
+                      {otEval.flags.length
+                        ? ` · ${otEval.flags.map((f) => f.replaceAll("_", " ")).join(", ")}`
+                        : ""}
+                    </div>
+                    <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
+                      {otEval.message}{" "}
+                      <Link href={`/overtime/decisions?leaveId=${leave.id}`}>
+                        OT Decisions
+                      </Link>
+                    </p>
+                    {canManager && otEval.needsManagerRemark && !otCleared ? (
+                      <Input.TextArea
+                        style={{ marginTop: 8 }}
+                        rows={2}
+                        placeholder="Manager remark to clear OT soft block"
+                        value={otRemark}
+                        onChange={(e) => setOtRemark(e.target.value)}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+                {leaveContests.length > 0 ? (
+                  <p
+                    style={{
+                      margin: "10px 0 0",
+                      fontSize: 12,
+                      color: nectarColors.muted,
+                    }}
+                  >
+                    Contested cover must be Awarded or Acknowledged on{" "}
+                    <Link href={`/reliever-pool/competition?leaveId=${leave.id}`}>
+                      Reliever Competition
+                    </Link>{" "}
+                    before Cover this shift succeeds.
+                  </p>
+                ) : null}
                 <Space wrap style={{ marginTop: 12 }}>
                   <Button
                     type="primary"
                     disabled={!coverChoice}
                     onClick={() => {
                       if (!coverChoice) return;
+                      const otActorRole =
+                        role === "director"
+                          ? "director"
+                          : role === "manager"
+                            ? "manager"
+                            : "sic";
                       run(
                         () =>
                           siteApprove(
                             leave.id,
                             actor,
                             coverChoice === "ot"
-                              ? { otFallback: true }
+                              ? {
+                                  otFallback: true,
+                                  otRemark:
+                                    canManager && otRemark.trim()
+                                      ? otRemark.trim()
+                                      : undefined,
+                                  otActorRole,
+                                }
                               : { relieverId: coverChoice },
                           ),
                         coverChoice === "ot"
                           ? "Covered with overtime"
-                          : "Replacement arranged",
+                          : "Cover arranged",
                       );
                     }}
                   >
@@ -391,47 +790,24 @@ export default function LeaveDetailPage({
                 </Space>
               </>
             ) : people.length ? (
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: 18,
-                  color: nectarColors.ink,
-                  fontSize: 14,
-                  lineHeight: 1.7,
-                }}
-              >
-                {people.map((person) => (
+              <ul style={{ margin: 0, paddingLeft: 18, color: nectarColors.ink, fontSize: 14, lineHeight: 1.7 }}>
+                {people.slice(0, 8).map((person) => (
                   <li key={person.relieverId}>
-                    {person.name} · {person.label} · {person.phone}
+                    {person.name} · {person.label}
+                    {person.kind === "employee" ? " · employee" : " · pool"}
+                    {person.phone ? ` · ${person.phone}` : ""}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-                No available relievers in the pool right now — overtime may be
-                needed.
-              </p>
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>No available cover candidates — overtime may be needed.</p>
             )}
           </div>
         );
       })()}
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Actions
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Actions</div>
         {waitingOnConsent ? (
           <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
             Waiting for <strong>{leave.employeeName}</strong> to approve or reject
@@ -463,7 +839,17 @@ export default function LeaveDetailPage({
             canAdmin && leave.status === "MANAGER_APPROVED";
           const showReturn =
             canReturn &&
-            ["APPROVED", "EXTENSION_REQUIRED"].includes(leave.status);
+            leave.status === "APPROVED";
+          const showCloseExtension =
+            canManager && leave.status === "EXTENSION_REQUIRED";
+          const showDisrupt =
+            (canManager || canManageRelieverPool(session)) &&
+            ["APPROVED", "EXTENSION_REQUIRED"].includes(leave.status) &&
+            Boolean(
+              leave.assignedRelieverId ||
+                leave.assignedCoverEmployeeId ||
+                leave.coverSource === "ot_fallback",
+            );
           const showReject =
             (canVerify && ["REQUESTED", "ABSENT"].includes(leave.status)) ||
             (canSite &&
@@ -473,6 +859,7 @@ export default function LeaveDetailPage({
             (canManager &&
               ["SITE_APPROVED", "SITE_VERIFIED"].includes(leave.status)) ||
             (canAdmin && leave.status === "MANAGER_APPROVED");
+          const showWithdraw = canWithdraw;
           const hasButtons =
             showConsent ||
             showVerify ||
@@ -480,7 +867,10 @@ export default function LeaveDetailPage({
             showManager ||
             showAdmin ||
             showReturn ||
-            showReject;
+            showCloseExtension ||
+            showDisrupt ||
+            showReject ||
+            showWithdraw;
 
           if (!hasButtons && !waitingOnConsent) {
             let statusNote = "No actions available for your role on this leave.";
@@ -493,6 +883,10 @@ export default function LeaveDetailPage({
               statusNote = leave.rejectionReason
                 ? `Leave rejected: ${leave.rejectionReason}`
                 : "Leave was rejected. No further action needed.";
+            } else if (leave.status === "CANCELLED") {
+              statusNote = leave.cancellationReason
+                ? `Leave withdrawn: ${leave.cancellationReason}`
+                : "Leave was withdrawn. Kept on record for ops visibility.";
             } else if (leave.status === "CLOSED") {
               statusNote = "Leave closed — return confirmed.";
             } else if (
@@ -502,9 +896,7 @@ export default function LeaveDetailPage({
               statusNote = "";
             }
             return statusNote ? (
-              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-                {statusNote}
-              </p>
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>{statusNote}</p>
             ) : null;
           }
 
@@ -517,6 +909,19 @@ export default function LeaveDetailPage({
               }}
             >
               Reject
+            </Button>
+          ) : null;
+
+          const withdrawBtn = showWithdraw ? (
+            <Button
+              danger
+              ghost
+              onClick={() => {
+                setWithdrawNote("");
+                setWithdrawOpen(true);
+              }}
+            >
+              Withdraw leave
             </Button>
           ) : null;
 
@@ -573,7 +978,7 @@ export default function LeaveDetailPage({
               onClick={() =>
                 run(() => {
                   managerDecideLeave(leave.id, actor, "approved");
-                }, "Manager approved — sent to Admin")
+                }, "Manager approved — sent to Director")
               }
             >
               Manager approve
@@ -587,14 +992,15 @@ export default function LeaveDetailPage({
                 run(() => {
                   adminFinalizeLeave(leave.id, actor, "approved");
                   notifyDecision(true);
-                }, "Leave approved by Admin")
+                }, "Leave approved by Director")
               }
             >
-              Admin approve
+              Director approve
             </Button>
           ) : null}
 
           {rejectBtn}
+          {withdrawBtn}
 
           {showReturn ? (
             <>
@@ -603,11 +1009,19 @@ export default function LeaveDetailPage({
                 onClick={() =>
                   run(
                     () =>
-                      confirmReturn(
-                        leave.id,
+                      confirmReturnLifecycle({
+                        leaveId: leave.id,
                         actor,
-                        returnDate.format("YYYY-MM-DD"),
-                      ),
+                        actualReturnDate: returnDate.format("YYYY-MM-DD"),
+                        actorRole:
+                          role === "director"
+                            ? "director"
+                            : role === "manager"
+                              ? "manager"
+                              : role === "supervisor"
+                                ? "supervisor"
+                                : "shift_incharge",
+                      }),
                     "Return recorded",
                   )
                 }
@@ -615,6 +1029,57 @@ export default function LeaveDetailPage({
                 Confirm return to duty
               </Button>
             </>
+          ) : null}
+          {showCloseExtension ? (
+            <>
+              <DatePicker value={returnDate} onChange={(d) => d && setReturnDate(d)} />
+              <Input.TextArea
+                rows={2}
+                placeholder="Manager remark to close extension (required)"
+                value={extensionRemark}
+                onChange={(e) => setExtensionRemark(e.target.value)}
+                style={{ minWidth: 220 }}
+              />
+              <Button
+                type="primary"
+                onClick={() =>
+                  run(
+                    () =>
+                      confirmReturnLifecycle({
+                        leaveId: leave.id,
+                        actor,
+                        actualReturnDate: returnDate.format("YYYY-MM-DD"),
+                        remark: extensionRemark,
+                        actorRole: role === "director" ? "director" : "manager",
+                      }),
+                    "Extension closed",
+                  )
+                }
+              >
+                Close extension
+              </Button>
+            </>
+          ) : null}
+          {showDisrupt ? (
+            <Button
+              danger
+              onClick={() => {
+                const note = window.prompt("Cover disruption note (required)");
+                if (!note?.trim()) return;
+                run(
+                  () =>
+                    reportCoverDisruption({
+                      leaveId: leave.id,
+                      kind: "no_show",
+                      note: note.trim(),
+                      actor,
+                    }),
+                  "Cover disruption recorded",
+                );
+              }}
+            >
+              Report cover no-show
+            </Button>
           ) : null}
           </Space>
 
@@ -629,22 +1094,8 @@ export default function LeaveDetailPage({
         })()}
       </div>
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Workflow timeline
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Workflow timeline</div>
         <Timeline
           items={leave.timeline.map((t) => ({
             color: nectarColors.leaf,
@@ -652,18 +1103,12 @@ export default function LeaveDetailPage({
               <div>
                 <div style={{ fontWeight: 600 }}>
                   {t.action}{" "}
-                  <span style={{ color: nectarColors.muted, fontWeight: 400 }}>
-                    · {t.actor} ({t.role})
-                  </span>
+                  <span style={{ color: nectarColors.muted, fontWeight: 400 }}>· {t.actor} ({t.role})</span>
                 </div>
                 {t.note ? (
-                  <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                    {t.note}
-                  </div>
+                  <div style={{ fontSize: 12, color: nectarColors.muted }}>{t.note}</div>
                 ) : null}
-                <div style={{ fontSize: 11, color: nectarColors.muted }}>
-                  {t.at.slice(0, 16).replace("T", " ")}
-                </div>
+                <div style={{ fontSize: 11, color: nectarColors.muted }}>{t.at.slice(0, 16).replace("T", " ")}</div>
               </div>
             ),
           }))}
@@ -707,7 +1152,7 @@ export default function LeaveDetailPage({
           }
           const role =
             leave.status === "MANAGER_APPROVED"
-              ? "admin"
+              ? "director"
               : leave.status === "SITE_APPROVED" || leave.status === "SITE_VERIFIED"
                 ? "management"
                 : leave.status === "SUPERVISOR_VERIFIED" ||
@@ -728,6 +1173,56 @@ export default function LeaveDetailPage({
           placeholder="Remark — why this leave is rejected"
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
+        />
+      </Modal>
+
+      <Modal
+        title="Withdraw leave request"
+        open={withdrawOpen}
+        onCancel={() => setWithdrawOpen(false)}
+        onOk={() => {
+          const note = withdrawNote.trim();
+          if (!note) {
+            message.error("Add a reason before withdrawing");
+            return;
+          }
+          run(() => {
+            cancelLeave(leave.id, actor, note, actorLeaveRole);
+            const emp = getEmployeeById(leave.employeeId);
+            const notifyIds = new Set<string>();
+            if (emp?.supervisorId) notifyIds.add(emp.supervisorId);
+            if (emp?.managerId) notifyIds.add(emp.managerId);
+            if (emp?.shiftInChargeId) notifyIds.add(emp.shiftInChargeId);
+            if (leave.submittedByEmployeeId) {
+              notifyIds.add(leave.submittedByEmployeeId);
+            }
+            notifyIds.delete(leave.employeeId);
+            for (const employeeId of notifyIds) {
+              pushNotification({
+                employeeId,
+                kind: "leave_decision",
+                title: "Leave withdrawn",
+                body: `${leave.employeeName} withdrew leave ${leave.startDate}–${leave.endDate}: ${note}`,
+                href: `/leave/requests/${leave.id}`,
+                meta: { leaveId: leave.id },
+              });
+            }
+          }, "Leave withdrawn — still visible to ops");
+          setWithdrawOpen(false);
+        }}
+        okText="Withdraw"
+        okButtonProps={{ danger: true }}
+      >
+        <p style={{ margin: "0 0 10px", fontSize: 13, color: nectarColors.muted }}>
+          This does not permanently delete the request. Supervisors and managers
+          will still see it as withdrawn, with your reason. Withdrawal is not
+          allowed after site approval or escalation.
+        </p>
+        <Input.TextArea
+          rows={3}
+          placeholder="Reason for withdrawing this leave"
+          value={withdrawNote}
+          onChange={(e) => setWithdrawNote(e.target.value)}
         />
       </Modal>
     </div>

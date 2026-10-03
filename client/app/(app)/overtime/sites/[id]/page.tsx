@@ -23,6 +23,8 @@ import {
   getSiteOtDetail,
 } from "@/lib/overtime";
 import { nectarColors } from "@/lib/theme";
+import { gridGap16, sSerifText26Ink, sWhitePad2 } from "@/lib/styles";
+import SharedPanel from "@/components/Panel";
 
 export default function OtSiteDetailPage({
   params,
@@ -36,11 +38,7 @@ export default function OtSiteDetailPage({
 
   if (!detail) {
     return (
-      <Empty description="Site not found">
-        <Button type="primary" onClick={() => router.push("/overtime/sites")}>
-          Back
-        </Button>
-      </Empty>
+      <Empty description="Site not found"><Button type="primary" onClick={() => router.push("/overtime/sites")}>Back</Button></Empty>
     );
   }
 
@@ -58,26 +56,12 @@ export default function OtSiteDetailPage({
       </Button>
 
       <div style={{ background: nectarColors.white, padding: 24 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 26,
-            color: nectarColors.ink,
-          }}
-        >
-          {site.name}
-        </div>
-        <div style={{ color: nectarColors.muted }}>
-          {site.plantType} · {site.location}
-        </div>
+        <div style={sSerifText26Ink}>{site.name}</div>
+        <div style={{ color: nectarColors.muted }}>{site.plantType} · {site.location}</div>
       </div>
 
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 12,
-        }}
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}
         className="nectar-ot-summary"
       >
         <Tile label="Total employees" value={String(summary.totalEmployees)} />
@@ -85,20 +69,10 @@ export default function OtSiteDetailPage({
         <Tile label="OT hours" value={formatHours(summary.otHours)} />
         <Tile label="OT days" value={String(summary.otDays)} />
         <Tile label="OT cost" value={formatInr(summary.otCost)} />
-        <Tile
-          label="Avg OT / employee"
-          value={formatHours(summary.avgOtPerEmployee)}
-        />
+        <Tile label="Avg OT / employee" value={formatHours(summary.avgOtPerEmployee)} />
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-        className="nectar-ot-two"
-      >
+      <div style={gridGap16} className="nectar-ot-two">
         <Panel title="Department breakdown">
           <Table
             size="small"
@@ -107,16 +81,8 @@ export default function OtSiteDetailPage({
             dataSource={departments}
             columns={[
               { title: "Department", dataIndex: "department" },
-              {
-                title: "OT Hours",
-                dataIndex: "otHours",
-                render: (v) => formatHours(v),
-              },
-              {
-                title: "OT Cost",
-                dataIndex: "otCost",
-                render: (v) => formatInr(v),
-              },
+              { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+              { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
             ]}
           />
         </Panel>
@@ -141,20 +107,8 @@ export default function OtSiteDetailPage({
             <YAxis yAxisId="h" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="c" orientation="right" tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Line
-              yAxisId="h"
-              type="monotone"
-              dataKey="otHours"
-              stroke={nectarColors.leaf}
-              name="OT Hours"
-            />
-            <Line
-              yAxisId="c"
-              type="monotone"
-              dataKey="otCost"
-              stroke={nectarColors.alert}
-              name="OT Cost"
-            />
+            <Line yAxisId="h" type="monotone" dataKey="otHours" stroke={nectarColors.leaf} name="OT Hours" />
+            <Line yAxisId="c" type="monotone" dataKey="otCost" stroke={nectarColors.alert} name="OT Cost" />
           </LineChart>
         </ResponsiveContainer>
       </Panel>
@@ -174,16 +128,8 @@ export default function OtSiteDetailPage({
               ),
             },
             { title: "Department", dataIndex: "department" },
-            {
-              title: "OT Hours",
-              dataIndex: "otHours",
-              render: (v) => formatHours(v),
-            },
-            {
-              title: "OT Cost",
-              dataIndex: "otCost",
-              render: (v) => formatInr(v),
-            },
+            { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+            { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
             { title: "OT Days", dataIndex: "otDays" },
           ]}
         />
@@ -192,38 +138,13 @@ export default function OtSiteDetailPage({
   );
 }
 
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: nectarColors.white, padding: 20 }}>
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          marginBottom: 12,
-          color: nectarColors.ink,
-        }}
-      >
-        {title}
-      </div>
-      {children}
-    </div>
-  );
+function Panel(props: { title: string; children: React.ReactNode }) {
+  return <SharedPanel {...props} boxStyle={{ background: nectarColors.white, padding: 20 }} />;
 }
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: "14px 16px",
-      }}
-    >
+    <div style={sWhitePad2}>
       <div style={{ fontSize: 12, color: nectarColors.muted, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 650, color: nectarColors.ink }}>{value}</div>
     </div>

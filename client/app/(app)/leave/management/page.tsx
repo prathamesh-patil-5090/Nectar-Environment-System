@@ -14,6 +14,7 @@ import {
 } from "@/lib/leave";
 import { canViewLeaveManagement, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { rowWrapGap1BgR8, sSerifText18Mb12, sSerifText22Ink, sWhitePadR10 } from "@/lib/styles";
 
 export default function LeaveManagementPage() {
   const router = useRouter();
@@ -63,72 +64,26 @@ export default function LeaveManagementPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-            color: nectarColors.ink,
-          }}
-        >
-          Management leave visibility
-        </div>
+        <div style={sSerifText22Ink}>Management leave visibility</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Exceptions and workforce impact — not routine approvals. Drill from
-          site → leave → OT impact.
+          site → leave → OT impact. Active returns and cover issues:{" "}
+          <Link href="/leave/lifecycle">Lifecycle / Coverage</Link>.
           {siteScope ? ` Scoped to ${getSiteName(siteScope)}.` : ""}
         </p>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 1,
-          background: "rgba(28, 68, 99, 0.06)",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div style={rowWrapGap1BgR8}>
         <KpiStat label="Total employees" value={kpis.totalEmployees} />
-        <KpiStat
-          label="Currently on leave"
-          value={kpis.currentlyOnLeave}
-          tone="info"
-        />
-        <KpiStat
-          label="Unexplained absence"
-          value={kpis.leaveWithoutInformation}
-          tone="alert"
-        />
-        <KpiStat
-          label="Critical site shortages"
-          value={kpis.criticalSiteShortages}
-          tone="alert"
-        />
-        <KpiStat
-          label="Leave → OT risk"
-          value={kpis.leaveOtRisk}
-          tone="alert"
-        />
-        <KpiStat
-          label="Long leave cases"
-          value={kpis.longLeaveCases}
-          tone="info"
-        />
+        <KpiStat label="Currently on leave" value={kpis.currentlyOnLeave} tone="info" />
+        <KpiStat label="Unexplained absence" value={kpis.leaveWithoutInformation} tone="alert" />
+        <KpiStat label="Critical site shortages" value={kpis.criticalSiteShortages} tone="alert" />
+        <KpiStat label="Leave → OT risk" value={kpis.leaveOtRisk} tone="alert" />
+        <KpiStat label="Long leave cases" value={kpis.longLeaveCases} tone="info" />
       </div>
 
-      <div
-        style={{ background: nectarColors.white, padding: 20, borderRadius: 10 }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Site → leave impact
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Site → leave impact</div>
         <Table
           rowKey="siteId"
           pagination={false}
@@ -158,18 +113,8 @@ export default function LeaveManagementPage() {
         />
       </div>
 
-      <div
-        style={{ background: nectarColors.white, padding: 20, borderRadius: 10 }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Exception drill-down
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Exception drill-down</div>
         <Table
           rowKey="id"
           dataSource={riskRows}
@@ -182,15 +127,8 @@ export default function LeaveManagementPage() {
                 <Link href={`/leave/requests/${r.id}`}>{n}</Link>
               ),
             },
-            {
-              title: "Site",
-              dataIndex: "siteId",
-              render: (id) => getSiteName(id),
-            },
-            {
-              title: "Supervisor",
-              dataIndex: "supervisorName",
-            },
+            { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
+            { title: "Supervisor", dataIndex: "supervisorName" },
             {
               title: "Status",
               dataIndex: "status",
@@ -202,9 +140,7 @@ export default function LeaveManagementPage() {
               dataIndex: "potentialOtHours",
               render: (h: number, r) =>
                 h > 0 ? (
-                  <span style={{ color: nectarColors.alert, fontWeight: 600 }}>
-                    +{h} hrs · ₹{r.potentialOtCost.toLocaleString("en-IN")}
-                  </span>
+                  <span style={{ color: nectarColors.alert, fontWeight: 600 }}>+{h} hrs · ₹{r.potentialOtCost.toLocaleString("en-IN")}</span>
                 ) : (
                   "None"
                 ),

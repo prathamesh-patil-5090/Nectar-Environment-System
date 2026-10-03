@@ -2,3 +2,15 @@
 DOC/
 *.xlsx
 *.pptx
+# Dependencies & Builds
+**/node_modules/
+**/dist/
+**/.next/
+**/.vscode/
+
+# Environment variables
+.env
+.env.local
+
+# Uploaded safety media (server-side storage)
+server/uploads/

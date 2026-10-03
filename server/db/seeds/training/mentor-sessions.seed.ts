@@ -1,0 +1,136 @@
+export function getMentorLiveSessionsSeed() {
+  return [
+    {
+      id: 'session-director-adsul',
+      mentorName: 'Prashant Rohidas Adsul',
+      mentorRole: 'Founder & Managing Director',
+      mentorDepartment: 'Executive Leadership & Strategic Ops',
+      isFounder: true,
+      badgeText: 'Founder Vision & Strategy',
+      photoDataUrl: '/mentors/director_prashant.jpg',
+      mentorRating: 5.0,
+      topic: 'Industrial Water Stewardship, SCADA Automation & Zero-Liquid-Discharge Strategy',
+      description:
+        'High-level executive roadmap on environmental compliance governance, transitioning multi-plant operations to smart telemetry & SCADA automation, and scaling industrial wastewater stewardship.',
+      scheduledAt: 'Thursday, Oct 1 · 15:00 - 16:15 IST',
+      durationMinutes: 75,
+      maxCapacity: 35,
+      registeredCount: 24,
+      enrolledEmployeeIds: ['emp0127', 'emp0134', 'emp0139'],
+      questions: [
+        {
+          id: 'q-1',
+          employeeId: 'emp0127',
+          employeeName: 'Rohit Kumar Singh',
+          question:
+            'How to maintain biological floc stability under high-ammonia shock loads?',
+          submittedAt: '2026-09-28T14:30:00Z',
+        },
+        {
+          id: 'q-2',
+          employeeId: 'emp0134',
+          employeeName: 'Nitin Pawar',
+          question:
+            'How will the new ZLD statutory mandates impact our client SLAs in 2027?',
+          submittedAt: '2026-09-28T16:10:00Z',
+        },
+      ],
+      meetingPlatform: 'google_meet',
+      platformStatus: 'coming_soon',
+      meetingLink: '',
+    },
+    {
+      id: 'session-etp-dakave',
+      mentorName: 'Anand Dakave',
+      mentorRole: 'ETP Plant Manager',
+      mentorDepartment: 'Wastewater Operations',
+      isFounder: false,
+      badgeText: 'ETP Technical Masterclass',
+      photoDataUrl: '/mentors/mentor_sanjay.jpg',
+      mentorRating: 4.9,
+      topic: 'Clarifier Sludge Bulking, SVI Control & Biological Recovery',
+      description:
+        'Step-by-step operational troubleshooting for sudden MLSS washouts, filament proliferation, secondary clarifier blanket rise, and chemical polymer dosing calibration under shock organic COD loads.',
+      scheduledAt: 'Tomorrow · 14:00 - 15:00 IST',
+      durationMinutes: 60,
+      maxCapacity: 35,
+      registeredCount: 28,
+      enrolledEmployeeIds: ['emp0128', 'emp0129', 'emp0130'],
+      questions: [
+        {
+          id: 'q-3',
+          employeeId: 'emp0128',
+          employeeName: 'Rahul More',
+          question:
+            'When SVI spikes above 180 ml/g, should we increase RAS rate immediately or throttle feed pump?',
+          submittedAt: '2026-09-28T15:20:00Z',
+        },
+      ],
+      meetingPlatform: 'google_meet',
+      platformStatus: 'coming_soon',
+      meetingLink: '',
+    },
+    {
+      id: 'session-ro-patil',
+      mentorName: 'Uday Patil',
+      mentorRole: 'RO Plant Manager',
+      mentorDepartment: 'Membrane Desalination Systems',
+      isFounder: false,
+      badgeText: 'RO & Membrane Masterclass',
+      photoDataUrl: '/mentors/mentor_rajesh.jpg',
+      mentorRating: 5.0,
+      topic: 'RO Membrane Normalization, Differential Pressure & 2-Stage CIP Descaling',
+      description:
+        'Data-driven membrane telemetry: tracking normalized permeate flow decline, interpreting 15% delta-P rises, preventing biofouling, and executing low/high pH CIP descaling to restore flux.',
+      scheduledAt: 'Friday, Oct 2 · 10:00 - 11:15 IST',
+      durationMinutes: 75,
+      maxCapacity: 30,
+      registeredCount: 21,
+      enrolledEmployeeIds: ['emp0134', 'emp0135'],
+      questions: [
+        {
+          id: 'q-4',
+          employeeId: 'emp0135',
+          employeeName: 'Amit Shinde',
+          question:
+            'What is the maximum allowable CIP soak time before membrane polyester backing degrades?',
+          submittedAt: '2026-09-28T11:45:00Z',
+        },
+      ],
+      meetingPlatform: 'google_meet',
+      platformStatus: 'coming_soon',
+      meetingLink: '',
+    },
+    {
+      id: 'session-mee-waghaskar',
+      mentorName: 'Sanjay Waghaskar',
+      mentorRole: 'MEE Plant Manager',
+      mentorDepartment: 'Thermal Systems & Zero Liquid Discharge',
+      isFounder: false,
+      badgeText: 'Thermal ZLD Masterclass',
+      photoDataUrl: '/mentors/mentor_vikram.jpg',
+      mentorRating: 4.8,
+      topic: 'MEE Calandria Tube Scaling, Vacuum Cascade Maintenance & ATFD Salt Recovery',
+      description:
+        'Preventing vacuum loss across multi-effect evaporators, solving calandria tube scaling bottlenecks, diagnosing barometric condenser steam traps, and harvesting dry salt cakes at ATFD.',
+      scheduledAt: 'Wednesday, Oct 7 · 15:00 - 16:15 IST',
+      durationMinutes: 75,
+      maxCapacity: 30,
+      registeredCount: 19,
+      enrolledEmployeeIds: ['emp0142', 'emp0143'],
+      questions: [
+        {
+          id: 'q-5',
+          employeeId: 'emp0142',
+          employeeName: 'Ganesh Kadam',
+          question:
+            'How to detect whether vacuum loss is due to ejector nozzle wear or air leakage in the 3rd effect vapour duct?',
+          submittedAt: '2026-09-28T18:15:00Z',
+        },
+      ],
+      meetingPlatform: 'google_meet',
+      platformStatus: 'coming_soon',
+      meetingLink: '',
+    },
+  ];
+}

@@ -1,0 +1,218 @@
+/* Shared Training UI. Colours use the app theme values (lib/theme.ts). */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1200px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  height: 100%;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.card:hover {
+  border-color: #1c4463;
+  box-shadow: 0 8px 20px -8px rgba(28, 68, 99, 0.25);
+  transform: translateY(-2px);
+}
+.card:focus-visible {
+  outline: 3px solid #1c4463;
+  outline-offset: 2px;
+}
+
+.thumb {
+  height: 128px;
+  background-color: #eaf1f6;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #0b1a24;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line {
+  font-size: 12.5px;
+  color: #4a6375;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  font-size: 12.5px;
+  color: #4a6375;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: auto;
+}
+
+.reason {
+  font-size: 12.5px;
+  color: #1c4463;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+}
+.navLink {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #4a6375;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.navLink:hover {
+  background: #f4f7fa;
+  color: #0b1a24;
+}
+.navLinkActive {
+  background: #1c4463;
+  color: #fff;
+  font-weight: 600;
+}
+.navLinkActive:hover {
+  background: #1c4463;
+  color: #fff;
+}
+
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.shelfHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.shelfTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b1a24;
+}
+.shelfSub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #4a6375;
+}
+
+.dateBadge {
+  width: 52px;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: center;
+  overflow: hidden;
+  background: #fff;
+}
+.dateBadgeMonth {
+  background: #1c4463;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 0;
+}
+.dateBadgeDay {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0b1a24;
+  padding: 2px 0 4px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .twoCol { grid-template-columns: minmax(0, 1fr); }
+}
+.sticky {
+  position: sticky;
+  top: 16px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.bottomBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -6px 16px -10px rgba(11, 26, 36, 0.25);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-radius: 12px 12px 0 0;
+}

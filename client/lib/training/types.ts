@@ -17,6 +17,47 @@ export interface ClinicTimeSlot {
   registeredCount: number;
 }
 
+export interface SessionDoubt {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  question: string;
+  submittedAt: string;
+}
+
+export interface MeetingSlot {
+  id: string;
+  timeRange: string;
+  dayLabel: string;
+  dateStr: string;
+  isBooked?: boolean;
+}
+
+export interface MentorLiveSession {
+  id: string;
+  mentorName: string;
+  mentorRole: string;
+  mentorDepartment: string;
+  isFounder: boolean;
+  badgeText: string;
+  photoDataUrl: string;
+  mentorRating: number;
+  topic: string;
+  description: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  maxCapacity: number; // 30 - 35 max slots
+  registeredCount: number;
+  enrolledEmployeeIds: string[];
+  questions: SessionDoubt[];
+  meetingPlatform: "google_meet" | string;
+  platformStatus: "coming_soon" | "live" | "completed" | string;
+  meetingLink?: string;
+  slots?: MeetingSlot[];
+  selectedSlotMap?: Record<string, string>; // employeeId -> slotId
+  selectedAgendaMap?: Record<string, string>; // employeeId -> agenda
+}
+
 export interface MentorProfile {
   id: string;
   name: string;
@@ -46,30 +87,67 @@ export interface CourseRecommendation {
   matchScorePct: number;
   badge: string;
   badgeColor: string;
+  isAssignedByManager?: boolean;
+  assignedByName?: string;
+  directiveReason?: string;
+  priority?: "critical" | "high" | "normal";
+  dueDate?: string;
+  moduleCount?: number;
+  videoCount?: number;
 }
 
-export interface RoleCredential {
+/** Manager assignment (mandatory) or weak-area flag (suggested). */
+export interface TrainingAssignment {
   id: string;
+  employeeId: string;
+  assignedByEmployeeId: string;
+  assignedByName: string;
+  courseId?: string;
+  moduleId?: string;
+  reason: string;
+  priority: "critical" | "high" | "normal";
+  /** "assigned" / "completed" are legacy values */
+  status: "open" | "in_progress" | "resolved" | "dismissed" | "assigned" | "completed";
+  dueDate?: string;
+  kind?: "mandatory" | "suggested";
+  topic?: string;
+  skills?: string[];
+  abilityIds?: string[];
+  source?: "manager" | "lni" | "evaluation" | "role_path";
+  resolvedAt?: string;
+  resolvedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CourseVideo {
+  id?: string;
+  videoId: string;
+  order: number;
   title: string;
-  issuer: string;
-  issuerLogoText: string;
-  issuerBg: string;
-  issuerColor: string;
+  durationMinutes: number;
+  videoUrl?: string;
+  videoPosterUrl?: string;
+  description?: string;
 }
 
-export interface RoleProgressionTrack {
-  id: string;
-  roleTitle: string;
-  description: string;
-  medianSalary: string;
-  openPositions: number;
-  avatarUrl: string;
-  credentials: RoleCredential[];
+export interface CourseModule {
+  id?: string;
+  moduleId: string;
+  order: number;
+  title: string;
+  description?: string;
+  videos: CourseVideo[];
 }
 
 export type CompetencyLevel = "LOW" | "MED" | "HIGH";
 
-export type SessionType = "ONLINE_VIDEO" | "PRACTICAL" | "ORAL";
+export type SessionType =
+  | "ONLINE_VIDEO"
+  | "PRACTICAL"
+  | "ORAL"
+  | "classroom"
+  | "on_site";
 
 export type EnrollmentStatus =
   | "IN_PROGRESS"
@@ -77,19 +155,6 @@ export type EnrollmentStatus =
   | "PRACTICAL_DONE"
   | "ORAL_DONE"
   | "CERTIFIED";
-
-export interface JobCategory {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface CompetencyArea {
-  id: string;
-  jobCategoryId: string;
-  name: string;
-  weightPct: number;
-}
 
 export interface QuizOption {
   id: string;
@@ -127,17 +192,31 @@ export interface Ability {
 
 export interface Course {
   id: string;
+  courseId?: string;
   title: string;
   code: string; // e.g. "ETP-101"
   section: PlantSection;
+  department?: string;
+  category?: string;
   jobCategoryId: string;
   description: string;
   thumbnailUrl: string;
+  provider?: string;
+  rating?: number;
+  reviewCount?: number;
+  level?: "Foundation" | "Intermediate" | "Advanced" | string;
   estimatedHours: number;
   passThreshold: number; // e.g. 70%
+  modules?: CourseModule[];
   abilities: Ability[];
   skillMappingQuestions: QuizQuestion[];
   writtenTestQuestions: QuizQuestion[];
+  skills?: string[];
+  prerequisites?: string[];
+  audience?: { roles?: string[]; designations?: string[]; plantTypes?: string[] };
+  type?: "course" | "micro" | "specialization";
+  /** Most 12, some 6 */
+  certificateValidityMonths?: number;
 }
 
 export interface AbilityProgress {
@@ -160,6 +239,13 @@ export interface CourseEnrollment {
   startedAt: string;
   completedAt?: string;
   abilityProgress: Record<string, AbilityProgress>; // abilityId -> AbilityProgress
+  /** The 4 gates, stored with the enrollment in the database */
+  assessments?: {
+    skillMap?: SkillMappingResult;
+    written?: WrittenTestResult;
+    practical?: PracticalTestResult;
+    oral?: OralTestResult;
+  };
 }
 
 export interface SkillMappingResult {
@@ -225,6 +311,8 @@ export interface Certificate {
   practicalPct: number;
   oralPct: number;
   issuedAt: string;
+  expiresAt?: string; // 1-year certificate validation rule (expires 12 months after issuedAt)
+  status?: "active" | "expired" | "expiring_soon";
   managerSignatory: string;
   verificationHash: string;
 }
@@ -291,4 +379,213 @@ export interface SpecializationTrack {
   leadMentorId: string;
   bannerImage: string;
   recommendedTrackIds: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Database-backed training: people, events (Meetup model), feed, notifications
+// ---------------------------------------------------------------------------
+
+/** Employee or leader (e.g. the Director) as the training API returns them. */
+export interface Person {
+  id: string;
+  name: string;
+  designation?: string;
+  siteId?: string;
+  siteName?: string;
+  plantType?: string;
+  role: string;
+  photoUrl?: string;
+  managerId?: string;
+  isLeader?: boolean;
+}
+
+export type EventFormat = "online" | "in_person";
+export type EventStatus = "draft" | "published" | "cancelled" | "completed";
+export type RsvpStatus = "going" | "waitlist" | "cancelled" | "attended" | "no_show";
+
+export interface TrainingEvent {
+  id: string;
+  seriesId?: string;
+  communityId?: string;
+  type: "masterclass" | "seminar" | "workshop" | "clinic";
+  title: string;
+  description: string;
+  agenda: { time: string; item: string }[];
+  topics: string[];
+  audience: { roles?: string[]; plantTypes?: string[] };
+  coverUrl?: string;
+  /** The manager who assigned this session to their site (the host runs it) */
+  assignedBy?: { id: string; name: string };
+  hostEmployeeIds: string[];
+  startsAt: string;
+  endsAt: string;
+  format: EventFormat;
+  /** Only present for hosts and attendees */
+  meetLink?: string;
+  venue?: { siteId: string; room?: string };
+  capacity: number;
+  waitlistEnabled: boolean;
+  rsvpOpensAt?: string;
+  rsvpClosesAt?: string;
+  rsvpQuestion?: string;
+  status: EventStatus;
+  cancelReason?: string;
+  recordingUrl?: string;
+  // Computed by the server
+  hosts: Person[];
+  /** First few people going — only sent to hosts and registered viewers */
+  attendeePreview?: Person[];
+  community?: { id: string; name: string; slug: string };
+  goingCount: number;
+  waitlistCount: number;
+  spotsLeft: number;
+  isHost: boolean;
+  myRsvp?: { id: string; status: RsvpStatus; answer?: string; waitlistPosition?: number };
+}
+
+export interface EventAttendee {
+  id?: string;
+  status?: RsvpStatus;
+  answer?: string;
+  rsvpAt?: string;
+  employee: Person;
+}
+
+export interface EventPost {
+  id: string;
+  eventId: string;
+  authorEmployeeId: string;
+  text: string;
+  kind: "question" | "comment" | "announcement";
+  parentId?: string;
+  pinned: boolean;
+  createdAt: string;
+  author?: Person;
+}
+
+export interface Community {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  domain?: string;
+  coverUrl?: string;
+  organizerEmployeeIds: string[];
+  organizers: Person[];
+  memberCount: number;
+  isMember: boolean;
+  /** Default community: everyone is a member and nobody can leave */
+  everyone?: boolean;
+}
+
+export interface MentorProfileRecord {
+  id: string;
+  employeeId: string;
+  name: string;
+  title?: string;
+  department?: string;
+  bio?: string;
+  photoUrl?: string;
+  specialties: string[];
+  active: boolean;
+}
+
+/** Course fields for cards (no question banks). */
+export interface CourseCardData {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  section: string;
+  thumbnailUrl?: string;
+  provider?: string;
+  rating?: number;
+  reviewCount?: number;
+  level?: string;
+  estimatedHours?: number;
+  skills: string[];
+  abilityCount: number;
+  moduleCount: number;
+  certificateValidityMonths: number;
+  type: string;
+}
+
+export interface CatalogItem extends CourseCardData {
+  abilityTitles: string[];
+  plantType?: string;
+  myStatus?: EnrollmentStatus;
+  myProgressPct?: number;
+}
+
+export interface Recommendation {
+  course: CourseCardData;
+  score: number;
+  reasons: string[];
+  reason: string;
+  suggestedBy?: string;
+}
+
+export interface EnrollmentSummary {
+  id: string;
+  status: EnrollmentStatus;
+  done: number;
+  total: number;
+  pct: number;
+}
+
+export interface TrainingFeed {
+  me: Person;
+  stats: { assigned: number; inProgress: number; certified: number };
+  /** Open weak-area flags from the manager (always shown, even with no matching course) */
+  suggestions: { assignment: TrainingAssignment; course?: CourseCardData; matches: CourseCardData[] }[];
+  assigned: { assignment: TrainingAssignment; course: CourseCardData; enrollment?: EnrollmentSummary; overdue: boolean }[];
+  continueLearning: { course: CourseCardData; enrollment: EnrollmentSummary }[];
+  /** Safety courses with this person's status; compulsory for employee, site manager, shift in-charge, manager and safety in-charge */
+  safety: {
+    compulsory: boolean;
+    done: number;
+    courses: {
+      course: CourseCardData;
+      status: "certified" | "in_progress" | "not_started";
+      enrollment?: EnrollmentSummary;
+      certExpiresAt?: string;
+    }[];
+  };
+  recommended: Recommendation[];
+  requiredPaths: {
+    id: string;
+    title: string;
+    steps: { courseId: string; mandatory: boolean; order: number; course: CourseCardData; certified: boolean }[];
+  }[];
+  upcomingEvents: TrainingEvent[];
+  popularAtSite: { course: CourseCardData; learners: number }[];
+}
+
+export interface PendingEvaluation {
+  enrollment: CourseEnrollment;
+  employee?: Person;
+  course?: Course;
+  needs: "practical" | "oral";
+}
+
+export interface ServerNotification {
+  id: string;
+  employeeId: string;
+  kind: string;
+  title: string;
+  body: string;
+  href?: string;
+  read: boolean;
+  meta?: Record<string, string>;
+  createdAt: string;
+}
+
+export interface RolePath {
+  id: string;
+  role: string;
+  designation?: string;
+  plantType?: string;
+  title: string;
+  steps: { courseId: string; mandatory: boolean; order: number }[];
+  renewEveryMonths?: number;
 }

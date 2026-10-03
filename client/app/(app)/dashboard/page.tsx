@@ -6,6 +6,7 @@ import KpiStat from "@/components/KpiStat";
 import SkillHeatmap from "@/components/SkillHeatmap";
 import UrgentTrainingList from "@/components/UrgentTrainingList";
 import SiteReadiness from "@/components/SiteReadiness";
+import SafetySummaryPanel from "@/components/safety/SafetySummaryPanel";
 import { getSession } from "@/lib/auth";
 import {
   getDashboardKpis,
@@ -13,7 +14,6 @@ import {
   getSiteById,
   getSiteName,
 } from "@/lib/mock-data";
-import { getCertificatesForEmployee } from "@/lib/certificates";
 import {
   formatInrAmount,
   getSalaryHistory,
@@ -34,12 +34,13 @@ import {
 import { nectarColors } from "@/lib/theme";
 
 import EmployeeDashboardView from "@/components/dashboard/EmployeeDashboardView";
+import { rowWrapGap1BgR8, sWhitePadR10Border } from "@/lib/styles";
 
 function dashboardSubtitle(
   role: ReturnType<typeof normalizeRole>,
   siteScope?: string,
 ) {
-  if (role === "admin") {
+  if (role === "director") {
     return "Organization-wide workforce posture across ETP, RO and MEE plants.";
   }
   if (role === "manager" && siteScope) {
@@ -91,44 +92,23 @@ export default function DashboardPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
-        <p
-          style={{
-            margin: 0,
-            color: nectarColors.muted,
-            fontSize: 14,
-          }}
-        >
+        <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
           {subtitle}
           {session ? (
-            <span style={{ marginLeft: 8, opacity: 0.8 }}>
-              · Signed in as {roleLabel(session.role)}
-            </span>
+            <span style={{ marginLeft: 8, opacity: 0.8 }}>· Signed in as {roleLabel(session.role)}</span>
           ) : null}
         </p>
       </div>
 
       {isEmployeeView ? (
-        <EmployeeDashboardView
-          employee={employee}
-          site={site}
-          reporting={reporting}
-        />
+        <EmployeeDashboardView employee={employee} site={site} reporting={reporting} />
       ) : (
         <>
           {employee && reporting ? (
-            <div
-              style={{
-                background: nectarColors.white,
-                padding: 20,
-                borderRadius: 10,
-                border: "1px solid rgba(28, 68, 99, 0.08)",
-              }}
-            >
+            <div style={sWhitePadR10Border}>
               <div
                 style={{
-                  fontFamily: "var(--font-fraunces), Georgia, serif",
-                  fontSize: 20,
-                  color: nectarColors.ink,
+                  fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 20, color: nectarColors.ink,
                   marginBottom: 4,
                 }}
               >
@@ -140,68 +120,35 @@ export default function DashboardPage() {
                 {" · "}
                 {employee.department}
               </p>
-              <Descriptions
-                size="small"
-                column={{ xs: 1, sm: 2, md: 3 }}
-                title="Appointed under / reporting structure"
-              >
+              <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }} title="Appointed under / reporting structure">
                 <Descriptions.Item label="Manager">
                   {reporting?.manager?.name ?? (
                     <span style={{ color: nectarColors.muted }}>You are plant manager</span>
                   )}
                 </Descriptions.Item>
-                <Descriptions.Item label="Shift In-Charge">
-                  {reporting?.sic?.name ?? "—"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Supervisor">
-                  {reporting?.supervisor?.name ?? "—"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Category">
-                  <Tag>{employee.employeeCategory.replace(/_/g, " ")}</Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Shift">
-                  {employee.shiftId.replace("sh-", "")}
-                </Descriptions.Item>
-                <Descriptions.Item label="Employment">
-                  {employee.employmentStatus} · {employee.employeeType}
-                </Descriptions.Item>
+                <Descriptions.Item label="Shift In-Charge">{reporting?.sic?.name ?? "—"}</Descriptions.Item>
+                <Descriptions.Item label="Supervisor">{reporting?.supervisor?.name ?? "—"}</Descriptions.Item>
+                <Descriptions.Item label="Category"><Tag>{employee.employeeCategory.replace(/_/g, " ")}</Tag></Descriptions.Item>
+                <Descriptions.Item label="Shift">{employee.shiftId.replace("sh-", "")}</Descriptions.Item>
+                <Descriptions.Item label="Employment">{employee.employmentStatus} · {employee.employeeType}</Descriptions.Item>
               </Descriptions>
             </div>
           ) : null}
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 1,
-              background: "rgba(28, 68, 99, 0.06)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
+          <div style={rowWrapGap1BgR8}>
             <KpiStat
               label="Total employees"
               value={kpis.totalEmployees}
               hint={siteScope ? "Plant roster" : "All plants"}
             />
-            <KpiStat
-              label="Active sites"
-              value={kpis.activeSites}
-              hint="ETP · RO · MEE"
-              tone="info"
-            />
+            <KpiStat label="Active sites" value={kpis.activeSites} hint="ETP · RO · MEE" tone="info" />
             <KpiStat
               label="Skill coverage"
               value={`${kpis.skillCoverage}%`}
               hint="Avg mapped vs required"
               tone="positive"
             />
-            <KpiStat
-              label="Urgent training"
-              value={kpis.urgentTraining}
-              hint="Overdue or critical"
-              tone="alert"
-            />
+            <KpiStat label="Urgent training" value={kpis.urgentTraining} hint="Overdue or critical" tone="alert" />
             <KpiStat
               label="Compliance-ready sites"
               value={`${kpis.complianceReadySites}/${kpis.activeSites}`}
@@ -209,6 +156,8 @@ export default function DashboardPage() {
               tone="positive"
             />
           </div>
+
+          <SafetySummaryPanel siteId={siteScope} />
 
           <div className="nectar-dash-grid">
             <SkillHeatmap />

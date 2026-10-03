@@ -18,11 +18,7 @@ export const OT_STATUS_COLORS: Record<OtStatus, string> = {
 
 export const OT_STATUS_OPTIONS = (
   Object.keys(OT_STATUS_LABELS) as OtStatus[]
-).map((status) => ({
-  value: status,
-  label: OT_STATUS_LABELS[status],
-  color: OT_STATUS_COLORS[status],
-}));
+).map((status) => ({ value: status, label: OT_STATUS_LABELS[status], color: OT_STATUS_COLORS[status] }));
 
 type ChipProps = {
   status: OtStatus;
@@ -41,25 +37,13 @@ export function OtStatusChip({
 }: ChipProps) {
   const color = OT_STATUS_COLORS[status];
   const items: MenuProps["items"] = [
-    {
-      key: "all",
-      label: "All statuses",
-      onClick: () => onSelect(undefined),
-    },
+    { key: "all", label: "All statuses", onClick: () => onSelect(undefined) },
     { type: "divider" },
     ...OT_STATUS_OPTIONS.map((opt) => ({
       key: opt.value,
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: opt.color,
-              flexShrink: 0,
-            }}
-          />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color, flexShrink: 0 }} />
           {opt.label}
         </span>
       ),
@@ -74,18 +58,12 @@ export function OtStatusChip({
         onClick={() => onSelect(active ? undefined : status)}
         aria-pressed={active}
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
+          display: "inline-flex", alignItems: "center", gap: 8,
           border: `1px solid ${active ? color : "rgba(28, 68, 99, 0.15)"}`,
-          background: active ? `${color}14` : nectarColors.white,
-          color: nectarColors.ink,
-          borderRadius: 999,
-          padding: "8px 14px",
-          cursor: "pointer",
+          background: active ? `${color}14` : nectarColors.white, color: nectarColors.ink, borderRadius: 999,
+          padding: "8px 14px", cursor: "pointer",
           transition: "border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
-          boxShadow: active ? `0 0 0 3px ${color}22` : "none",
-          fontFamily: "inherit",
+          boxShadow: active ? `0 0 0 3px ${color}22` : "none", fontFamily: "inherit",
         }}
         onMouseEnter={(e) => {
           if (!active) {
@@ -100,26 +78,10 @@ export function OtStatusChip({
           }
         }}
       >
-        <span
-          style={{
-            width: 9,
-            height: 9,
-            borderRadius: "50%",
-            background: color,
-            flexShrink: 0,
-          }}
-        />
-        <span style={{ fontWeight: 600, fontSize: 13 }}>
-          {OT_STATUS_LABELS[status]}
-        </span>
+        <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
+        <span style={{ fontWeight: 600, fontSize: 13 }}>{OT_STATUS_LABELS[status]}</span>
         {count != null ? (
-          <span
-            style={{
-              fontSize: 12,
-              color: nectarColors.muted,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
+          <span style={{ fontSize: 12, color: nectarColors.muted, fontVariantNumeric: "tabular-nums" }}>
             {count}
             {hoursLabel ? ` · ${hoursLabel}` : ""}
           </span>

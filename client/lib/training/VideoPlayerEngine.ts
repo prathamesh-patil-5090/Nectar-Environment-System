@@ -127,6 +127,7 @@ export class VideoPlayerEngine {
         this.onPlayStateChange(false);
         return;
       }
+      // One real second per tick, advancing `speed` seconds of lesson (1.5× really is 1.5×)
       const next = Math.min(this._duration, this._currentSec + this._speed);
       this._currentSec = next;
       this._maxAllowedSec = Math.max(this._maxAllowedSec, next);
@@ -137,7 +138,7 @@ export class VideoPlayerEngine {
         this._isPlaying = false;
         this.onPlayStateChange(false);
       }
-    }, 1000 / this._speed);
+    }, 1000);
   }
 
   private _stopTimer() {

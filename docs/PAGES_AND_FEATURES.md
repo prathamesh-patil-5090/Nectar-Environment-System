@@ -16,6 +16,7 @@
 6. [Reliever Pool](#6-reliever-pool)
 7. [Leave module](#7-leave-module)
 8. [OverTime (OT) module](#8-overtime-ot-module)
+8b. [Safety module](#8b-safety-module)
 9. [Cross-module flows](#9-cross-module-flows)
 10. [Route map (quick reference)](#10-route-map-quick-reference)
 
@@ -157,7 +158,7 @@ OverTime
 |--------|-------------|
 | Profile | Email, phone, joined date, experience, site, plant type, readiness |
 | Skill map | Personal competency bars vs role-critical skills |
-| Training history | Courses, due dates, priority, status for that employee |
+| Training | Courses, due dates, scores and status (database), open weak-area flags, and **Flag / assign training** for the Director or the employee's manager |
 | Empty / not found | Safe fallback with back navigation |
 
 ---
@@ -172,13 +173,24 @@ OverTime
 
 ---
 
-### 4.5 Training — `/training`
+### 4.5 Training — `/training` (Coursera + Meetup style)
 
-| Feature | Description |
-|--------|-------------|
-| Training table | Employee, site, course, due date, priority, status |
-| Urgent only toggle | Filters to overdue / due-soon |
-| Employee links | Jump to employee profile |
+All data comes from the database. The full design is in `docs/TRAINING_REDESIGN_PLAN.md`.
+
+| Route | Who | Feature |
+|---|---|---|
+| `/training` | Academy roles | **Home**: stats, then shelves of 4 cards plus "Show more": Your manager suggests, Assigned to you, Continue learning, Recommended for you (with the reason), Required for your role, Upcoming events, Popular at your site |
+| `/training` | HR / Manager / Director | **Academic Records**: Team progress, Assign & flag (Director and managers), Evaluations, Assessment schedule, LNI matrix, Reports, Mentors & communities (HR and Director) |
+| `/training/home` | HR / Manager / Director | Their own learning Home |
+| `/training/explore` | Everyone | Catalog search, filters (domain, plant, level, not started) and sort, all kept in the URL |
+| `/training/course/[id]` | Everyone | Course page: About, Syllabus, Assessment (4 gates), Events, and Enroll / Resume |
+| `/training/learn/[id]` | Learner | Course player: abilities, quizzes, skill map, written test, and on-site practical / oral by the manager |
+| `/training/my-learning` | Everyone | In progress, Assigned, Suggested by manager, Completed, Assessment schedule |
+| `/training/events`, `/training/events/[id]` | Everyone | Meetup-style events: list or calendar view, RSVP with a waitlist, attendee list (registered people only), discussion, add to calendar |
+| `/training/communities/[slug]` | Everyone | Community page: members, events, join / leave |
+| `/training/mentor`, `/training/mentor/events/[id]` | Mentors | Mentor Studio: create, edit, repeat, publish, cancel and duplicate events; manage attendees and the waitlist; attendance; announcements; CSV |
+| `/training/team` | Supervisor / Shift / Site In-Charge | Their team's progress (view only) |
+| `/training/track/[id]` | Everyone | Specialization (client-side mock content, agreed exception) |
 
 ---
 
@@ -470,7 +482,32 @@ Shared **filters** across OT pages: date range, year, month, site, department, e
 
 ---
 
+## 8b. Safety module
+
+Incidents, near-misses and plant breakdowns — every case, big or small, is stored in MongoDB (`safety_events`) and **visible to every role**. Open cases keep notifying the people responsible until resolved. Rules (status machine, role × site permissions, clearance, reminder timing) live in one shared file used by client and server: `client/lib/safety/rules.ts` ≡ `server/src/modules/safety/safety-rules.ts` (a test fails if they differ). Full design: `docs/SAFETY_PLAN.md`.
+
+| Page | Route | What it does |
+|------|-------|--------------|
+| Overview | `/safety` | Open cases, active emergencies, near-misses (30 d), plants down, return-to-work pending, days since lost-time injury; per-site table |
+| Report | `/safety/report` | Near-miss (everyone) · incident / breakdown (shift in-charge and above). Site, category, severity, people involved / who informed, emergency switch, photos (≤10 MB) and videos (≤50 MB) |
+| Incidents & near-miss | `/safety/incidents` | History with search + filters (site, type, severity, status, date) |
+| Case detail | `/safety/incidents/[id]` | Status actions (only those your role + site allow), corrective actions, return-to-work clearance + linked leave, media, Jitsi call, PDF report, comments, full timeline, escalate near-miss → incident |
+| Breakdowns | `/safety/breakdowns`, `/[id]` | What/why/how broke, downtime days, OT people + hours, "Request repair OT" (creates an OT decision with trigger `breakdown_repair`) |
+| Emergency protocols | `/safety/protocols` | Readable by all; Safety In-charge + Director add / edit (versioned) |
+| Safety training | `/safety/training` | Academy courses covering safety (LOTO, confined space, electrical, chemical…) |
+
+**Status flow:** Reported → Acknowledged → Investigating → Action pending → Resolved → Closed (Reopened → Investigating). Resolve needs all corrective actions done; Close also needs every return-to-work clearance decided.
+
+**Notifications:** stakeholders (site manager + shift in-charge, HR, Director, Safety In-charge) + involved + informers. Emergencies alert every employee at the site and pin a banner until each person acknowledges. Reminders repeat while open — critical 1 h, high 4 h, medium/low 24 h — and escalate to the Director once after 3.
+
+---
+
 ## 9. Cross-module flows
+
+### Safety + Leave + OT
+
+An injury incident (medical, lost-time, fatal, or high/critical) puts the involved people on **return-to-work clearance**. While pending, their leave cannot be closed back to duty — enforced in `confirmReturn` (client) and `PATCH /leaves/:id/status` (server, 409). Leave pages show a "Safety clearance pending" banner / tag. Manager clears non-critical cases; Safety In-charge or Director clears critical; only the Director can waive (with a reason). People in an open high/critical incident are left out of automatic cover and OT proposals; Assign OT warns and needs confirmation.
+
 
 ### Leave + Shift Rotation
 

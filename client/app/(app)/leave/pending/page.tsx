@@ -11,8 +11,6 @@ export default function LeavePendingRedirectPage() {
     router.replace("/leave/requests?view=pending");
   }, [router]);
   return (
-    <div style={{ display: "grid", placeItems: "center", minHeight: 200 }}>
-      <Spin tip="Opening requests…" />
-    </div>
+    <div style={{ display: "grid", placeItems: "center", minHeight: 200 }}><Spin tip="Opening requests…" /></div>
   );
 }

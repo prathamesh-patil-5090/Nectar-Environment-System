@@ -11,8 +11,6 @@ export default function OtReportsRedirectPage() {
     router.replace("/overtime/analysis?tab=reports");
   }, [router]);
   return (
-    <div style={{ display: "grid", placeItems: "center", minHeight: 200 }}>
-      <Spin tip="Opening analysis & reports…" />
-    </div>
+    <div style={{ display: "grid", placeItems: "center", minHeight: 200 }}><Spin tip="Opening analysis & reports…" /></div>
   );
 }

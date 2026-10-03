@@ -12,10 +12,10 @@ import {
   getReasonBreakdown,
   getStatusBreakdown,
 } from "./aggregations";
-import { otRecords } from "./mock-data";
+import { otRecords } from "./data";
 import { downloadBlob, formatInr, toCsv } from "./format";
 import { OT_REASON_LABELS, OT_STATUS_LABELS, type OtFilters } from "./types";
-import { getShiftById } from "./mock-data";
+import { getShiftById } from "./data";
 
 function periodSlug(filters: OtFilters): string {
   if (filters.year && filters.month) {

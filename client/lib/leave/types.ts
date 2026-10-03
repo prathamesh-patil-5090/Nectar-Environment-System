@@ -33,7 +33,7 @@ export type LeaveActorRole =
   | "site_incharge"
   | "hr"
   | "management"
-  | "admin";
+  | "director";
 
 export type ConsentDecision = "approved" | "rejected";
 export type ManagerDecision = "approved" | "rejected";
@@ -69,13 +69,37 @@ export type LeaveRequest = {
   managerDecision?: ManagerDecision;
   managerDecisionAt?: string;
   rejectionReason?: string;
+  /** Soft-delete / withdrawal (kept visible for ops) */
+  cancellationReason?: string;
+  cancelledByName?: string;
+  cancelledByRole?: LeaveActorRole;
+  cancelledAt?: string;
   replacementRequired: boolean;
   assignedRelieverId?: string;
+  /** Employee assigned as cover (first-class, not pool) */
+  assignedCoverEmployeeId?: string;
+  /** How coverage was resolved */
+  coverSource?:
+    | "local_employee"
+    | "cluster_employee"
+    | "local_pool"
+    | "cluster_pool"
+    | "ot_fallback"
+    | "auto_pool";
   replacementPlan?: string;
   potentialOtHours: number;
   potentialOtCost: number;
   leaveBalanceDays: number;
   daysRequested: number;
+  isHalfDay?: boolean;
+  halfDaySlot?: "morning" | "afternoon";
+  policyVerdict?: "PASS" | "WARN" | "BLOCK";
+  policyFlags?: Array<{
+    code: string;
+    severity: "warn" | "block";
+    message: string;
+  }>;
+  policySuggestions?: string[];
   createdAt: string;
   updatedAt: string;
   timeline: LeaveTimelineEvent[];
@@ -119,7 +143,7 @@ export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
   PENDING_EMPLOYEE_CONSENT: "Awaiting employee consent",
   SUPERVISOR_VERIFIED: "Supervisor verified",
   SITE_APPROVED: "Site approved",
-  MANAGER_APPROVED: "Manager approved — awaiting Admin",
+  MANAGER_APPROVED: "Manager approved — awaiting Director",
   HR_VALIDATED: "HR validated",
   APPROVED: "Approved",
   ABSENT: "Absent",
@@ -129,6 +153,6 @@ export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
   PENDING_INFORMATION: "Pending information",
   UNEXPLAINED_ABSENCE: "Unexplained absence",
   REJECTED: "Rejected",
-  CANCELLED: "Cancelled",
+  CANCELLED: "Withdrawn",
   EXTENSION_REQUIRED: "Extension required",
 };

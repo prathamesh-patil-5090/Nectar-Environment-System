@@ -51,7 +51,7 @@ function session(role: UserRole): SessionUser {
     name: role,
     role,
     siteId: "s-etp",
-    employeeId: "e-etp-s1",
+    employeeId: "emp0126",
   };
 }
 
@@ -76,7 +76,7 @@ function coverAndApprove(id: string) {
   supervisorVerify(id, "Amit Supervisor");
   siteApprove(id, "Sanjay Jadhav", { arrangeReplacement: true });
   managerDecideLeave(id, "Rajesh Kulkarni", "approved");
-  return adminFinalizeLeave(id, "System Admin", "approved");
+  return adminFinalizeLeave(id, "Director", "approved");
 }
 
 beforeEach(() => {
@@ -86,9 +86,9 @@ beforeEach(() => {
 });
 
 describe("leave approval chain", () => {
-  it("walks employee request through local reliever, manager, admin, and return", () => {
+  it("walks employee request through local reliever, manager, director, and return", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -115,7 +115,7 @@ describe("leave approval chain", () => {
     );
     expect(managerOk.status).toBe("MANAGER_APPROVED");
 
-    const approved = adminFinalizeLeave(created.id, "System Admin", "approved");
+    const approved = adminFinalizeLeave(created.id, "Director", "approved");
     expect(approved.status).toBe("APPROVED");
 
     const closed = confirmReturn(created.id, "Amit Supervisor", "2026-10-02");
@@ -128,7 +128,7 @@ describe("leave approval chain", () => {
 
   it("stops a supervisor-filed leave when the employee rejects consent", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s2",
+      employeeId: "emp0127",
       entrySource: "supervisor_on_behalf",
       enteredByRole: "supervisor",
     });
@@ -136,7 +136,7 @@ describe("leave approval chain", () => {
 
     const rejected = employeeConsentLeave(
       created.id,
-      "Rohan Deshmukh",
+      "Rohit Kumar Singh",
       "rejected",
       "I did not ask for this",
     );
@@ -148,11 +148,11 @@ describe("leave approval chain", () => {
 
   it("continues after the employee consents to an on-behalf leave", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s2",
+      employeeId: "emp0127",
       entrySource: "supervisor_on_behalf",
       enteredByRole: "supervisor",
     });
-    const consented = employeeConsentLeave(created.id, "Rohan Deshmukh", "approved");
+    const consented = employeeConsentLeave(created.id, "Rohit Kumar Singh", "approved");
     expect(consented.status).toBe("REQUESTED");
     expect(supervisorVerify(created.id, "Amit Supervisor").status).toBe(
       "SUPERVISOR_VERIFIED",
@@ -161,7 +161,7 @@ describe("leave approval chain", () => {
 
   it("lets the supervisor reject with a remark before cover", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -179,7 +179,7 @@ describe("leave approval chain", () => {
     setRelieverAvailability("rv1", "unavailable");
     setRelieverAvailability("rv7", "unavailable");
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -196,7 +196,7 @@ describe("leave approval chain", () => {
 
   it("assigns the person the shift in-charge chooses", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -205,7 +205,7 @@ describe("leave approval chain", () => {
       relieverId: "rv7",
     });
     expect(covered.assignedRelieverId).toBe("rv7");
-    expect(covered.replacementPlan).toMatch(/Rohan Deshmukh/);
+    expect(covered.replacementPlan).toMatch(/Rohit Kumar Singh/);
     expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
       "available",
     );
@@ -216,7 +216,7 @@ describe("leave approval chain", () => {
     setRelieverAvailability("rv7", "unavailable");
     setRelieverAvailability("rv3", "unavailable");
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -234,7 +234,7 @@ describe("leave approval chain", () => {
 
   it("refuses manager approval before the shift is covered", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -244,22 +244,22 @@ describe("leave approval chain", () => {
     expect(getLeaveById(created.id)?.status).toBe("REQUESTED");
   });
 
-  it("refuses admin finalize before manager approval", () => {
+  it("refuses director finalize before manager approval", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
     supervisorVerify(created.id, "Amit Supervisor");
     siteApprove(created.id, "Sanjay Jadhav", { arrangeReplacement: true });
     expect(() =>
-      adminFinalizeLeave(created.id, "System Admin", "approved"),
+      adminFinalizeLeave(created.id, "Director", "approved"),
     ).toThrow(/Cannot move leave from SITE_APPROVED to APPROVED/);
   });
 
   it("keeps the reliever on a late return and releases them when the extension closes", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
@@ -269,48 +269,78 @@ describe("leave approval chain", () => {
     expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
       "assigned",
     );
-    const closed = confirmReturn(created.id, "Amit Supervisor", "2026-10-04");
+    const closed = confirmReturn(created.id, "Anand Dakave", "2026-10-04", {
+      remark: "Extension closed — employee back on duty",
+    });
     expect(closed.status).toBe("CLOSED");
     expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
       "available",
     );
   });
 
-  it("releases the reliever when the leave is cancelled", () => {
+  it("blocks soft-withdraw after site approval", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
     });
     supervisorVerify(created.id, "Amit Supervisor");
     siteApprove(created.id, "Sanjay Jadhav", { arrangeReplacement: true });
-    const cancelled = cancelLeave(created.id, "Rajesh Kulkarni", "Plans changed");
+    expect(() =>
+      cancelLeave(created.id, "Rajesh Kulkarni", "Plans changed"),
+    ).toThrow(/Cannot move leave/);
+  });
+
+  it("soft-withdraws leave with reason before site approval and keeps audit fields", () => {
+    const created = fileLeave({
+      employeeId: "emp0126",
+      entrySource: "employee",
+      enteredByRole: "employee",
+    });
+    supervisorVerify(created.id, "Amit Supervisor");
+    const cancelled = cancelLeave(
+      created.id,
+      "Rajesh Kulkarni",
+      "Plans changed",
+      "employee",
+    );
     expect(cancelled.status).toBe("CANCELLED");
-    expect(getRelievers().find((r) => r.id === "rv1")?.availability).toBe(
-      "available",
+    expect(cancelled.cancellationReason).toBe("Plans changed");
+    expect(cancelled.cancelledByName).toBe("Rajesh Kulkarni");
+    expect(() => cancelLeave(created.id, "X", "again")).toThrow();
+  });
+
+  it("requires a withdrawal reason", () => {
+    const created = fileLeave({
+      employeeId: "emp0126",
+      entrySource: "employee",
+      enteredByRole: "employee",
+    });
+    expect(() => cancelLeave(created.id, "Rajesh Kulkarni", "  ")).toThrow(
+      /reason/i,
     );
   });
 });
 
 describe("role gates", () => {
-  it("lets only supervisor and above verify, manager decide, and admin finalize", () => {
+  it("lets only supervisor and above verify, manager decide, and director finalize", () => {
     expect(canSupervisorVerifyLeave(session("employee"))).toBe(false);
     expect(canSupervisorVerifyLeave(session("supervisor"))).toBe(true);
     expect(canManagerDecideLeave(session("supervisor"))).toBe(false);
     expect(canManagerDecideLeave(session("shift_incharge"))).toBe(false);
     expect(canManagerDecideLeave(session("manager"))).toBe(true);
-    expect(canManagerDecideLeave(session("admin"))).toBe(true);
+    expect(canManagerDecideLeave(session("director"))).toBe(true);
     expect(canAdminFinalizeLeave(session("manager"))).toBe(false);
-    expect(canAdminFinalizeLeave(session("admin"))).toBe(true);
+    expect(canAdminFinalizeLeave(session("director"))).toBe(true);
   });
 
-  it("lets SIC generate drafts; manager reviews; only admin finalizes", () => {
+  it("lets SIC generate drafts; manager reviews; only director finalizes", () => {
     expect(canGenerateRotation(session("shift_incharge"))).toBe(true);
     expect(canManagerDecideRotation(session("shift_incharge"))).toBe(false);
     expect(canAdminFinalizeRotation(session("shift_incharge"))).toBe(false);
     expect(canManagerDecideRotation(session("manager"))).toBe(true);
     expect(canAdminFinalizeRotation(session("manager"))).toBe(false);
-    expect(canAdminFinalizeRotation(session("admin"))).toBe(true);
+    expect(canAdminFinalizeRotation(session("director"))).toBe(true);
     expect(canPublishRotation(session("manager"))).toBe(true);
     expect(canGenerateRotation(session("supervisor"))).toBe(false);
   });
@@ -319,28 +349,28 @@ describe("role gates", () => {
 describe("shift change guards", () => {
   it("rewrites the planned day when rest rules allow it", () => {
     const before = getPlannedDays({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       from: "2026-09-24",
       to: "2026-09-24",
     })[0];
     expect(before.plannedCode).toBe("A");
 
     const req = createChangeRequest({
-      employeeId: "e-etp-s1",
-      employeeName: "Asha Patil",
+      employeeId: "emp0126",
+      employeeName: "Shilpa Hotkar",
       siteId: "s-etp",
       date: "2026-09-24",
       fromShiftId: before.plannedShiftId,
       toShiftId: "sh-general",
       reason: "Clinic visit",
-      requestedBy: "Asha Patil",
+      requestedBy: "Shilpa Hotkar",
       potentialOtHours: 0,
       manpowerOk: true,
     });
     decideChangeRequest(req.id, "APPROVED");
 
     const after = getPlannedDays({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       from: "2026-09-24",
       to: "2026-09-24",
     })[0];
@@ -350,7 +380,7 @@ describe("shift change guards", () => {
 
   it("refuses a change on a date covered by approved leave", () => {
     const created = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
       startDate: "2026-10-05",
@@ -360,19 +390,19 @@ describe("shift change guards", () => {
     coverAndApprove(created.id);
 
     const day = getPlannedDays({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       from: "2026-10-05",
       to: "2026-10-05",
     })[0];
     const req = createChangeRequest({
-      employeeId: "e-etp-s1",
-      employeeName: "Asha Patil",
+      employeeId: "emp0126",
+      employeeName: "Shilpa Hotkar",
       siteId: "s-etp",
       date: "2026-10-05",
       fromShiftId: day.plannedShiftId,
       toShiftId: "sh-general",
       reason: "Swap",
-      requestedBy: "Asha Patil",
+      requestedBy: "Shilpa Hotkar",
       potentialOtHours: 0,
       manpowerOk: true,
     });
@@ -384,7 +414,7 @@ describe("shift change guards", () => {
     );
     expect(
       getPlannedDays({
-        employeeId: "e-etp-s1",
+        employeeId: "emp0126",
         from: "2026-10-05",
         to: "2026-10-05",
       })[0].plannedCode,
@@ -393,14 +423,14 @@ describe("shift change guards", () => {
 
   it("refuses a change that breaks minimum rest", () => {
     const day = getPlannedDays({
-      employeeId: "e-etp-s2",
+      employeeId: "emp0127",
       from: "2026-09-24",
       to: "2026-09-24",
     })[0];
     expect(day.plannedCode).toBe("B");
     const req = createChangeRequest({
-      employeeId: "e-etp-s2",
-      employeeName: "Rohan Deshmukh",
+      employeeId: "emp0127",
+      employeeName: "Rohit Kumar Singh",
       siteId: "s-etp",
       date: "2026-09-24",
       fromShiftId: day.plannedShiftId,
@@ -418,7 +448,7 @@ describe("shift change guards", () => {
     );
     expect(
       getPlannedDays({
-        employeeId: "e-etp-s2",
+        employeeId: "emp0127",
         from: "2026-09-24",
         to: "2026-09-24",
       })[0].plannedCode,
@@ -428,8 +458,8 @@ describe("shift change guards", () => {
 
 describe("monthly schedule draft and publish", () => {
   function smallDraft(codes: RotationAssignmentCell[] = [
-    { employeeId: "e-etp-s1", date: "2026-10-02", code: "A" },
-    { employeeId: "e-etp-s1", date: "2026-10-03", code: "A" },
+    { employeeId: "emp0126", date: "2026-10-02", code: "A" },
+    { employeeId: "emp0126", date: "2026-10-03", code: "A" },
   ]) {
     return submitMonthlyScheduleDraft({
       siteId: "s-etp",
@@ -447,15 +477,16 @@ describe("monthly schedule draft and publish", () => {
       remark: "Looks fine",
       outcome: "approved",
     });
-    markRotationScheduleViewed(draftId, "admin");
+    markRotationScheduleViewed(draftId, "director");
     return adminDecideRotation(draftId, {
       by: "Admin",
       remark: "Publish",
       outcome: "approved",
+      acknowledgeOt: true,
     });
   }
 
-  it("lets SIC submit a draft while manager/admin gates stay separate", () => {
+  it("lets SIC submit a draft while manager/director gates stay separate", () => {
     expect(canGenerateRotation(session("shift_incharge"))).toBe(true);
     expect(canAdminFinalizeRotation(session("shift_incharge"))).toBe(false);
 
@@ -465,10 +496,10 @@ describe("monthly schedule draft and publish", () => {
     expect(getRotationPreviews().some((p) => p.id === draft.id)).toBe(true);
   });
 
-  it("requires view + remarks; admin publish rewrites planned days", () => {
+  it("requires view + remarks; director publish rewrites planned days", () => {
     const draft = smallDraft([
-      { employeeId: "e-etp-s1", date: "2026-10-02", code: "G" },
-      { employeeId: "e-etp-s1", date: "2026-10-03", code: "G" },
+      { employeeId: "emp0126", date: "2026-10-02", code: "G" },
+      { employeeId: "emp0126", date: "2026-10-03", code: "G" },
     ]);
 
     expect(() =>
@@ -494,7 +525,7 @@ describe("monthly schedule draft and publish", () => {
       outcome: "approved",
     });
     expect(getRotationPreviews().find((p) => p.id === draft.id)?.status).toBe(
-      "pending_admin",
+      "pending_director",
     );
 
     expect(() =>
@@ -505,16 +536,17 @@ describe("monthly schedule draft and publish", () => {
       }),
     ).toThrow(/View the schedule/);
 
-    markRotationScheduleViewed(draft.id, "admin");
+    markRotationScheduleViewed(draft.id, "director");
     adminDecideRotation(draft.id, {
       by: "Admin",
       remark: "Live",
       outcome: "approved",
+      acknowledgeOt: true,
     });
 
     expect(
       getPlannedDays({
-        employeeId: "e-etp-s1",
+        employeeId: "emp0126",
         from: "2026-10-02",
         to: "2026-10-02",
       })[0].plannedCode,
@@ -532,8 +564,8 @@ describe("monthly schedule draft and publish", () => {
 
   it("blocks draft submit when rest or covering leave needs attention", () => {
     const restClash: RotationAssignmentCell[] = [
-      { employeeId: "e-etp-s1", date: "2026-10-02", code: "C" },
-      { employeeId: "e-etp-s1", date: "2026-10-03", code: "A" },
+      { employeeId: "emp0126", date: "2026-10-02", code: "C" },
+      { employeeId: "emp0126", date: "2026-10-03", code: "A" },
     ];
     expect(
       validateScheduleAssignments("s-etp", restClash).some(
@@ -550,7 +582,7 @@ describe("monthly schedule draft and publish", () => {
     ).toThrow(/conflict/);
 
     const leave = fileLeave({
-      employeeId: "e-etp-s1",
+      employeeId: "emp0126",
       entrySource: "employee",
       enteredByRole: "employee",
       startDate: "2026-10-06",
@@ -560,7 +592,7 @@ describe("monthly schedule draft and publish", () => {
     coverAndApprove(leave.id);
 
     const leaveClash: RotationAssignmentCell[] = [
-      { employeeId: "e-etp-s1", date: "2026-10-06", code: "A" },
+      { employeeId: "emp0126", date: "2026-10-06", code: "A" },
     ];
     expect(
       validateScheduleAssignments("s-etp", leaveClash).some(
