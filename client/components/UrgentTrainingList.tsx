@@ -1,105 +1,61 @@
 "use client";
 
 import Link from "next/link";
-import { Tag } from "antd";
+import { theme } from "antd";
 import { getSession } from "@/lib/auth";
-import type { TrainingPriority } from "@/lib/mock-data";
-import { getUrgentTrainingItems } from "@/lib/training";
+import { getUrgentTrainingItems, useTrainingData } from "@/lib/training";
 import { scopedSiteId } from "@/lib/rbac";
-import { nectarColors } from "@/lib/theme";
+import { Dot, Quiet, Section } from "@/components/quiet";
 
-const priorityColor: Record<TrainingPriority, string> = {
-  critical: nectarColors.alert,
-  high: "#D97706",
-  medium: nectarColors.sky,
-  low: nectarColors.muted,
-};
-
+/** Overdue and soon-due training from the training records (database), most urgent first. */
 export default function UrgentTrainingList() {
+  const { token } = theme.useToken();
+  const { ready, version } = useTrainingData();
+  void version; // re-render when training data reloads
   const session = getSession();
   const siteScope = scopedSiteId(session);
-  const items = getUrgentTrainingItems(siteScope).slice(0, 6);
+  const all = getUrgentTrainingItems(siteScope);
+  const items = all.slice(0, 6);
 
   return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-        height: "100%",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          color: nectarColors.ink,
-          marginBottom: 4,
-        }}
-      >
-        Urgent training
-      </div>
-      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 13 }}>
-        Overdue and soon-due certifications by site priority.
-      </p>
-
-      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-        {items.map((item) => (
-          <li
-            key={item.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              padding: "12px 0",
-              borderBottom: `1px solid ${nectarColors.sand}`,
-            }}
-          >
-            <div style={{ minWidth: 0 }}>
-              <Link
-                href={`/employees/${item.employeeId}`}
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: nectarColors.leaf,
-                  textDecoration: "none",
-                }}
-              >
-                {item.employeeName}
-              </Link>
-              <div style={{ fontSize: 12, color: nectarColors.muted }}>
-                {item.course} · {item.siteName}
-              </div>
-            </div>
-            <div
+    <Section title="Urgent training" extra={all.length > items.length ? `${items.length} of ${all.length}` : undefined} flush>
+      {items.length ? (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {items.map((item, i) => (
+            <li
+              key={item.id}
               style={{
                 display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-end",
-                gap: 4,
-                flexShrink: 0,
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 16px",
+                borderTop: i ? `1px solid ${token.colorSplit}` : undefined,
               }}
             >
-              <Tag
-                color={priorityColor[item.priority]}
-                style={{ margin: 0, border: "none" }}
-              >
-                {item.priority}
-              </Tag>
-              <span
-                style={{
-                  fontSize: 11,
-                  color:
-                    item.status === "overdue"
-                      ? nectarColors.alert
-                      : nectarColors.muted,
-                }}
-              >
-                {item.status === "overdue" ? "Overdue" : "Due"} {item.dueDate}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+              <div style={{ minWidth: 0, lineHeight: 1.35 }}>
+                <Link href={`/employees/${item.employeeId}`} style={{ fontWeight: 500, color: token.colorText }}>
+                  {item.employeeName}
+                </Link>
+                <div style={{ fontSize: 13, color: token.colorTextSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {item.course} · {item.siteName}
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0, lineHeight: 1.35, fontSize: 13 }}>
+                <Dot
+                  color={item.status === "overdue" ? token.colorError : token.colorWarning}
+                  label={item.status === "overdue" ? "Overdue" : "Due soon"}
+                />
+                <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{item.dueDate}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div style={{ padding: 16 }}>
+          <Quiet>{ready ? "Nothing overdue or due in the next two weeks." : "Loading…"}</Quiet>
+        </div>
+      )}
+    </Section>
   );
 }

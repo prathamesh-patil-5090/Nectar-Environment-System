@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { App, Button, Empty, Listy, Tag } from "antd";
@@ -18,6 +18,14 @@ import {
 } from "@/lib/overtime";
 import { selfEmployeeId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Mb12, sWhitePadR10 } from "@/lib/styles";
+import {
+  getServerNotifications,
+  markAllServerNotificationsRead,
+  markServerNotificationRead,
+} from "@/lib/api/training";
+import type { ServerNotification } from "@/lib/training/types";
+import { personIdOf } from "@/lib/training/identity";
 
 const kindLabel: Record<AppNotification["kind"], string> = {
   leave_consent: "Leave consent",
@@ -38,32 +46,22 @@ function NotificationRow({
   return (
     <div
       style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 12,
-        alignItems: "flex-start",
-        padding: "12px 0",
+        display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", padding: "12px 0",
         borderBottom: `1px solid ${nectarColors.sand}`,
       }}
     >
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>
           {!item.read ? (
-            <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>
-              New
-            </Tag>
+            <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>New</Tag>
           ) : null}
           {item.title}
           <Tag style={{ marginLeft: 8 }}>{kindLabel[item.kind]}</Tag>
         </div>
         <div style={{ fontSize: 13, color: nectarColors.ink }}>{item.body}</div>
-        <div style={{ fontSize: 11, marginTop: 4, color: nectarColors.muted }}>
-          {item.createdAt.slice(0, 16).replace("T", " ")}
-        </div>
+        <div style={{ fontSize: 11, marginTop: 4, color: nectarColors.muted }}>{item.createdAt.slice(0, 16).replace("T", " ")}</div>
       </div>
-      <Button type="link" onClick={onOpen}>
-        Open
-      </Button>
+      <Button type="link" onClick={onOpen}>Open</Button>
     </div>
   );
 }
@@ -78,32 +76,109 @@ function OtRow({
   return (
     <div
       style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 12,
-        alignItems: "flex-start",
-        padding: "12px 0",
+        display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", padding: "12px 0",
         borderBottom: `1px solid ${nectarColors.sand}`,
       }}
     >
       <div>
-        <div style={{ fontWeight: 600 }}>
-          {item.date} · {item.hours}h · <Tag>{item.status}</Tag>
-        </div>
-        <div style={{ fontSize: 13, color: nectarColors.muted }}>
-          {item.reason} — assigned by {item.assignedBy}
-        </div>
+        <div style={{ fontWeight: 600 }}>{item.date} · {item.hours}h · <Tag>{item.status}</Tag></div>
+        <div style={{ fontSize: 13, color: nectarColors.muted }}>{item.reason} — assigned by {item.assignedBy}</div>
         {item.notes ? (
-          <div style={{ fontSize: 12, color: nectarColors.muted, marginTop: 4 }}>
-            {item.notes}
-          </div>
+          <div style={{ fontSize: 12, color: nectarColors.muted, marginTop: 4 }}>{item.notes}</div>
         ) : null}
       </div>
       {item.status === "assigned" ? (
-        <Button type="primary" size="small" onClick={onAck}>
-          Acknowledge
-        </Button>
+        <Button type="primary" size="small" onClick={onAck}>Acknowledge</Button>
       ) : null}
+    </div>
+  );
+}
+
+const serverKindLabel = (kind: string) =>
+  kind.startsWith("safety_")
+    ? "Safety"
+    : kind.startsWith("event_")
+      ? "Events"
+      : kind.startsWith("assessment_")
+        ? "Assessment"
+        : "Training";
+
+/** Server-side notifications (training, events, flags, certificates). */
+function ServerInbox({ personId }: { personId: string }) {
+  const router = useRouter();
+  const [rows, setRows] = useState<ServerNotification[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = () =>
+    getServerNotifications(personId)
+      .then((r) => {
+        setRows(r);
+        setError(null);
+      })
+      .catch((e: Error) => setError(e.message));
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personId]);
+  const changed = () => window.dispatchEvent(new Event("server-notifications-changed"));
+
+  return (
+    <div style={sWhitePadR10}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={sSerifText18Mb12}>Training &amp; events</div>
+        <Button
+          size="small"
+          onClick={async () => {
+            await markAllServerNotificationsRead(personId).catch(() => {});
+            void load();
+            changed();
+          }}
+        >
+          Mark all read
+        </Button>
+      </div>
+      {error ? (
+        <Empty description={`Couldn't load: ${error}`} />
+      ) : rows === null ? (
+        <Empty description="Loading…" />
+      ) : rows.length === 0 ? (
+        <Empty description="No training or event notifications" />
+      ) : (
+        <Listy
+          items={rows}
+          rowKey="id"
+          itemRender={(item) => (
+            <div
+              style={{
+                display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", padding: "12px 0",
+                borderBottom: `1px solid ${nectarColors.sand}`,
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  {!item.read ? <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>New</Tag> : null}
+                  {item.title}
+                  <Tag style={{ marginLeft: 8 }}>{serverKindLabel(item.kind)}</Tag>
+                </div>
+                <div style={{ fontSize: 13, color: nectarColors.ink, whiteSpace: "pre-wrap" }}>{item.body}</div>
+                <div style={{ fontSize: 11, marginTop: 4, color: nectarColors.muted }}>
+                  {new Date(item.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
+                </div>
+              </div>
+              <Button
+                type="link"
+                onClick={async () => {
+                  await markServerNotificationRead(item.id).catch(() => {});
+                  changed();
+                  if (item.href) router.push(item.href);
+                  else void load();
+                }}
+              >
+                Open
+              </Button>
+            </div>
+          )}
+        />
+      )}
     </div>
   );
 }
@@ -125,22 +200,21 @@ export default function NotificationsPage() {
     return empId ? getOtAssignments({ employeeId: empId }) : [];
   }, [empId, tick]);
 
+  const personId = personIdOf(session);
   if (!empId) {
-    return (
-      <Empty description="Notifications require an employee profile on your login." />
+    // Non-employees (e.g. the Director) only have server notifications
+    return personId ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <ServerInbox personId={personId} />
+      </div>
+    ) : (
+      <Empty description="Notifications require a profile on your login." />
     );
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
           Leave consent, leave decisions, and OT assignments for your employee
           record.
@@ -155,22 +229,10 @@ export default function NotificationsPage() {
         </Button>
       </div>
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Inbox
-        </div>
+      <ServerInbox personId={empId} />
+
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Inbox</div>
         {notifications.length === 0 ? (
           <Empty description="No notifications yet" />
         ) : (
@@ -191,22 +253,8 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          My OT assignments
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>My OT assignments</div>
         {otAssignments.length === 0 ? (
           <Empty description="No OT assignments" />
         ) : (

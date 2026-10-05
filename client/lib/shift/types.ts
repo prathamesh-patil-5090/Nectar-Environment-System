@@ -71,7 +71,7 @@ export type RotationDecision = {
 export type RotationPreviewStatus =
   | "draft"
   | "pending_manager"
-  | "pending_admin"
+  | "pending_director"
   | "active"
   | "rejected";
 
@@ -90,9 +90,9 @@ export type RotationPreview = {
   assignments?: RotationAssignmentCell[];
   label?: string;
   managerViewedAt?: string;
-  adminViewedAt?: string;
+  directorViewedAt?: string;
   managerDecision?: RotationDecision;
-  adminDecision?: RotationDecision;
+  directorDecision?: RotationDecision;
 };
 
 export type ShiftChangeRequest = {

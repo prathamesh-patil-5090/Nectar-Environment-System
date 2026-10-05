@@ -7,8 +7,6 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={null}>
-      <AppShell>{children}</AppShell>
-    </Suspense>
+    <Suspense fallback={null}><AppShell>{children}</AppShell></Suspense>
   );
 }

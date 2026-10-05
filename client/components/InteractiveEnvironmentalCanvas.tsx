@@ -359,22 +359,9 @@ export default function InteractiveEnvironmentalCanvas({
   return (
     <div
       aria-hidden="true"
-      style={{
-        position: "absolute",
-        inset: 0,
-        overflow: "hidden",
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
+      style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}
     >
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: "block",
-          width: "100%",
-          height: "100%",
-        }}
-      />
+      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
 
       {/* Fine-grain tactile film noise overlay to eliminate banding and add physical texture */}
       <div

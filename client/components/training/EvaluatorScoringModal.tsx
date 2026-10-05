@@ -10,11 +10,16 @@ import {
   FileProtectOutlined,
 } from "@ant-design/icons";
 import type { Course, CourseEnrollment, AbilityScore } from "@/lib/training/types";
-import {
-  submitPracticalAssessment,
-  submitOralAssessment,
-} from "@/lib/training/store";
+import { evaluatePractical, evaluateOral } from "@/lib/training/store";
 import { nectarColors } from "@/lib/theme";
+import type { CSSProperties } from "react";
+
+const sWhitePadR10Border2: CSSProperties = {
+  background: "#FFFFFF",
+  border: "1px solid rgba(28, 68, 99, 0.12)",
+  borderRadius: 10,
+  padding: "16px 18px",
+};
 
 interface EvaluatorScoringModalProps {
   enrollment: CourseEnrollment | null;
@@ -22,7 +27,8 @@ interface EvaluatorScoringModalProps {
   course: Course | null;
   type: "practical" | "oral";
   evaluatorName?: string;
-  evaluatorId?: string;
+  /** Logged-in evaluator (Director or the learner's allotted manager — checked by the server) */
+  evaluatorId: string;
   onClose: () => void;
   onSubmitted: () => void;
 }
@@ -40,8 +46,8 @@ export default function EvaluatorScoringModal({
   candidateName,
   course,
   type,
-  evaluatorName = "Rajesh Kulkarni (Plant Manager)",
-  evaluatorId = "e-mgr-1",
+  evaluatorName,
+  evaluatorId,
   onClose,
   onSubmitted,
 }: EvaluatorScoringModalProps) {
@@ -61,6 +67,7 @@ export default function EvaluatorScoringModal({
 
   const [remarks, setRemarks] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   if (!enrollment || !course) return null;
 
@@ -69,36 +76,26 @@ export default function EvaluatorScoringModal({
   const maxPossible = course.abilities.length * 5;
   const computedPct = Math.round((totalPoints / maxPossible) * 1000) / 10;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const scoreItems: AbilityScore[] = course.abilities.map((a) => ({
       abilityId: a.id,
       abilityTitle: a.title,
       score: scores[a.id] || 4,
-      remark: remarks[a.id] || "Demonstrated required plant competence under supervision.",
+      remark: remarks[a.id] ?? "",
     }));
-
-    if (isPractical) {
-      submitPracticalAssessment(
-        enrollment.id,
-        evaluatorId,
-        evaluatorName,
-        scoreItems,
-        generalNotes,
+    setSaving(true);
+    try {
+      const res = await (isPractical ? evaluatePractical : evaluateOral)(enrollment.id, evaluatorId, scoreItems, generalNotes);
+      message.success(
+        `${isPractical ? "Practical" : "Oral viva"} scored (${res.result.overallPct}%).${res.certificate ? ` Certificate ${res.certificate.certificateNo} issued.` : ""}`,
       );
-      message.success(`Practical field evaluation scored (${computedPct}%). Ledger updated!`);
-    } else {
-      submitOralAssessment(
-        enrollment.id,
-        evaluatorId,
-        evaluatorName,
-        scoreItems,
-        generalNotes,
-      );
-      message.success(`Oral technical interview evaluation scored (${computedPct}%). Ledger updated!`);
+      onSubmitted();
+      onClose();
+    } catch (err) {
+      message.error((err as Error).message);
+    } finally {
+      setSaving(false);
     }
-
-    onSubmitted();
-    onClose();
   };
 
   return (
@@ -123,95 +120,53 @@ export default function EvaluatorScoringModal({
         {/* Candidate & Evaluator Matrix Banner */}
         <div
           style={{
-            background: nectarColors.sand,
-            border: "1px solid rgba(28, 68, 99, 0.08)",
-            borderRadius: 10,
-            padding: "14px 18px",
-            display: "grid",
-            gridTemplateColumns: "1.4fr 1.2fr 1fr",
-            gap: 16,
-            fontSize: 12,
+            background: nectarColors.sand, border: "1px solid rgba(28, 68, 99, 0.08)", borderRadius: 10,
+            padding: "14px 18px", display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1fr", gap: 16, fontSize: 12,
             marginBottom: 20,
           }}
         >
           <div>
-            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>
-              CANDIDATE OPERATOR
-            </span>
-            <span style={{ fontWeight: 700, fontSize: 13, color: nectarColors.ink }}>
-              {candidateName}
-            </span>
-            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
-              Course: {course.title}
-            </div>
+            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>CANDIDATE OPERATOR</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: nectarColors.ink }}>{candidateName}</span>
+            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Course: {course.title}</div>
           </div>
 
           <div>
-            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>
-              OFFICIAL EVALUATOR
-            </span>
-            <span style={{ fontWeight: 600, color: nectarColors.ink }}>
-              {evaluatorName}
-            </span>
-            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
-              Role: Site Manager / O&M Assessor
-            </div>
+            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>OFFICIAL EVALUATOR</span>
+            <span style={{ fontWeight: 600, color: nectarColors.ink }}>{evaluatorName}</span>
+            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Role: Plant Operations Manager (Authorized Assessor)</div>
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>
-              LIVE RESULT PREVIEW
-            </span>
+            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>LIVE RESULT PREVIEW</span>
             <span
               style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: computedPct >= 70 ? "#166534" : "#D97706",
+                fontSize: 20, fontWeight: 700, color: computedPct >= 70 ? "#166534" : "#D97706",
                 fontFamily: "var(--font-fraunces), Georgia, serif",
               }}
             >
               {computedPct}%
             </span>
-            <div style={{ fontSize: 11, color: nectarColors.muted }}>
-              {totalPoints} / {maxPossible} Points
-            </div>
+            <div style={{ fontSize: 11, color: nectarColors.muted }}>{totalPoints} / {maxPossible} Points</div>
           </div>
         </div>
 
         {/* Evaluation Rubrics per Ability */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20, maxHeight: 420, overflowY: "auto", paddingRight: 6 }}>
           {course.abilities.map((ab, idx) => (
-            <div
-              key={ab.id}
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid rgba(28, 68, 99, 0.12)",
-                borderRadius: 10,
-                padding: "16px 18px",
-              }}
-            >
+            <div key={ab.id} style={sWhitePadR10Border2}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf }}>
-                    ABILITY {ab.code}
-                  </span>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginTop: 2 }}>
-                    {ab.title}
-                  </div>
-                  <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
-                    {ab.description}
-                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf }}>ABILITY {ab.code}</span>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginTop: 2 }}>{ab.title}</div>
+                  <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{ab.description}</div>
                 </div>
-                <Tag color="blue" style={{ borderRadius: 8, fontSize: 11, margin: 0 }}>
-                  Rating: {scores[ab.id]}/5
-                </Tag>
+                <Tag color="blue" style={{ borderRadius: 8, fontSize: 11, margin: 0 }}>Rating: {scores[ab.id]}/5</Tag>
               </div>
 
               {/* 1 to 5 Radio Buttons */}
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: nectarColors.muted, marginBottom: 6 }}>
-                  {isPractical ? "Demonstrated Field Performance:" : "Technical Articulation & Understanding:"}
-                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: nectarColors.muted, marginBottom: 6 }}>{isPractical ? "Demonstrated Field Performance:" : "Technical Articulation & Understanding:"}</div>
                 <Radio.Group
                   value={scores[ab.id]}
                   onChange={(e) =>
@@ -225,13 +180,7 @@ export default function EvaluatorScoringModal({
                     <Radio.Button
                       key={num}
                       value={num}
-                      style={{
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: "0 12px",
-                        textAlign: "center",
-                      }}
+                      style={{ borderRadius: 6, fontSize: 12, fontWeight: 600, padding: "0 12px", textAlign: "center" }}
                     >
                       {num} {num === 3 ? "(Standard)" : num === 5 ? "(Exemplary)" : ""}
                     </Radio.Button>
@@ -275,18 +224,11 @@ export default function EvaluatorScoringModal({
                       key={chip}
                       onClick={() => {
                         const curr = remarks[ab.id] || "";
-                        setRemarks({
-                          ...remarks,
-                          [ab.id]: curr ? `${curr}; ${chip}` : chip,
-                        });
+                        setRemarks({ ...remarks, [ab.id]: curr ? `${curr}; ${chip}` : chip });
                       }}
                       style={{
-                        cursor: "pointer",
-                        fontSize: 10,
-                        padding: "1px 8px",
-                        borderRadius: 10,
-                        border: "1px dashed #CBD5E1",
-                        background: "#F8FAFC",
+                        cursor: "pointer", fontSize: 10, padding: "1px 8px", borderRadius: 10,
+                        border: "1px dashed #CBD5E1", background: "#F8FAFC",
                       }}
                     >
                       {chip}
@@ -298,17 +240,8 @@ export default function EvaluatorScoringModal({
           ))}
 
           {/* General Notes */}
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid rgba(28, 68, 99, 0.12)",
-              borderRadius: 10,
-              padding: "16px 18px",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 6 }}>
-              Overall Evaluator Concluding Remarks & Sign-off
-            </div>
+          <div style={sWhitePadR10Border2}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 6 }}>Overall Evaluator Concluding Remarks & Sign-off</div>
             <Input.TextArea
               rows={2}
               placeholder="Summary observations, recommendations for ongoing shift supervision..."
@@ -322,28 +255,19 @@ export default function EvaluatorScoringModal({
         {/* Modal Bottom Actions */}
         <div
           style={{
-            marginTop: 20,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingTop: 14,
+            marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14,
             borderTop: "1px solid rgba(28, 68, 99, 0.08)",
           }}
         >
-          <div style={{ fontSize: 12, color: nectarColors.muted }}>
-            Submitting seals score into the 4-tier competency ledger.
-          </div>
+          <div style={{ fontSize: 12, color: nectarColors.muted }}>Submitting seals score into the 4-tier competency ledger.</div>
 
           <div style={{ display: "flex", gap: 10 }}>
             <Button onClick={onClose}>Cancel</Button>
             <Button
               type="primary"
               onClick={handleSubmit}
-              style={{
-                borderRadius: 8,
-                fontWeight: 600,
-                background: nectarColors.leaf,
-              }}
+              loading={saving}
+              style={{ borderRadius: 8, fontWeight: 600, background: nectarColors.leaf }}
             >
               Confirm & Save Assessment ({computedPct}%)
             </Button>

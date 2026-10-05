@@ -1,148 +1,37 @@
 "use client";
 
+import { theme } from "antd";
 import { skillLabels, skillMatrix, type SkillKey } from "@/lib/mock-data";
-import { nectarColors } from "@/lib/theme";
+import { Section } from "@/components/quiet";
 
 const skillKeys = Object.keys(skillLabels) as SkillKey[];
 
-function cellColor(score: number): string {
-  if (score >= 85) return "rgba(28, 68, 99, 0.35)";
-  if (score >= 70) return "rgba(28, 68, 99, 0.18)";
-  if (score >= 55) return "rgba(196, 92, 38, 0.16)";
-  return "rgba(196, 92, 38, 0.32)";
-}
-
+/**
+ * Skill matrix: rows are job roles, columns are skills, cells are the expected strength (0–100) for that kind of job.
+ * Plain numbers; only weak cells are coloured (amber 55–69, red below 55) so the gaps are what you see.
+ */
 export default function SkillHeatmap() {
-  return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-        height: "100%",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          color: nectarColors.ink,
-          marginBottom: 4,
-        }}
-      >
-        Skill mapping
-      </div>
-      <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
-        This is the <strong>skill matrix</strong> for O&amp;M (Operations &amp;
-        Maintenance): rows = job roles, columns = skills, cells = expected
-        strength 0–100. It answers “what is this <em>kind of job</em> good at?”
-        — not one named person.
-      </p>
-      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
-        Example: Shift Employee is strong on Safety (90) but weaker on
-        Maintenance (58). When planning leave cover, prefer someone whose role
-        (or personal skill map) is strong on the skill you need.
-      </p>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 10,
-          marginBottom: 12,
-          fontSize: 11,
-          color: nectarColors.muted,
-        }}
-      >
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(28, 68, 99, 0.35)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          ≥85 strong
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(28, 68, 99, 0.18)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          70–84 OK
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(196, 92, 38, 0.16)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          55–69 watch
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              background: "rgba(196, 92, 38, 0.32)",
-              marginRight: 4,
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          />
-          &lt;55 gap
-        </span>
-      </div>
+  const { token } = theme.useToken();
+  const cell = (score: number) =>
+    score < 55
+      ? { color: token.colorError, background: token.colorErrorBg }
+      : score < 70
+        ? { color: token.colorWarningText, background: token.colorWarningBg }
+        : { color: token.colorText, background: "transparent" };
 
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 4,
-            minWidth: 520,
-          }}
-        >
+  return (
+    <Section title="Skill matrix" extra="Expected strength by role, 0–100" flush>
+      <div style={{ padding: "12px 16px 0", fontSize: 13, color: token.colorTextSecondary }}>
+        What each kind of job is expected to be good at, not one named person. When planning leave cover, prefer a role that is
+        strong on the skill you need.
+      </div>
+      <div style={{ overflowX: "auto", padding: "8px 8px 12px" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560, fontSize: 13 }}>
           <thead>
             <tr>
-              <th
-                style={{
-                  textAlign: "left",
-                  fontWeight: 500,
-                  fontSize: 12,
-                  color: nectarColors.muted,
-                  padding: "4px 8px",
-                }}
-              >
-                Role
-              </th>
+              <th style={{ textAlign: "left", fontWeight: 500, color: token.colorTextSecondary, padding: "8px" }}>Role</th>
               {skillKeys.map((key) => (
-                <th
-                  key={key}
-                  style={{
-                    fontWeight: 500,
-                    fontSize: 11,
-                    color: nectarColors.muted,
-                    padding: "4px 6px",
-                    textAlign: "center",
-                  }}
-                >
+                <th key={key} style={{ fontWeight: 500, color: token.colorTextSecondary, padding: "8px 6px", textAlign: "right" }}>
                   {skillLabels[key]}
                 </th>
               ))}
@@ -150,36 +39,26 @@ export default function SkillHeatmap() {
           </thead>
           <tbody>
             {skillMatrix.map((row) => (
-              <tr key={row.role}>
-                <td
-                  style={{
-                    fontSize: 13,
-                    color: nectarColors.ink,
-                    padding: "4px 8px",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {row.role}
-                </td>
+              <tr key={row.role} style={{ borderTop: `1px solid ${token.colorSplit}` }}>
+                <td style={{ color: token.colorText, padding: "8px", whiteSpace: "nowrap" }}>{row.role}</td>
                 {skillKeys.map((key) => {
                   const score = row[key];
+                  const c = cell(score);
                   return (
-                    <td key={key} style={{ padding: 0 }}>
-                      <div
+                    <td key={key} style={{ padding: "4px 6px", textAlign: "right" }}>
+                      <span
                         title={`${row.role} · ${skillLabels[key]}: ${score}`}
                         style={{
-                          background: cellColor(score),
-                          color: nectarColors.ink,
-                          textAlign: "center",
-                          fontSize: 12,
-                          fontVariantNumeric: "tabular-nums",
-                          fontWeight: 600,
-                          padding: "10px 6px",
+                          display: "inline-block",
+                          minWidth: 34,
+                          padding: "2px 6px",
                           borderRadius: 4,
+                          fontVariantNumeric: "tabular-nums",
+                          ...c,
                         }}
                       >
                         {score}
-                      </div>
+                      </span>
                     </td>
                   );
                 })}
@@ -188,6 +67,6 @@ export default function SkillHeatmap() {
           </tbody>
         </table>
       </div>
-    </div>
+    </Section>
   );
 }

@@ -1,223 +1,144 @@
 "use client";
 
-import Link from "next/link";
-import { Descriptions, Tag } from "antd";
-import KpiStat from "@/components/KpiStat";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Spin, theme } from "antd";
 import SkillHeatmap from "@/components/SkillHeatmap";
 import UrgentTrainingList from "@/components/UrgentTrainingList";
 import SiteReadiness from "@/components/SiteReadiness";
-import { getSession } from "@/lib/auth";
-import {
-  getDashboardKpis,
-  getEmployeeById,
-  getSiteById,
-  getSiteName,
-} from "@/lib/mock-data";
-import { getCertificatesForEmployee } from "@/lib/certificates";
-import {
-  formatInrAmount,
-  getSalaryHistory,
-  salaryMonthLabel,
-} from "@/lib/salary";
-import { getUnreadCount } from "@/lib/notifications";
-import { getOtAssignments } from "@/lib/overtime";
-import {
-  normalizeRole,
-  roleLabel,
-  scopedSiteId,
-  selfEmployeeId,
-} from "@/lib/rbac";
-import {
-  countComplianceReadySites,
-  getSkillCoveragePct,
-} from "@/lib/workforce-metrics";
-import { nectarColors } from "@/lib/theme";
-
+import SafetySummaryPanel from "@/components/safety/SafetySummaryPanel";
 import EmployeeDashboardView from "@/components/dashboard/EmployeeDashboardView";
+import { NumberRow } from "@/components/quiet";
+import { getSession } from "@/lib/auth";
+import { getEmployeeById, getEmployees } from "@/lib/api/employees";
+import { getSites } from "@/lib/api/sites";
+import type { Employee } from "@/lib/types/employee.types";
+import type { Site } from "@/lib/types/site.types";
+import { normalizeRole, roleLabel, scopedSiteId, selfEmployeeId } from "@/lib/rbac";
+import { getUrgentTrainingItems, useTrainingData } from "@/lib/training";
+import { READINESS_READY_THRESHOLD, countComplianceReadySites } from "@/lib/workforce-metrics";
+import { useDashboardMotion } from "@/lib/motion/use-dashboard-motion";
 
-function dashboardSubtitle(
-  role: ReturnType<typeof normalizeRole>,
-  siteScope?: string,
-) {
-  if (role === "admin") {
-    return "Organization-wide workforce posture across ETP, RO and MEE plants.";
-  }
-  if (role === "manager" && siteScope) {
-    return `${getSiteName(siteScope)} — plant management dashboard.`;
-  }
-  if (role === "shift_incharge" && siteScope) {
-    return `${getSiteName(siteScope)} — shift coordination & deployment.`;
-  }
-  if (role === "supervisor" && siteScope) {
-    return `${getSiteName(siteScope)} — team & plant day-to-day view.`;
-  }
-  if (role === "employee") {
-    return "Your personal workforce console & shift overview.";
-  }
-  return "O&M workforce posture across active treatment plants.";
-}
+type Reporting = { manager?: Employee; sic?: Employee; supervisor?: Employee };
 
 export default function DashboardPage() {
+  const { token } = theme.useToken();
   const session = getSession();
   const siteScope = scopedSiteId(session);
-  const baseKpis = getDashboardKpis(siteScope);
-  const kpis = {
-    ...baseKpis,
-    skillCoverage: getSkillCoveragePct(siteScope),
-    complianceReadySites: countComplianceReadySites(siteScope),
-  };
   const role = normalizeRole(session?.role);
   const empId = selfEmployeeId(session);
-  const employee = empId ? getEmployeeById(empId) : undefined;
-  const site = employee ? getSiteById(employee.siteId) : undefined;
+  const isEmployee = role === "employee";
 
-  const reporting = employee
-    ? {
-        manager: employee.managerId
-          ? getEmployeeById(employee.managerId)
-          : undefined,
-        sic: employee.shiftInChargeId
-          ? getEmployeeById(employee.shiftInChargeId)
-          : undefined,
-        supervisor: employee.supervisorId
-          ? getEmployeeById(employee.supervisorId)
-          : undefined,
-      }
-    : null;
+  // People and plants come from the database.
+  const [roster, setRoster] = useState<Employee[] | null>(null);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [me, setMe] = useState<Employee | null>(null);
+  const [reporting, setReporting] = useState<Reporting>({});
+  const [error, setError] = useState<string | null>(null);
 
-  const subtitle = dashboardSubtitle(role, siteScope);
-  const isEmployeeView = role === "employee" && employee;
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getEmployees(siteScope), getSites()])
+      .then(([emps, siteList]) => {
+        if (!alive) return;
+        setRoster(emps);
+        setSites(siteList);
+      })
+      .catch((err: Error) => alive && setError(err.message));
+    return () => {
+      alive = false;
+    };
+  }, [siteScope]);
+
+  useEffect(() => {
+    if (!empId) return;
+    let alive = true;
+    getEmployeeById(empId)
+      .then(async (e) => {
+        if (!alive) return;
+        setMe(e);
+        const get = (id?: string) => (id ? getEmployeeById(id).catch(() => undefined) : Promise.resolve(undefined));
+        const [manager, sic, supervisor] = await Promise.all([get(e.managerId), get(e.shiftInChargeId), get(e.supervisorId)]);
+        if (alive) setReporting({ manager, sic, supervisor });
+      })
+      .catch((err: Error) => alive && setError(err.message));
+    return () => {
+      alive = false;
+    };
+  }, [empId]);
+
+  const { version: trainingVersion } = useTrainingData();
+  const urgentTraining = useMemo(() => {
+    void trainingVersion;
+    return getUrgentTrainingItems(siteScope).length;
+  }, [siteScope, trainingVersion]);
+
+  const active = (roster ?? []).filter((e) => e.employmentStatus === "active");
+  const skillCoverage = active.length ? Math.round(active.reduce((s, e) => s + e.skillScore, 0) / active.length) : 0;
+  const plants = sites.filter((s) => (s.status ?? "operational") === "operational" && (!siteScope || s.id === siteScope));
+  const readySites = countComplianceReadySites(siteScope);
+  const site = sites.find((s) => s.id === (me?.siteId ?? siteScope));
+
+  const ready = isEmployee ? Boolean(me) : roster !== null;
+  const pageRef = useDashboardMotion(ready);
+
+  const subtitle =
+    role === "director"
+      ? "Across all running plants."
+      : siteScope
+        ? `${sites.find((s) => s.id === siteScope)?.name ?? "Your plant"}.`
+        : "Across all running plants.";
+
+  if (error && !roster && !me) {
+    return <Alert type="error" showIcon title="Could not load the dashboard" description={error} />;
+  }
+  if (!ready) {
+    return <div style={{ padding: 48, textAlign: "center" }}><Spin /></div>;
+  }
+
+  if (isEmployee && me) {
+    return (
+      <div ref={pageRef}>
+        <EmployeeDashboardView employee={me} site={site} reporting={reporting} />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div>
-        <p
-          style={{
-            margin: 0,
-            color: nectarColors.muted,
-            fontSize: 14,
-          }}
-        >
-          {subtitle}
-          {session ? (
-            <span style={{ marginLeft: 8, opacity: 0.8 }}>
-              · Signed in as {roleLabel(session.role)}
-            </span>
-          ) : null}
-        </p>
+    <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <p data-anim="intro" style={{ margin: 0, fontSize: 14, color: token.colorTextSecondary }}>
+        {subtitle} Signed in as {roleLabel(session?.role)}
+        {me ? ` · ${me.name}` : ""}.
+      </p>
+
+      <div data-anim="intro">
+        <NumberRow
+          items={[
+            { label: "Employees", value: active.length, hint: siteScope ? "On this plant's roster" : "Across all plants" },
+            { label: "Running plants", value: plants.length, hint: plants.map((p) => p.location.split(",")[0]).join(" · ") || undefined },
+            { label: "Average skill score", value: `${skillCoverage}%`, hint: "Active employees" },
+            { label: "Urgent training", value: urgentTraining, hint: "Overdue or due in 2 weeks", alert: urgentTraining > 0 },
+            {
+              label: "Ready plants",
+              value: `${readySites} of ${plants.length}`,
+              hint: `Readiness ${READINESS_READY_THRESHOLD}% or more`,
+              alert: readySites < plants.length,
+            },
+          ]}
+        />
       </div>
 
-      {isEmployeeView ? (
-        <EmployeeDashboardView
-          employee={employee}
-          site={site}
-          reporting={reporting}
-        />
-      ) : (
-        <>
-          {employee && reporting ? (
-            <div
-              style={{
-                background: nectarColors.white,
-                padding: 20,
-                borderRadius: 10,
-                border: "1px solid rgba(28, 68, 99, 0.08)",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--font-fraunces), Georgia, serif",
-                  fontSize: 20,
-                  color: nectarColors.ink,
-                  marginBottom: 4,
-                }}
-              >
-                {employee.name}
-              </div>
-              <p style={{ margin: "0 0 14px", color: nectarColors.muted, fontSize: 13 }}>
-                {employee.designation}
-                {site ? ` · ${site.name} (${site.plantType})` : null}
-                {" · "}
-                {employee.department}
-              </p>
-              <Descriptions
-                size="small"
-                column={{ xs: 1, sm: 2, md: 3 }}
-                title="Appointed under / reporting structure"
-              >
-                <Descriptions.Item label="Manager">
-                  {reporting?.manager?.name ?? (
-                    <span style={{ color: nectarColors.muted }}>You are plant manager</span>
-                  )}
-                </Descriptions.Item>
-                <Descriptions.Item label="Shift In-Charge">
-                  {reporting?.sic?.name ?? "—"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Supervisor">
-                  {reporting?.supervisor?.name ?? "—"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Category">
-                  <Tag>{employee.employeeCategory.replace(/_/g, " ")}</Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Shift">
-                  {employee.shiftId.replace("sh-", "")}
-                </Descriptions.Item>
-                <Descriptions.Item label="Employment">
-                  {employee.employmentStatus} · {employee.employeeType}
-                </Descriptions.Item>
-              </Descriptions>
-            </div>
-          ) : null}
+      <div data-anim="intro">
+        <SafetySummaryPanel siteId={siteScope} />
+      </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 1,
-              background: "rgba(28, 68, 99, 0.06)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
-            <KpiStat
-              label="Total employees"
-              value={kpis.totalEmployees}
-              hint={siteScope ? "Plant roster" : "All plants"}
-            />
-            <KpiStat
-              label="Active sites"
-              value={kpis.activeSites}
-              hint="ETP · RO · MEE"
-              tone="info"
-            />
-            <KpiStat
-              label="Skill coverage"
-              value={`${kpis.skillCoverage}%`}
-              hint="Avg mapped vs required"
-              tone="positive"
-            />
-            <KpiStat
-              label="Urgent training"
-              value={kpis.urgentTraining}
-              hint="Overdue or critical"
-              tone="alert"
-            />
-            <KpiStat
-              label="Compliance-ready sites"
-              value={`${kpis.complianceReadySites}/${kpis.activeSites}`}
-              hint="Readiness ≥ 80%"
-              tone="positive"
-            />
-          </div>
+      <div className="nectar-dash-grid">
+        <UrgentTrainingList />
+        <SiteReadiness sites={plants} />
+      </div>
 
-          <div className="nectar-dash-grid">
-            <SkillHeatmap />
-            <UrgentTrainingList />
-          </div>
-
-          <SiteReadiness />
-        </>
-      )}
+      <div data-anim="intro">
+        <SkillHeatmap />
+      </div>
     </div>
   );
 }

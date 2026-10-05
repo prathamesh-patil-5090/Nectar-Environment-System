@@ -7,14 +7,18 @@ import KpiStat from "@/components/KpiStat";
 import { getSession } from "@/lib/auth";
 import { getSiteName, sites } from "@/lib/mock-data";
 import {
-  detectConflicts,
   getOtByShiftCause,
   getRotationPreviews,
   getShiftDashboardKpis,
   getShiftInsights,
+  TODAY,
+  addDays,
 } from "@/lib/shift";
+import { getManpowerConflictReport } from "@/lib/manpower-conflict";
 import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { gridGap16, gridGap162, rowWrapGap1BgR8 } from "@/lib/styles";
+import Panel from "@/components/Panel";
 
 export default function ShiftsDashboardPage() {
   const session = getSession();
@@ -34,7 +38,11 @@ export default function ShiftsDashboardPage() {
   }, [tick, siteId]);
   const conflicts = useMemo(() => {
     void tick;
-    return detectConflicts(siteId).slice(0, 5);
+    return getManpowerConflictReport({
+      siteId,
+      from: TODAY,
+      to: addDays(TODAY, 10),
+    }).issues.slice(0, 8);
   }, [siteId, tick]);
   const insights = useMemo(() => {
     void tick;
@@ -58,16 +66,7 @@ export default function ShiftsDashboardPage() {
         onChange={setSiteId}
       />
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 1,
-          background: "rgba(28, 68, 99, 0.06)",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div style={rowWrapGap1BgR8}>
         <KpiStat label="Employees today" value={kpis.employeesToday} />
         <KpiStat label="A Shift" value={kpis.aShift} tone="positive" />
         <KpiStat label="B Shift" value={kpis.bShift} tone="info" />
@@ -78,7 +77,7 @@ export default function ShiftsDashboardPage() {
         <KpiStat label="Uncovered positions" value={kpis.uncoveredPositions} tone="alert" />
       </div>
 
-      <div className="nectar-ot-two" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
+      <div className="nectar-ot-two" style={gridGap162}>
         <Panel title="Upcoming rotation">
           <Table
             rowKey="id"
@@ -87,36 +86,22 @@ export default function ShiftsDashboardPage() {
             dataSource={upcoming}
             columns={[
               { title: "Date", dataIndex: "fromDate" },
-              {
-                title: "Site",
-                dataIndex: "siteId",
-                render: (id) => getSiteName(id),
-              },
+              { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
               { title: "Employees", dataIndex: "employeesAffected" },
-              {
-                title: "Shift",
-                key: "rot",
-                render: (_, r) => `${r.fromCode} → ${r.toCode}`,
-              },
-              {
-                title: "Status",
-                dataIndex: "status",
-                render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag>,
-              },
+              { title: "Shift", key: "rot", render: (_, r) => `${r.fromCode} → ${r.toCode}` },
+              { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag> },
               {
                 title: "",
                 key: "act",
                 render: (_, r) => {
                   const open =
                     r.status === "pending_manager" ||
-                    r.status === "pending_admin" ||
+                    r.status === "pending_director" ||
                     r.status === "draft";
                   if (!open) return null;
                   if (siteId && r.siteId !== siteId) return null;
                   return (
-                    <Link href="/shifts/rotation">
-                      <Button size="small">Review on Rotation</Button>
-                    </Link>
+                    <Link href="/shifts/rotation"><Button size="small">Review on Rotation</Button></Link>
                   );
                 },
               },
@@ -124,35 +109,52 @@ export default function ShiftsDashboardPage() {
           />
         </Panel>
 
-        <Panel title="Conflicts">
+        <Panel title="Manpower + Conflict">
           {conflicts.length === 0 ? (
             <div style={{ color: nectarColors.muted, fontSize: 13 }}>
-              No rest / weekly-off conflicts in the next window.
+              No shortages or conflicts in the next window.{" "}
+              <Link href="/shifts/manpower">Open hub</Link>
             </div>
           ) : (
-            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {conflicts.map((c) => (
-                <li
-                  key={c.id}
-                  style={{
-                    padding: "10px 0",
-                    borderBottom: `1px solid ${nectarColors.sand}`,
-                    fontSize: 13,
-                  }}
-                >
-                  <Tag color={c.severity === "attention" ? nectarColors.alert : "#D97706"}>
-                    {c.type}
-                  </Tag>
-                  <strong>{c.employeeName}</strong>
-                  <div style={{ color: nectarColors.muted }}>{c.message}</div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {conflicts.map((c) => (
+                  <li
+                    key={c.id}
+                    style={{
+                      padding: "10px 0",
+                      borderBottom: `1px solid ${nectarColors.sand}`,
+                      fontSize: 13,
+                    }}
+                  >
+                    <Tag
+                      color={
+                        c.severity === "attention"
+                          ? nectarColors.alert
+                          : "#D97706"
+                      }
+                    >
+                      {c.kind.replaceAll("_", " ")}
+                    </Tag>
+                    <strong>{c.title}</strong>
+                    <div style={{ color: nectarColors.muted }}>{c.message}</div>
+                    {c.href ? (
+                      <Link href={c.href} style={{ fontSize: 12 }}>
+                        Open
+                      </Link>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ marginTop: 8 }}>
+                <Link href="/shifts/manpower">View all on Manpower + Conflict</Link>
+              </div>
+            </>
           )}
         </Panel>
       </div>
 
-      <div className="nectar-ot-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="nectar-ot-two" style={gridGap16}>
         <Panel title="OT by cause (shift-linked)">
           <Table
             size="small"
@@ -161,16 +163,10 @@ export default function ShiftsDashboardPage() {
             dataSource={otCause.byCause}
             columns={[
               { title: "Cause", dataIndex: "cause" },
-              {
-                title: "Hours",
-                dataIndex: "hours",
-                render: (h) => `${h} hrs`,
-              },
+              { title: "Hours", dataIndex: "hours", render: (h) => `${h} hrs` },
             ]}
           />
-          <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>
-            Total OT reference: {otCause.totalOt} hrs
-          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>Total OT reference: {otCause.totalOt} hrs</div>
         </Panel>
         <Panel title="Insights">
           <div style={{ fontSize: 13, marginBottom: 10 }}>
@@ -184,43 +180,10 @@ export default function ShiftsDashboardPage() {
             </div>
           ))}
           {insights.siteIssues.slice(0, 2).map((s) => (
-            <div key={s.siteId} style={{ fontSize: 12, color: nectarColors.muted }}>
-              {s.siteName}: {s.deviations} deviations · {s.otHoursAssociated} OT hrs
-            </div>
+            <div key={s.siteId} style={{ fontSize: 12, color: nectarColors.muted }}>{s.siteName}: {s.deviations} deviations · {s.otHoursAssociated} OT hrs</div>
           ))}
         </Panel>
       </div>
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-        borderRadius: 10,
-        border: "1px solid rgba(28, 68, 99, 0.08)",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          marginBottom: 12,
-          color: nectarColors.ink,
-        }}
-      >
-        {title}
-      </div>
-      {children}
     </div>
   );
 }

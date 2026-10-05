@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState } from "react";
-import { Table, Tag, Input, Select, Button, Tooltip, Alert, Segmented } from "antd";
+import { Table, Tag, Input, Select, Button, Tooltip, Alert, Segmented, App } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   RobotOutlined,
@@ -11,22 +13,70 @@ import {
   SafetyCertificateOutlined,
   FileTextOutlined,
   AppstoreOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import type { LearningNeedRecord, Course } from "@/lib/training/types";
-import { getLearningNeedRecords, getAllCourses } from "@/lib/training/store";
-import { getEmployeeById } from "@/lib/mock-data";
-import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/mock-data";
+import { getLearningNeedRecords, getAllCourses, createTrainingAssignment, getPeople, getPerson, getSite, useTrainingData } from "@/lib/training/store";
+import { getSession } from "@/lib/auth";
+import { personIdOf } from "@/lib/training/identity";
+import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/data";
 import { nectarColors } from "@/lib/theme";
+import { sText11SemiboldColorBgR6Border, sWhiteR14BorderShadow } from "@/lib/styles";
 
 interface LniMatrixViewProps {
+  siteScope?: string;
   onOpenCourse?: (course: Course) => void;
 }
 
-export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
+type ScoreKey = "skillMapScorePct" | "writtenScorePct" | "practicalScorePct" | "oralScorePct";
+
+const PENDING_TAG = (
+  <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>Pending</Tag>
+);
+const PENDING_EXAM_TAG = (
+  <Tag color="orange" style={sText11SemiboldColorBgR6Border}>Pending Exam</Tag>
+);
+
+/** Assessment score column: green when >= 70%, else failColor; "pending" tag when not taken. */
+function scoreColumn(
+  title: string,
+  key: ScoreKey,
+  failColor: string,
+  pending: React.ReactNode,
+): ColumnsType<LearningNeedRecord>[number] {
+  return {
+    title,
+    dataIndex: key,
+    key,
+    align: "center",
+    render: (s: number | null) =>
+      s !== null && s !== undefined ? (
+        <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : failColor }}>{s}%</span>
+      ) : (
+        pending
+      ),
+  };
+}
+
+export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixViewProps) {
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState<"legacy_sheet" | "synthesis_ledger">("legacy_sheet");
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [plantFilter, setPlantFilter] = useState<string>(siteScope ?? "all");
   const [lniItems, setLniItems] = useState<NectarLniItem[]>(NECTAR_LNI_COMPETENCIES);
+
+  useTrainingData();
+  const actorId = personIdOf(getSession());
+  // Employees (from the database) for the LNI sheet
+  const allPeople = getPeople();
+  const availableEmployees = siteScope ? allPeople.filter((e) => e.siteId === siteScope) : allPeople;
+  const [pickedEmpId, setSelectedEmpId] = useState<string>("");
+  const selectedEmpId = pickedEmpId || availableEmployees[0]?.id || "";
+  const selectedEmp = getPerson(selectedEmpId);
+  const getEmployeeById = getPerson;
+
+  const activeSite = siteScope ?? (plantFilter === "all" ? undefined : plantFilter);
 
   const records = getLearningNeedRecords();
   const allCourses = getAllCourses();
@@ -35,11 +85,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
     setLniItems((prev) =>
       prev.map((item) =>
         item.sNo === sNo
-          ? {
-              ...item,
-              defaultLevel: newLevel,
-              trainingRequired: newLevel === "HIGH" ? "No" : "Yes",
-            }
+          ? { ...item, defaultLevel: newLevel, trainingRequired: newLevel === "HIGH" ? "No" : "Yes" }
           : item
       )
     );
@@ -47,6 +93,9 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
 
   const filtered = records.filter((r) => {
     const emp = getEmployeeById(r.employeeId);
+    if (activeSite && emp?.siteId !== activeSite) {
+      return false;
+    }
     const empName = emp?.name.toLowerCase() || "";
     const matchesSearch =
       !search ||
@@ -68,12 +117,8 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
         const emp = getEmployeeById(r.employeeId);
         return (
           <div>
-            <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 13 }}>
-              {emp?.name ?? r.employeeId}
-            </div>
-            <div style={{ fontSize: 11, color: nectarColors.muted }}>
-              {emp?.designation ?? "Operator"} · {emp?.siteId ?? "Plant"}
-            </div>
+            <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 13 }}>{emp?.name ?? r.employeeId}</div>
+            <div style={{ fontSize: 11, color: nectarColors.muted }}>{emp?.designation ?? "Operator"} · {emp?.siteId?.toUpperCase() ?? "Plant"}</div>
           </div>
         );
       },
@@ -86,84 +131,10 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
         <span style={{ fontWeight: 500, fontSize: 13, color: nectarColors.ink }}>{t}</span>
       ),
     },
-    {
-      title: "1. Skill Map",
-      dataIndex: "skillMapScorePct",
-      key: "skillMapScorePct",
-      align: "center",
-      render: (s: number | null) => (
-        s !== null && s !== undefined ? (
-          <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#D97706" }}>
-            {s}%
-          </span>
-        ) : (
-          <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>
-            Pending
-          </Tag>
-        )
-      ),
-    },
-    {
-      title: "2. Written",
-      dataIndex: "writtenScorePct",
-      key: "writtenScorePct",
-      align: "center",
-      render: (s: number | null) => (
-        s !== null && s !== undefined ? (
-          <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#D97706" }}>
-            {s}%
-          </span>
-        ) : (
-          <Tag
-            color="orange"
-            style={{
-              borderRadius: 6,
-              fontWeight: 600,
-              fontSize: 11,
-              background: "#FFFBEB",
-              color: "#D97706",
-              border: "1px dashed #F59E0B",
-            }}
-          >
-            Pending Exam
-          </Tag>
-        )
-      ),
-    },
-    {
-      title: "3. Practical",
-      dataIndex: "practicalScorePct",
-      key: "practicalScorePct",
-      align: "center",
-      render: (s: number | null) => (
-        s !== null && s !== undefined ? (
-          <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#DC2626" }}>
-            {s}%
-          </span>
-        ) : (
-          <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>
-            Pending
-          </Tag>
-        )
-      ),
-    },
-    {
-      title: "4. Oral Viva",
-      dataIndex: "oralScorePct",
-      key: "oralScorePct",
-      align: "center",
-      render: (s: number | null) => (
-        s !== null && s !== undefined ? (
-          <span style={{ fontWeight: 600, color: s >= 70 ? "#166534" : "#D97706" }}>
-            {s}%
-          </span>
-        ) : (
-          <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>
-            Pending
-          </Tag>
-        )
-      ),
-    },
+    scoreColumn("1. Skill Map", "skillMapScorePct", "#D97706", PENDING_TAG),
+    scoreColumn("2. Written", "writtenScorePct", "#D97706", PENDING_EXAM_TAG),
+    scoreColumn("3. Practical", "practicalScorePct", "#DC2626", PENDING_TAG),
+    scoreColumn("4. Oral Viva", "oralScorePct", "#D97706", PENDING_TAG),
     {
       title: "Level",
       dataIndex: "currentLevel",
@@ -172,9 +143,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
       render: (lvl: "LOW" | "MED" | "HIGH") => {
         const color = lvl === "HIGH" ? "success" : lvl === "MED" ? "warning" : "error";
         return (
-          <Tag color={color} style={{ borderRadius: 12, fontWeight: 700, fontSize: 11 }}>
-            {lvl}
-          </Tag>
+          <Tag color={color} style={{ borderRadius: 12, fontWeight: 700, fontSize: 11 }}>{lvl}</Tag>
         );
       },
     },
@@ -185,14 +154,8 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
       render: (insight: string, r) => (
         <div
           style={{
-            background: "rgba(28, 68, 99, 0.04)",
-            border: "1px solid rgba(28, 68, 99, 0.1)",
-            borderRadius: 8,
-            padding: "8px 12px",
-            fontSize: 12,
-            lineHeight: 1.45,
-            color: nectarColors.ink,
-            maxWidth: 420,
+            background: "rgba(28, 68, 99, 0.04)", border: "1px solid rgba(28, 68, 99, 0.1)", borderRadius: 8,
+            padding: "8px 12px", fontSize: 12, lineHeight: 1.45, color: nectarColors.ink, maxWidth: 420,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 5, color: nectarColors.leaf, fontWeight: 600, marginBottom: 3 }}>
@@ -203,9 +166,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           {r.recommendedCourseTitle && (
             <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 11, color: nectarColors.muted }}>Target Refresher:</span>
-              <Tag color="geekblue" style={{ fontSize: 10, borderRadius: 6, margin: 0 }}>
-                {r.recommendedCourseTitle}
-              </Tag>
+              <Tag color="geekblue" style={{ fontSize: 10, borderRadius: 6, margin: 0 }}>{r.recommendedCourseTitle}</Tag>
             </div>
           )}
         </div>
@@ -220,9 +181,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
         if (!course || !onOpenCourse) return null;
         if (r.writtenScorePct === null) {
           return (
-            <Tag color="volcano" style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>
-              Awaiting Written
-            </Tag>
+            <Tag color="volcano" style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>Awaiting Written</Tag>
           );
         }
         return (
@@ -270,20 +229,55 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           style={{ background: "#E2E8F0", padding: 3, borderRadius: 8 }}
         />
 
-        <Tag color="cyan" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>
-          Assessor: Mr. Anand Dakave (Team Leader)
-        </Tag>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {activeTab === "legacy_sheet" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>Operator Sheet:</span>
+              <Select
+                value={selectedEmp?.id}
+                onChange={(val) => setSelectedEmpId(val)}
+                style={{ width: 220 }}
+                options={availableEmployees.map((e) => ({
+                  value: e.id,
+                  label: `${e.name} (${e.siteId?.toUpperCase()})`,
+                }))}
+              />
+            </div>
+          )}
+
+          {activeTab === "synthesis_ledger" && !siteScope && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>Plant:</span>
+              <Select
+                value={plantFilter}
+                onChange={(v) => setPlantFilter(v)}
+                style={{ width: 140 }}
+                options={[
+                  { value: "all", label: "All Plants" },
+                  { value: "s-etp", label: "ETP Plant" },
+                  { value: "s-ro", label: "RO Plant" },
+                  { value: "s-mee", label: "MEE Plant" },
+                ]}
+              />
+            </div>
+          )}
+
+          <Tag color="cyan" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>
+            {selectedEmp?.siteId === "s-ro"
+              ? "Assessor: Priya Iyer (Plant Manager)"
+              : selectedEmp?.siteId === "s-mee"
+              ? "Assessor: Sameer Joshi (Plant Manager)"
+              : "Assessor: Rajesh Kulkarni (Plant Manager)"}
+          </Tag>
+        </div>
       </div>
 
       {activeTab === "legacy_sheet" ? (
         /* ---------------- NECTAR LEGACY LNI SHEET (IMAGE 1) ---------------- */
         <div
           style={{
-            background: "#FFFFFF",
-            borderRadius: 12,
-            border: "1.5px solid #1C4463",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
-            overflow: "hidden",
+            background: "#FFFFFF", borderRadius: 12, border: "1.5px solid #1C4463",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.04)", overflow: "hidden",
           }}
         >
           {/* Header block */}
@@ -295,30 +289,24 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
               </div>
               <Tag color="blue" style={{ fontWeight: 700 }}>NEIPL-FORM-LNI-2026</Tag>
             </div>
-            <h2 style={{ margin: "2px 0 6px", fontSize: 22, fontWeight: 800, color: "#0F172A", letterSpacing: 0.5 }}>
-              LEARNING NEED IDENTIFICATION
-            </h2>
+            <h2 style={{ margin: "2px 0 6px", fontSize: 22, fontWeight: 800, color: "#0F172A", letterSpacing: 0.5 }}>LEARNING NEED IDENTIFICATION</h2>
 
             {/* Metadata Table */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "6px 24px",
-                background: "#F8FAFC",
-                border: "1px solid #CBD5E1",
-                borderRadius: 6,
-                padding: "10px 16px",
-                marginTop: 10,
-                fontSize: 12.5,
+                display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px", background: "#F8FAFC",
+                border: "1px solid #CBD5E1", borderRadius: 6, padding: "10px 16px", marginTop: 10, fontSize: 12.5,
                 textAlign: "left",
               }}
             >
-              <div><strong>Name :</strong> Mr. Akshay Jamble</div>
-              <div><strong>Date :</strong> 4/4/2026</div>
-              <div><strong>EC No :</strong> NEIPL125</div>
-              <div><strong>Assessed by :</strong> Mr. Anand Dakave</div>
-              <div><strong>Desig :</strong> Site Incharge</div>
+              <div><strong>Name :</strong> {selectedEmp?.name ?? "—"}</div>
+              <div><strong>Date :</strong> {new Date().toLocaleDateString("en-GB")}</div>
+              <div><strong>EC No :</strong> {selectedEmp?.id?.toUpperCase() ?? "—"}</div>
+              <div>
+                <strong>Assessed by :</strong>{" "}
+                {getSite(selectedEmp?.siteId)?.managerName ?? "—"}
+              </div>
+              <div><strong>Desig :</strong> {selectedEmp?.designation ?? "—"}</div>
               <div><strong>Department :</strong> Plant Operations & Environmental Services</div>
             </div>
           </div>
@@ -330,12 +318,8 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
                 <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 60, textAlign: "center" }}>S.No.</th>
                 <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140 }}>Section</th>
                 <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1" }}>Competency Area</th>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 220, textAlign: "center" }}>
-                  Current Level (Low/Med/High)
-                </th>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140, textAlign: "center" }}>
-                  Training Required
-                </th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 220, textAlign: "center" }}>Current Level (Low/Med/High)</th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140, textAlign: "center" }}>Training Required</th>
                 <th style={{ padding: "10px 14px", width: 150, textAlign: "center" }}>Action</th>
               </tr>
             </thead>
@@ -354,15 +338,9 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
                       background: isLow ? "#FEF2F2" : item.sNo % 2 === 0 ? "#FAFAFA" : "#FFFFFF",
                     }}
                   >
-                    <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, color: "#64748B", borderRight: "1px solid #E2E8F0" }}>
-                      {item.sNo}
-                    </td>
-                    <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1C4463", borderRight: "1px solid #E2E8F0" }}>
-                      {item.section}
-                    </td>
-                    <td style={{ padding: "8px 12px", color: "#1E293B", borderRight: "1px solid #E2E8F0" }}>
-                      {item.competencyArea}
-                    </td>
+                    <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, color: "#64748B", borderRight: "1px solid #E2E8F0" }}>{item.sNo}</td>
+                    <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1C4463", borderRight: "1px solid #E2E8F0" }}>{item.section}</td>
+                    <td style={{ padding: "8px 12px", color: "#1E293B", borderRight: "1px solid #E2E8F0" }}>{item.competencyArea}</td>
                     <td style={{ padding: "8px 12px", textAlign: "center", borderRight: "1px solid #E2E8F0" }}>
                       <div style={{ display: "inline-flex", gap: 4 }}>
                         <Button
@@ -379,10 +357,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
                           type={isMed ? "primary" : "default"}
                           onClick={() => handleLevelChange(item.sNo, "MED")}
                           style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            padding: "0 8px",
-                            height: 24,
+                            fontSize: 11, fontWeight: 700, padding: "0 8px", height: 24,
                             ...(isMed ? { background: "#D97706", borderColor: "#D97706" } : {}),
                           }}
                         >
@@ -393,10 +368,7 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
                           type={isHigh ? "primary" : "default"}
                           onClick={() => handleLevelChange(item.sNo, "HIGH")}
                           style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            padding: "0 8px",
-                            height: 24,
+                            fontSize: 11, fontWeight: 700, padding: "0 8px", height: 24,
                             ...(isHigh ? { background: "#16A34A", borderColor: "#16A34A" } : {}),
                           }}
                         >
@@ -413,15 +385,33 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
                       </Tag>
                     </td>
                     <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                      {item.recommendedCourseId && onOpenCourse ? (
+                      {item.recommendedCourseId ? (
                         <Button
                           size="small"
                           type="link"
-                          onClick={() => {
-                            const c = allCourses.find((x) => x.id === item.recommendedCourseId);
-                            if (c) onOpenCourse(c);
+                          onClick={async () => {
+                            if (item.recommendedCourseId) {
+                              try {
+                                await createTrainingAssignment({
+                                  employeeIds: [selectedEmpId],
+                                  courseId: item.recommendedCourseId,
+                                  assignedByEmployeeId: actorId,
+                                  reason: `LNI gap: ${item.competencyArea}`,
+                                  priority: "high",
+                                  kind: "mandatory",
+                                  source: "lni",
+                                  dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+                                });
+                                message.success(`Assigned to ${selectedEmp?.name ?? "the employee"}, due in 14 days.`);
+                              } catch (err) {
+                                message.error((err as Error).message);
+                                return;
+                              }
+                              const c = allCourses.find((x) => x.id === item.recommendedCourseId);
+                              if (c && onOpenCourse) onOpenCourse(c);
+                            }
                           }}
-                          style={{ fontSize: 11, fontWeight: 600, color: "#1C4463" }}
+                          style={{ fontSize: 11, fontWeight: 700, color: "#1C4463" }}
                         >
                           Assign Module
                         </Button>
@@ -438,22 +428,14 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
           {/* Footer Bar */}
           <div
             style={{
-              padding: "14px 20px",
-              background: "#F8FAFC",
-              borderTop: "1.5px solid #1C4463",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 12,
+              padding: "14px 20px", background: "#F8FAFC", borderTop: "1.5px solid #1C4463", display: "flex",
+              justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
             }}
           >
             <div style={{ fontSize: 12.5, color: "#475569" }}>
-              <strong>Summary:</strong> {lniItems.filter((i) => i.trainingRequired === "Yes").length} of 20 competencies require training intervention.
+              <strong>Summary:</strong> {lniItems.filter((i) => i.trainingRequired === "Yes").length} of 20 competencies require training intervention for {selectedEmp?.name}.
             </div>
-            <Tag color="green" style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px" }}>
-              TL Assessor Sign-off: Mr. Anand Dakave (Verified)
-            </Tag>
+            <Tag color="green" style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px" }}>Manager Assessor Sign-off: Verified</Tag>
           </div>
         </div>
       ) : (
@@ -461,27 +443,17 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
         <>
           <div
             style={{
-              background: `linear-gradient(135deg, ${nectarColors.leaf} 0%, #0F2A3F 100%)`,
-              borderRadius: 14,
-              padding: "20px 24px",
-              color: "#FFFFFF",
-              boxShadow: "0 6px 20px rgba(28, 68, 99, 0.15)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 16,
+              background: `linear-gradient(135deg, ${nectarColors.leaf} 0%, #0F2A3F 100%)`, borderRadius: 14,
+              padding: "20px 24px", color: "#FFFFFF", boxShadow: "0 6px 20px rgba(28, 68, 99, 0.15)", display: "flex",
+              justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16,
             }}
           >
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <RobotOutlined style={{ fontSize: 20, color: "#86EFAC" }} />
+                <RobotOutlined style={{ fontSize: 20, color: "#38BDF8" }} />
                 <h2
                   style={{
-                    margin: 0,
-                    fontSize: 18,
-                    fontWeight: 600,
-                    fontFamily: "var(--font-fraunces), Georgia, serif",
+                    margin: 0, fontSize: 18, fontWeight: 600, fontFamily: "var(--font-fraunces), Georgia, serif",
                     color: "#FFFFFF",
                   }}
                 >
@@ -495,49 +467,28 @@ export default function LniMatrixView({ onOpenCourse }: LniMatrixViewProps) {
 
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#86EFAC" }}>
-                  {records.filter((r) => r.currentLevel === "HIGH").length}
-                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#38BDF8" }}>{filtered.filter((r) => r.currentLevel === "HIGH").length}</div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Autonomous</div>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#FDE68A" }}>
-                  {records.filter((r) => r.currentLevel === "MED").length}
-                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#FDE68A" }}>{filtered.filter((r) => r.currentLevel === "MED").length}</div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Supervised</div>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#FCA5A5" }}>
-                  {records.filter((r) => r.currentLevel === "LOW").length}
-                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#FCA5A5" }}>{filtered.filter((r) => r.currentLevel === "LOW").length}</div>
                 <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Intervention</div>
               </div>
             </div>
           </div>
 
-          <div
-            style={{
-              background: "#FFFFFF",
-              borderRadius: 14,
-              border: "1px solid rgba(28, 68, 99, 0.08)",
-              boxShadow: "0 2px 10px rgba(11, 26, 36, 0.03)",
-              overflow: "hidden",
-            }}
-          >
+          <div style={sWhiteR14BorderShadow}>
             <div
               style={{
-                padding: "16px 20px",
-                borderBottom: "1px solid rgba(28, 68, 99, 0.08)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 12,
+                padding: "16px 20px", borderBottom: "1px solid rgba(28, 68, 99, 0.08)", display: "flex",
+                justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
               }}
             >
-              <div style={{ fontWeight: 600, fontSize: 15, color: nectarColors.ink }}>
-                Plant Manpower Competency Ledger
-              </div>
+              <div style={{ fontWeight: 600, fontSize: 15, color: nectarColors.ink }}>Plant Manpower Competency Ledger</div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Input

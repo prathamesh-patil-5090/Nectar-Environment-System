@@ -35,6 +35,7 @@ import {
   defaultOtFilters,
 } from "@/lib/overtime";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Mb12, sSerifText26Ink, sWhitePad2 } from "@/lib/styles";
 
 export default function OtEmployeeDetailPage({
   params,
@@ -76,10 +77,7 @@ export default function OtEmployeeDetailPage({
       }
       return [...map.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([label, otHours]) => ({
-          label,
-          otHours: Math.round(otHours * 100) / 100,
-        }));
+        .map(([label, otHours]) => ({ label, otHours: Math.round(otHours * 100) / 100 }));
     }
     const map = new Map<string, number>();
     for (const r of records) {
@@ -87,19 +85,12 @@ export default function OtEmployeeDetailPage({
     }
     return [...map.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([label, otHours]) => ({
-        label,
-        otHours: Math.round(otHours * 100) / 100,
-      }));
+      .map(([label, otHours]) => ({ label, otHours: Math.round(otHours * 100) / 100 }));
   }, [detail, granularity]);
 
   if (!detail) {
     return (
-      <Empty description="Employee not found">
-        <Button type="primary" onClick={() => router.push("/overtime/employees")}>
-          Back
-        </Button>
-      </Empty>
+      <Empty description="Employee not found"><Button type="primary" onClick={() => router.push("/overtime/employees")}>Back</Button></Empty>
     );
   }
 
@@ -117,18 +108,8 @@ export default function OtEmployeeDetailPage({
       </Button>
 
       <div style={{ background: nectarColors.white, padding: 24 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 26,
-            color: nectarColors.ink,
-          }}
-        >
-          {employee.name}
-        </div>
-        <div style={{ color: nectarColors.muted, marginBottom: 16 }}>
-          {employee.id} · {employee.designation}
-        </div>
+        <div style={sSerifText26Ink}>{employee.name}</div>
+        <div style={{ color: nectarColors.muted, marginBottom: 16 }}>{employee.id} · {employee.designation}</div>
         <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small">
           <Descriptions.Item label="Site">
             {site ? (
@@ -137,32 +118,18 @@ export default function OtEmployeeDetailPage({
               "—"
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="Department">
-            {employee.department}
-          </Descriptions.Item>
-          <Descriptions.Item label="Designation">
-            {employee.designation}
-          </Descriptions.Item>
-          <Descriptions.Item label="Shift">
-            {shift?.name ?? "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Joining Date">
-            {employee.joinedAt}
-          </Descriptions.Item>
+          <Descriptions.Item label="Department">{employee.department}</Descriptions.Item>
+          <Descriptions.Item label="Designation">{employee.designation}</Descriptions.Item>
+          <Descriptions.Item label="Shift">{shift?.name ?? "—"}</Descriptions.Item>
+          <Descriptions.Item label="Joining Date">{employee.joinedAt}</Descriptions.Item>
           <Descriptions.Item label="Employment Status">
-            <Tag color={employee.employmentStatus === "active" ? "success" : "default"}>
-              {employee.employmentStatus}
-            </Tag>
+            <Tag color={employee.employmentStatus === "active" ? "success" : "default"}>{employee.employmentStatus}</Tag>
           </Descriptions.Item>
         </Descriptions>
       </div>
 
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 12,
-        }}
+        style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}
         className="nectar-ot-summary"
       >
         <SummaryTile label="Current month OT hours" value={formatHours(summary.currentMonthHours)} />
@@ -178,22 +145,11 @@ export default function OtEmployeeDetailPage({
       <div style={{ background: nectarColors.white, padding: 20 }}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-            flexWrap: "wrap",
+            display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap",
             gap: 8,
           }}
         >
-          <div
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontSize: 18,
-            }}
-          >
-            Employee OT trend
-          </div>
+          <div style={{ fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18 }}>Employee OT trend</div>
           <Radio.Group
             value={granularity}
             onChange={(e) => setGranularity(e.target.value)}
@@ -212,13 +168,7 @@ export default function OtEmployeeDetailPage({
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="otHours"
-                stroke={nectarColors.leaf}
-                strokeWidth={2}
-                name="OT Hours"
-              />
+              <Line type="monotone" dataKey="otHours" stroke={nectarColors.leaf} strokeWidth={2} name="OT Hours" />
             </LineChart>
           ) : (
             <BarChart data={chartData}>
@@ -233,49 +183,23 @@ export default function OtEmployeeDetailPage({
       </div>
 
       <div style={{ background: nectarColors.white, padding: 20 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Employee OT insights
-        </div>
+        <div style={sSerifText18Mb12}>Employee OT insights</div>
         {insights.length ? (
           <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {insights.map((i) => (
-              <li
-                key={i.id}
-                style={{
-                  padding: "10px 0",
-                  borderBottom: `1px solid ${nectarColors.sand}`,
-                }}
-              >
+              <li key={i.id} style={{ padding: "10px 0", borderBottom: `1px solid ${nectarColors.sand}` }}>
                 <strong>{i.title}</strong>
-                <div style={{ color: nectarColors.muted, fontSize: 13 }}>
-                  {i.message}
-                </div>
+                <div style={{ color: nectarColors.muted, fontSize: 13 }}>{i.message}</div>
               </li>
             ))}
           </ul>
         ) : (
-          <div style={{ color: nectarColors.muted }}>
-            No notable insights for this employee in the selected period.
-          </div>
+          <div style={{ color: nectarColors.muted }}>No notable insights for this employee in the selected period.</div>
         )}
       </div>
 
       <div style={{ background: nectarColors.white, padding: 20 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          OT records
-        </div>
+        <div style={sSerifText18Mb12}>OT records</div>
         <Table
           rowKey="id"
           size="small"
@@ -283,16 +207,8 @@ export default function OtEmployeeDetailPage({
           dataSource={records}
           columns={[
             { title: "Date", dataIndex: "date" },
-            {
-              title: "OT Hours",
-              dataIndex: "otHours",
-              render: (v) => formatHours(v),
-            },
-            {
-              title: "OT Cost",
-              dataIndex: "otCost",
-              render: (v) => formatInr(v),
-            },
+            { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+            { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
             {
               title: "Status",
               dataIndex: "status",
@@ -300,11 +216,7 @@ export default function OtEmployeeDetailPage({
                 <Tag>{OT_STATUS_LABELS[s]}</Tag>
               ),
             },
-            {
-              title: "Reason",
-              dataIndex: "reason",
-              render: (r: keyof typeof OT_REASON_LABELS) => OT_REASON_LABELS[r],
-            },
+            { title: "Reason", dataIndex: "reason", render: (r: keyof typeof OT_REASON_LABELS) => OT_REASON_LABELS[r] },
           ]}
         />
       </div>
@@ -314,16 +226,9 @@ export default function OtEmployeeDetailPage({
 
 function SummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: "14px 16px",
-      }}
-    >
+    <div style={sWhitePad2}>
       <div style={{ fontSize: 12, color: nectarColors.muted, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 650, color: nectarColors.ink }}>
-        {value}
-      </div>
+      <div style={{ fontSize: 18, fontWeight: 650, color: nectarColors.ink }}>{value}</div>
     </div>
   );
 }

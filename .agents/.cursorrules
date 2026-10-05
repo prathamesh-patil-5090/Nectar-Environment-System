@@ -1,0 +1,18 @@
+# Cursor AI Rules — Nectar Enviro Ops Console
+
+## 1. Project Reference & Navigation
+- Always read and follow the master guidelines in `.agents/AGENTS.md`.
+- Consult `.agents/planning/CODEBASE_MAP.md` as the primary reference map before running searches across the codebase.
+- Use Section 2 ("Fast-Lookup Decision Matrix") in `CODEBASE_MAP.md` to directly locate target pages, components, and state stores.
+
+## 2. Command: /update-agents
+When the user types `/update-agents`:
+- Scan `client/app/`, `client/components/`, and `client/lib/` for any new or modified files.
+- Synchronize `.agents/planning/CODEBASE_MAP.md` to reflect new pages, components, state stores, and lookup entries.
+- Summarize the updates made to the map.
+
+## 3. Tech Stack & Conventions
+- **Framework**: Next.js 16 (App Router), React 19, TypeScript.
+- **UI & Design**: Ant Design 6.6, Tailwind CSS v4, custom brand green (`#16a34a`).
+- **State Stores**: Client-side domain stores in `client/lib/*/store.ts` (`shift`, `leave`, `overtime`, `training`) with `localStorage` persistence.
+- **Access Control**: Role-based access control with plant scoping via `client/lib/rbac.ts`.

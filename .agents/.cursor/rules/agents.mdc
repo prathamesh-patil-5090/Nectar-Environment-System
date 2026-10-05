@@ -1,0 +1,18 @@
+---
+description: Nectar Enviro Ops Console Agent & Codebase Guidelines
+globs: *
+alwaysApply: true
+---
+
+# Agent & Navigation Guidelines
+
+Always read and follow the master guidelines and codebase index before running searches:
+- **Master Guidelines**: `.agents/AGENTS.md`
+- **Codebase Architecture & Fast-Lookup**: `.agents/planning/CODEBASE_MAP.md`
+- **Cursor Rules**: `.agents/.cursorrules`
+
+## Command: /update-agents
+When the user types `/update-agents`:
+- Scan `client/app/`, `client/components/`, and `client/lib/` for any new or modified files.
+- Synchronize `.agents/planning/CODEBASE_MAP.md` with the current structure.
+- Present a summary of updates made to the map.

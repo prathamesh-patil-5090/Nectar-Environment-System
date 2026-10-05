@@ -3,11 +3,13 @@ export type PlantType = "ETP" | "STP" | "WTP" | "RO" | "MEE";
 export type TrainingPriority = "critical" | "high" | "medium" | "low";
 
 export type EmployeeCategory =
+  | "director"
   | "manager"
   | "shift_incharge"
   | "supervisor"
   | "shift"
-  | "general";
+  | "general"
+  | "hr";
 
 export type Employee = {
   id: string;
@@ -91,9 +93,6 @@ export const skillLabels: Record<SkillKey, string> = {
   compliance: "Compliance",
 };
 
-/** Active demo plants — ETP / RO / MEE */
-export const DEMO_SITE_IDS = ["s-etp", "s-ro", "s-mee"] as const;
-
 export const sites: Site[] = [
   {
     id: "s-etp",
@@ -158,50 +157,50 @@ const plantSeeds: PlantStaffSeed[] = [
     siteName: "ETP Plant",
     plantLabel: "ETP",
     mgr: {
-      id: "e-etp-mgr",
-      name: "Rajesh Kulkarni",
+      id: "emp0123",
+      name: "Anand Dakave",
       email: "etp.manager@nectarenviro.com",
     },
     sic: {
-      id: "e-etp-sic",
-      name: "Sanjay Jadhav",
+      id: "emp0124",
+      name: "Bidhichand Rajbhar",
       email: "etp.shift@nectarenviro.com",
     },
     sup: {
-      id: "e-etp-sup",
-      name: "Amit Supervisor",
+      id: "emp0125",
+      name: "Neetesh Diwathe",
       email: "etp.supervisor@nectarenviro.com",
     },
     shift: [
       {
-        id: "e-etp-s1",
-        name: "Asha Patil",
-        email: "asha.patil@nectarenviro.com",
+        id: "emp0126",
+        name: "Shilpa Hotkar",
+        email: "shilpa.hotkar@nectarenviro.com",
         shiftId: "sh-morning",
       },
       {
-        id: "e-etp-s2",
-        name: "Rohan Deshmukh",
-        email: "rohan.deshmukh@nectarenviro.com",
+        id: "emp0127",
+        name: "Rohit Kumar Singh",
+        email: "rohit.singh@nectarenviro.com",
         shiftId: "sh-afternoon",
       },
       {
-        id: "e-etp-s3",
-        name: "Kavita Rao",
-        email: "kavita.rao@nectarenviro.com",
+        id: "emp0128",
+        name: "Mohee Vinchu",
+        email: "mohee.vinchu@nectarenviro.com",
         shiftId: "sh-night",
       },
       {
-        id: "e-etp-s4",
-        name: "Deepak More",
-        email: "deepak.more@nectarenviro.com",
+        id: "emp0129",
+        name: "Sanket Jagadale",
+        email: "sanket.jagadale@nectarenviro.com",
         shiftId: "sh-morning",
       },
     ],
     general: {
-      id: "e-etp-g1",
-      name: "Nisha Salvi",
-      email: "nisha.salvi@nectarenviro.com",
+      id: "emp0130",
+      name: "Sandip Ohol",
+      email: "sandip.ohol@nectarenviro.com",
     },
   },
   {
@@ -209,50 +208,50 @@ const plantSeeds: PlantStaffSeed[] = [
     siteName: "RO Plant",
     plantLabel: "RO",
     mgr: {
-      id: "e-ro-mgr",
-      name: "Priya Iyer",
+      id: "emp0131",
+      name: "Uday Patil",
       email: "ro.manager@nectarenviro.com",
     },
     sic: {
-      id: "e-ro-sic",
-      name: "Vikram Shah",
+      id: "emp0132",
+      name: "Pawan Jagdhane",
       email: "ro.shift@nectarenviro.com",
     },
     sup: {
-      id: "e-ro-sup",
-      name: "Neha Kamat",
+      id: "emp0133",
+      name: "Vikas Dabade",
       email: "ro.supervisor@nectarenviro.com",
     },
     shift: [
       {
-        id: "e-ro-s1",
-        name: "Imran Shaikh",
-        email: "imran.shaikh@nectarenviro.com",
+        id: "emp0134",
+        name: "Rafik Shaikh",
+        email: "rafik.shaikh@nectarenviro.com",
         shiftId: "sh-morning",
       },
       {
-        id: "e-ro-s2",
-        name: "Arjun Mehta",
-        email: "arjun.mehta@nectarenviro.com",
+        id: "emp0135",
+        name: "Siddhant Marale",
+        email: "siddhant.marale@nectarenviro.com",
         shiftId: "sh-afternoon",
       },
       {
-        id: "e-ro-s3",
-        name: "Sneha Bhosale",
-        email: "sneha.bhosale@nectarenviro.com",
+        id: "emp0136",
+        name: "Surekha Sitaram Bhosale",
+        email: "surekha.bhosale@nectarenviro.com",
         shiftId: "sh-night",
       },
       {
-        id: "e-ro-s4",
-        name: "Rahul Pawar",
-        email: "rahul.pawar@nectarenviro.com",
+        id: "emp0137",
+        name: "Akshay Bendkoli",
+        email: "akshay.bendkoli@nectarenviro.com",
         shiftId: "sh-morning",
       },
     ],
     general: {
-      id: "e-ro-g1",
-      name: "Meera Naik",
-      email: "meera.naik@nectarenviro.com",
+      id: "emp0138",
+      name: "Pravin Chormule",
+      email: "pravin.chormule@nectarenviro.com",
     },
   },
   {
@@ -260,48 +259,48 @@ const plantSeeds: PlantStaffSeed[] = [
     siteName: "MEE Plant",
     plantLabel: "MEE",
     mgr: {
-      id: "e-mee-mgr",
-      name: "Anil Desai",
+      id: "emp0139",
+      name: "Sanjay Waghaskar",
       email: "mee.manager@nectarenviro.com",
     },
     sic: {
-      id: "e-mee-sic",
-      name: "Farhan Qureshi",
+      id: "emp0140",
+      name: "Gaurav Khandagale",
       email: "mee.shift@nectarenviro.com",
     },
     sup: {
-      id: "e-mee-sup",
-      name: "Sunita Rane",
+      id: "emp0141",
+      name: "Rushikesh Pawar",
       email: "mee.supervisor@nectarenviro.com",
     },
     shift: [
       {
-        id: "e-mee-s1",
-        name: "Vikram Nair",
-        email: "vikram.nair@nectarenviro.com",
+        id: "emp0142",
+        name: "Abhinandan Sanjay Pawane",
+        email: "abhinandan.pawane@nectarenviro.com",
         shiftId: "sh-morning",
       },
       {
-        id: "e-mee-s2",
-        name: "Pooja Ghate",
-        email: "pooja.ghate@nectarenviro.com",
+        id: "emp0143",
+        name: "Bhairavi Kadu",
+        email: "bhairavi.kadu@nectarenviro.com",
         shiftId: "sh-afternoon",
       },
       {
-        id: "e-mee-s3",
-        name: "Suresh Pawar",
-        email: "suresh.pawar@nectarenviro.com",
+        id: "emp0144",
+        name: "Meghal Salgaonkar",
+        email: "meghal.salgaonkar@nectarenviro.com",
         shiftId: "sh-night",
       },
       {
-        id: "e-mee-s4",
+        id: "emp0145",
         name: "Anita Kadam",
         email: "anita.kadam@nectarenviro.com",
         shiftId: "sh-morning",
       },
     ],
     general: {
-      id: "e-mee-g1",
+      id: "emp0146",
       name: "Ravi Thakur",
       email: "ravi.thakur@nectarenviro.com",
     },
@@ -439,6 +438,28 @@ function buildEmployees(): Employee[] {
     });
   }
 
+  // Central HR — org-wide, no plant assignment
+  list.push({
+    id: "emp0147",
+    name: "Swati Ingle",
+    role: "Head of Human Resources",
+    siteId: undefined as unknown as string,
+    skillScore: 94,
+    trainingStatus: "compliant",
+    email: "hr@nectarenviro.com",
+    phone: "+91 98201 11026",
+    joinedAt: "2018-03-15",
+    yearsExperience: 12,
+    department: "Human Resources",
+    designation: "Head of Human Resources",
+    shiftId: "sh-general",
+    employmentStatus: "active",
+    employeeType: "permanent",
+    otEligible: false,
+    payCategory: "lead",
+    employeeCategory: "hr",
+  });
+
   return list;
 }
 
@@ -510,230 +531,6 @@ export const skillMatrix: SkillMatrixRow[] = [
   },
 ];
 
-function trainingFor(
-  emp: Employee,
-  siteName: string,
-  extras: Omit<TrainingItem, "employeeId" | "employeeName" | "siteName">[],
-): TrainingItem[] {
-  return extras.map((t) => ({
-    ...t,
-    employeeId: emp.id,
-    employeeName: emp.name,
-    siteName,
-  }));
-}
-
-export const trainingItems: TrainingItem[] = (() => {
-  const items: TrainingItem[] = [];
-  const asha = employees.find((e) => e.id === "e-etp-s1")!;
-  items.push(
-    ...trainingFor(asha, "ETP Plant", [
-      {
-        id: "t-etp-s1-1",
-        course: "ETP Process Fundamentals",
-        dueDate: "2024-06-15",
-        completedAt: "2024-06-12",
-        priority: "high",
-        status: "completed",
-        provider: "Nectar Academy",
-        score: 92,
-      },
-      {
-        id: "t-etp-s1-2",
-        course: "PPE & Site Induction",
-        dueDate: "2024-08-01",
-        completedAt: "2024-07-28",
-        priority: "critical",
-        status: "completed",
-        provider: "Site HSE",
-        score: 98,
-      },
-      {
-        id: "t-etp-s1-3",
-        course: "Confined Space Entry",
-        dueDate: "2025-02-20",
-        completedAt: "2025-02-18",
-        priority: "critical",
-        status: "completed",
-        provider: "External — SafeWork MH",
-        score: 88,
-      },
-      {
-        id: "t-etp-s1-4",
-        course: "Hazardous Waste Handling",
-        dueDate: "2025-09-10",
-        completedAt: "2025-09-08",
-        priority: "high",
-        status: "completed",
-        provider: "Nectar Academy",
-        score: 90,
-      },
-      {
-        id: "t-etp-s1-5",
-        course: "First Aid Refresh",
-        dueDate: "2026-11-30",
-        priority: "medium",
-        status: "scheduled",
-        provider: "Site HSE",
-      },
-    ]),
-  );
-
-  const rohan = employees.find((e) => e.id === "e-etp-s2")!;
-  items.push(
-    ...trainingFor(rohan, "ETP Plant", [
-      {
-        id: "t-etp-s2-1",
-        course: "Confined Space Entry",
-        dueDate: "2026-09-28",
-        priority: "high",
-        status: "due-soon",
-      },
-      {
-        id: "t-etp-s2-2",
-        course: "ETP Process Fundamentals",
-        dueDate: "2025-04-10",
-        completedAt: "2025-04-08",
-        priority: "high",
-        status: "completed",
-        provider: "Nectar Academy",
-        score: 78,
-      },
-    ]),
-  );
-
-  const kavita = employees.find((e) => e.id === "e-etp-s3")!;
-  items.push(
-    ...trainingFor(kavita, "ETP Plant", [
-      {
-        id: "t-etp-s3-1",
-        course: "Hazardous Waste Handling",
-        dueDate: "2026-09-05",
-        priority: "critical",
-        status: "overdue",
-      },
-    ]),
-  );
-
-  const imran = employees.find((e) => e.id === "e-ro-s1")!;
-  items.push(
-    ...trainingFor(imran, "RO Plant", [
-      {
-        id: "t-ro-s1-1",
-        course: "RO Membrane Safety",
-        dueDate: "2025-12-01",
-        completedAt: "2025-11-28",
-        priority: "high",
-        status: "completed",
-        provider: "External — MembraneTech",
-        score: 87,
-      },
-      {
-        id: "t-ro-s1-2",
-        course: "Preventive Maintenance Schedule",
-        dueDate: "2026-10-20",
-        priority: "low",
-        status: "scheduled",
-      },
-    ]),
-  );
-
-  const arjun = employees.find((e) => e.id === "e-ro-s2")!;
-  items.push(
-    ...trainingFor(arjun, "RO Plant", [
-      {
-        id: "t-ro-s2-1",
-        course: "RO Membrane Safety",
-        dueDate: "2026-09-12",
-        priority: "high",
-        status: "overdue",
-      },
-    ]),
-  );
-
-  const vikram = employees.find((e) => e.id === "e-mee-s1")!;
-  items.push(
-    ...trainingFor(vikram, "MEE Plant", [
-      {
-        id: "t-mee-s1-1",
-        course: "MEE Process Control",
-        dueDate: "2026-09-10",
-        priority: "critical",
-        status: "overdue",
-      },
-      {
-        id: "t-mee-s1-2",
-        course: "Lockout / Tagout Basics",
-        dueDate: "2025-06-01",
-        completedAt: "2025-05-29",
-        priority: "high",
-        status: "completed",
-        provider: "Nectar Academy",
-        score: 76,
-      },
-    ]),
-  );
-
-  const suresh = employees.find((e) => e.id === "e-mee-s3")!;
-  items.push(
-    ...trainingFor(suresh, "MEE Plant", [
-      {
-        id: "t-mee-s3-1",
-        course: "PPE & Site Induction Refresh",
-        dueDate: "2026-10-08",
-        priority: "medium",
-        status: "due-soon",
-      },
-    ]),
-  );
-
-  const etpMgr = employees.find((e) => e.id === "e-etp-mgr");
-  if (etpMgr) {
-    items.push(
-      ...trainingFor(etpMgr, "ETP Plant", [
-        {
-          id: "t-etp-mgr-1",
-          course: "Factory Safety Audit & Statutory Compliance",
-          dueDate: "2026-10-15",
-          completedAt: "2025-10-10",
-          priority: "critical",
-          status: "completed",
-          provider: "Central Pollution Control Board",
-          score: 95,
-        },
-        {
-          id: "t-etp-mgr-2",
-          course: "Environmental Risk Assessment & Crisis Management",
-          dueDate: "2026-11-20",
-          priority: "high",
-          status: "scheduled",
-          provider: "Nectar HSE Academy",
-        },
-        {
-          id: "t-etp-mgr-3",
-          course: "Zero Liquid Discharge (ZLD) Leadership",
-          dueDate: "2026-09-30",
-          priority: "high",
-          status: "due-soon",
-          provider: "National Water Mission",
-        },
-        {
-          id: "t-etp-mgr-4",
-          course: "Hazardous Effluent Handling Protocols",
-          dueDate: "2024-08-15",
-          completedAt: "2024-08-10",
-          priority: "critical",
-          status: "completed",
-          provider: "SafeWork MH",
-          score: 92,
-        },
-      ]),
-    );
-  }
-
-  return items;
-})();
-
 export function getSiteName(siteId: string): string {
   return (
     sites.find((s) => s.id === siteId)?.name ??
@@ -750,18 +547,13 @@ export function getSiteById(id: string): Site | undefined {
   return sites.find((s) => s.id === id) ?? legacySites.find((s) => s.id === id);
 }
 
-export function getEmployeesForSite(siteId: string): Employee[] {
-  return employees.filter((e) => e.siteId === siteId);
-}
-
 export function getEmployeeTraining(employeeId: string): TrainingItem[] {
-  return trainingItems
-    .filter((t) => t.employeeId === employeeId)
-    .sort((a, b) => {
-      const aKey = a.completedAt ?? a.dueDate;
-      const bKey = b.completedAt ?? b.dueDate;
-      return bKey.localeCompare(aKey);
-    });
+  try {
+    const { getTrainingItems } = require("@/lib/training/store");
+    return getTrainingItems({ employeeId });
+  } catch {
+    return [];
+  }
 }
 
 export function getEmployeeSkills(
@@ -794,11 +586,13 @@ export function getDashboardKpis(siteId?: string) {
   const skillCoverage = Math.round(
     scopedEmployees.reduce((sum, e) => sum + e.skillScore, 0) / totalEmployees,
   );
-  const urgentTraining = trainingItems.filter((t) => {
-    if (!(t.status === "overdue" || t.priority === "critical")) return false;
-    if (!siteId) return true;
-    return scopedEmployees.some((e) => e.id === t.employeeId);
-  }).length;
+  let urgentTraining = 0;
+  try {
+    const { getUrgentTrainingItems } = require("@/lib/training/store");
+    urgentTraining = getUrgentTrainingItems(siteId).length;
+  } catch {
+    urgentTraining = 0;
+  }
   const complianceReadySites = scopedSites.filter(
     (s) => s.readiness >= 80,
   ).length;
@@ -810,25 +604,4 @@ export function getDashboardKpis(siteId?: string) {
     urgentTraining,
     complianceReadySites,
   };
-}
-
-export function getUrgentTraining(siteId?: string) {
-  const allowed = siteId
-    ? new Set(employees.filter((e) => e.siteId === siteId).map((e) => e.id))
-    : null;
-  return [...trainingItems]
-    .filter((t) => {
-      if (!(t.status === "overdue" || t.status === "due-soon")) return false;
-      if (!allowed) return true;
-      return allowed.has(t.employeeId);
-    })
-    .sort((a, b) => {
-      const priorityOrder: Record<TrainingPriority, number> = {
-        critical: 0,
-        high: 1,
-        medium: 2,
-        low: 3,
-      };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    });
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   App,
   Button,
+  Checkbox,
   DatePicker,
   Drawer,
   Input,
@@ -37,6 +38,7 @@ import {
   type RotationPreview,
   type ShiftCode,
 } from "@/lib/shift";
+import { assertCanPublishRotation } from "@/lib/manpower-conflict";
 import {
   canAdminFinalizeRotation,
   canGenerateRotation,
@@ -44,6 +46,7 @@ import {
   scopedSiteId,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { sSerifText18Mb12, sSerifText22, sWhitePadR10 } from "@/lib/styles";
 
 const SHIFT_OPTIONS: ShiftCode[] = ["A", "B", "C", "G", "OFF"];
 
@@ -151,12 +154,7 @@ export default function ShiftRotationPage() {
           w.to,
         );
       }
-      return {
-        employeeId,
-        employeeName: emp?.name ?? employeeId,
-        groupId: row?.groupId ?? "—",
-        ...weekCodes,
-      };
+      return { employeeId, employeeName: emp?.name ?? employeeId, groupId: row?.groupId ?? "—", ...weekCodes };
     });
   }, [assignments, weeks, wizSite]);
 
@@ -243,23 +241,18 @@ export default function ShiftRotationPage() {
           w.to,
         );
       }
-      return {
-        employeeId,
-        employeeName: emp?.name ?? employeeId,
-        groupId: row?.groupId ?? "—",
-        ...weekCodes,
-      };
+      return { employeeId, employeeName: emp?.name ?? employeeId, groupId: row?.groupId ?? "—", ...weekCodes };
     });
   }, [reviewPreview, reviewWeeks]);
 
   const openReview = (preview: RotationPreview) => {
     const role =
-      preview.status === "pending_admin"
-        ? ("admin" as const)
+      preview.status === "pending_director"
+        ? ("director" as const)
         : ("manager" as const);
     if (
       (role === "manager" && canManager) ||
-      (role === "admin" && canAdmin)
+      (role === "director" && canAdmin)
     ) {
       try {
         markRotationScheduleViewed(preview.id, role);
@@ -275,25 +268,65 @@ export default function ShiftRotationPage() {
 
   const askDecision = (
     preview: RotationPreview,
-    stage: "manager" | "admin",
+    stage: "manager" | "director",
     outcome: "approved" | "rejected",
   ) => {
     let remark = "";
+    let acknowledgeOt = false;
+    const publishGate =
+      stage === "director" && outcome === "approved"
+        ? assertCanPublishRotation(
+            preview.siteId,
+            preview.fromDate,
+            preview.toDate,
+            { assignments: preview.assignments },
+          )
+        : null;
+
     modal.confirm({
       title:
         outcome === "approved"
           ? stage === "manager"
-            ? "Approve and send to Admin"
+            ? "Approve and send to Director"
             : "Approve and publish live"
           : "Reject draft",
+      width: 480,
       content: (
-        <Input.TextArea
-          rows={3}
-          placeholder="Remark (required)"
-          onChange={(e) => {
-            remark = e.target.value;
-          }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {publishGate && !publishGate.ok ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="Publish blockers"
+              description={
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {publishGate.reasons.slice(0, 5).map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              }
+            />
+          ) : null}
+          <Input.TextArea
+            rows={3}
+            placeholder="Remark (required)"
+            onChange={(e) => {
+              remark = e.target.value;
+            }}
+          />
+          {stage === "director" &&
+          outcome === "approved" &&
+          publishGate?.otAcknowledgeWouldClear ? (
+            <Checkbox
+              onChange={(e) => {
+                acknowledgeOt = e.target.checked;
+              }}
+            >
+              Accept OT for uncovered shift gaps (Director remark clears soft
+              policy flags)
+            </Checkbox>
+          ) : null}
+        </div>
       ),
       okText: outcome === "approved" ? "Confirm approve" : "Confirm reject",
       okButtonProps: { danger: outcome === "rejected" },
@@ -304,15 +337,21 @@ export default function ShiftRotationPage() {
             managerDecideRotation(preview.id, { by, remark, outcome });
             message.success(
               outcome === "approved"
-                ? "Sent to Admin for final approval."
+                ? "Sent to Director for final approval."
                 : "Draft rejected.",
             );
           } else {
-            adminDecideRotation(preview.id, { by, remark, outcome });
+            adminDecideRotation(preview.id, {
+              by,
+              remark,
+              outcome,
+              acknowledgeOt:
+                outcome === "approved" ? acknowledgeOt : undefined,
+            });
             message.success(
               outcome === "approved"
                 ? "Published to the live roster."
-                : "Draft rejected by Admin.",
+                : "Draft rejected by Director.",
             );
           }
           setReviewPreview(null);
@@ -328,18 +367,11 @@ export default function ShiftRotationPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 22,
-          }}
-        >
-          Employee rotation schedule
-        </div>
+        <div style={sSerifText22}>Employee rotation schedule</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
           Pattern: <strong>{ACTIVE_PATTERN.name}</strong> —{" "}
           {ACTIVE_PATTERN.description}. Shift In-Charge builds a monthly draft →
-          Manager reviews (must view first) → Admin approves with remarks to
+          Manager reviews (must view first) → Director approves with remarks to
           publish to the live roster (Schedule).
         </p>
       </div>
@@ -354,21 +386,11 @@ export default function ShiftRotationPage() {
           onChange={setSiteId}
           disabled={Boolean(locked)}
         />
-        <Button
-          type="primary"
-          disabled={!canGenerate}
-          onClick={openWizard}
-        >
-          Build monthly schedule
-        </Button>
+        <Button type="primary" disabled={!canGenerate} onClick={openWizard}>Build monthly schedule</Button>
         {!canGenerate ? (
-          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>
-            Drafting requires Shift In-Charge or Manager
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>Drafting requires Shift In-Charge or Manager</span>
         ) : (
-          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>
-            After submit: Manager → Admin (view required before decide)
-          </span>
+          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>After submit: Manager → Director (view required before decide)</span>
         )}
       </div>
 
@@ -379,11 +401,7 @@ export default function ShiftRotationPage() {
         style={{ background: nectarColors.white }}
         columns={[
           { title: "Employee", dataIndex: "employeeName" },
-          {
-            title: "Site",
-            dataIndex: "siteId",
-            render: (id) => getSiteName(id),
-          },
+          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
           { title: "Role", dataIndex: "groupId" },
           {
             title: "Current",
@@ -403,68 +421,36 @@ export default function ShiftRotationPage() {
         ]}
       />
 
-      <div
-        style={{
-          background: nectarColors.white,
-          padding: 20,
-          borderRadius: 10,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
-            fontSize: 18,
-            marginBottom: 12,
-          }}
-        >
-          Drafts pending publish
-        </div>
+      <div style={sWhitePadR10}>
+        <div style={sSerifText18Mb12}>Drafts pending publish</div>
         <Table
           rowKey="id"
           size="small"
           pagination={false}
           dataSource={previews}
           columns={[
-            {
-              title: "Label",
-              key: "label",
-              render: (_, r) => r.label ?? `${r.fromDate} → ${r.toDate}`,
-            },
+            { title: "Label", key: "label", render: (_, r) => r.label ?? `${r.fromDate} → ${r.toDate}` },
             { title: "From", dataIndex: "fromDate" },
             { title: "To", dataIndex: "toDate" },
-            {
-              title: "Site",
-              dataIndex: "siteId",
-              render: (id) => getSiteName(id),
-            },
+            { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
             { title: "Employees", dataIndex: "employeesAffected" },
-            {
-              title: "Pattern",
-              key: "pat",
-              render: (_, r) => r.patternId ?? "—",
-            },
-            {
-              title: "Status",
-              dataIndex: "status",
-              render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag>,
-            },
+            { title: "Pattern", key: "pat", render: (_, r) => r.patternId ?? "—" },
+            { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag> },
             {
               title: "Action",
               key: "act",
               render: (_, r) => {
                 const awaitingManager =
                   r.status === "pending_manager" || r.status === "draft";
-                const awaitingAdmin = r.status === "pending_admin";
-                if (!awaitingManager && !awaitingAdmin) return "—";
+                const awaitingDirector = r.status === "pending_director";
+                if (!awaitingManager && !awaitingDirector) return "—";
 
                 const canActManager = awaitingManager && canManager;
-                const canActAdmin = awaitingAdmin && canAdmin;
+                const canActAdmin = awaitingDirector && canAdmin;
 
                 return (
                   <Space size={6} wrap>
-                    <Button size="small" onClick={() => openReview(r)}>
-                      View schedule
-                    </Button>
+                    <Button size="small" onClick={() => openReview(r)}>View schedule</Button>
                     {canActManager ? (
                       <>
                         <Button
@@ -490,30 +476,26 @@ export default function ShiftRotationPage() {
                         <Button
                           size="small"
                           type="primary"
-                          disabled={!r.adminViewedAt}
-                          onClick={() => askDecision(r, "admin", "approved")}
+                          disabled={!r.directorViewedAt}
+                          onClick={() => askDecision(r, "director", "approved")}
                         >
                           Publish
                         </Button>
                         <Button
                           size="small"
                           danger
-                          disabled={!r.adminViewedAt}
-                          onClick={() => askDecision(r, "admin", "rejected")}
+                          disabled={!r.directorViewedAt}
+                          onClick={() => askDecision(r, "director", "rejected")}
                         >
                           Reject
                         </Button>
                       </>
                     ) : null}
                     {awaitingManager && !canManager ? (
-                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>
-                        Awaiting Manager
-                      </span>
+                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting Manager</span>
                     ) : null}
-                    {awaitingAdmin && !canAdmin ? (
-                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>
-                        Awaiting Admin
-                      </span>
+                    {awaitingDirector && !canAdmin ? (
+                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting Director</span>
                     ) : null}
                   </Space>
                 );
@@ -540,9 +522,9 @@ export default function ShiftRotationPage() {
               type="info"
               showIcon
               title={
-                reviewPreview.status === "pending_admin"
-                  ? "Admin: review the grid, then Approve (publish) or Reject with a remark."
-                  : "Manager: review the grid, then Approve (send to Admin) or Reject with a remark."
+                reviewPreview.status === "pending_director"
+                  ? "Director: review the grid, then Approve (publish) or Reject with a remark."
+                  : "Manager: review the grid, then Approve (send to Director) or Reject with a remark."
               }
             />
             {reviewPreview.managerDecision ? (
@@ -590,7 +572,7 @@ export default function ShiftRotationPage() {
                       askDecision(reviewPreview, "manager", "approved")
                     }
                   >
-                    Approve → Admin
+                    Approve → Director
                   </Button>
                   <Button
                     danger
@@ -603,22 +585,22 @@ export default function ShiftRotationPage() {
                   </Button>
                 </>
               ) : null}
-              {reviewPreview.status === "pending_admin" && canAdmin ? (
+              {reviewPreview.status === "pending_director" && canAdmin ? (
                 <>
                   <Button
                     type="primary"
-                    disabled={!reviewPreview.adminViewedAt}
+                    disabled={!reviewPreview.directorViewedAt}
                     onClick={() =>
-                      askDecision(reviewPreview, "admin", "approved")
+                      askDecision(reviewPreview, "director", "approved")
                     }
                   >
                     Approve & publish
                   </Button>
                   <Button
                     danger
-                    disabled={!reviewPreview.adminViewedAt}
+                    disabled={!reviewPreview.directorViewedAt}
                     onClick={() =>
-                      askDecision(reviewPreview, "admin", "rejected")
+                      askDecision(reviewPreview, "director", "rejected")
                     }
                   >
                     Reject
@@ -639,9 +621,7 @@ export default function ShiftRotationPage() {
         styles={{ body: { display: "flex", flexDirection: "column", gap: 16 } }}
         footer={
           <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-            <Button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
-              Back
-            </Button>
+            <Button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
             <Space>
               {step < 4 ? (
                 <Button
@@ -724,17 +704,12 @@ export default function ShiftRotationPage() {
               <Select
                 style={{ width: "100%" }}
                 value={patternId}
-                options={rotationPatterns.map((p) => ({
-                  value: p.id,
-                  label: `${p.name} — ${p.description}`,
-                }))}
+                options={rotationPatterns.map((p) => ({ value: p.id, label: `${p.name} — ${p.description}` }))}
                 onChange={(v) => setPatternId(v)}
               />
             </div>
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13 }}>
-                Roles (leave empty for all four)
-              </div>
+              <div style={{ marginBottom: 6, fontSize: 13 }}>Roles (leave empty for all four)</div>
               <Select
                 mode="multiple"
                 allowClear
@@ -758,9 +733,7 @@ export default function ShiftRotationPage() {
 
         {step === 2 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Button size="small" onClick={fillAssignments} style={{ alignSelf: "flex-start" }}>
-              Re-fill from pattern
-            </Button>
+            <Button size="small" onClick={fillAssignments} style={{ alignSelf: "flex-start" }}>Re-fill from pattern</Button>
             <Table
               size="small"
               rowKey="employeeId"
@@ -832,16 +805,14 @@ export default function ShiftRotationPage() {
               Month: <strong>{monthKey}</strong> ({bounds.fromDate} → {bounds.toDate})
               <br />
               Pattern:{" "}
-              <strong>
-                {rotationPatterns.find((p) => p.id === patternId)?.name}
-              </strong>
+              <strong>{rotationPatterns.find((p) => p.id === patternId)?.name}</strong>
               <br />
               Employees: <strong>{previewRows.length}</strong>
               <br />
               Blocking conflicts: <strong>{attentionConflicts.length}</strong>
             </p>
             <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>
-              Submitting creates a draft for Manager review, then Admin final
+              Submitting creates a draft for Manager review, then Director final
               approval before it goes live on Schedule.
             </p>
           </div>

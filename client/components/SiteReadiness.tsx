@@ -1,119 +1,77 @@
 "use client";
 
-import { Progress, Tooltip } from "antd";
+import Link from "next/link";
+import { Tooltip, theme } from "antd";
 import { getSession } from "@/lib/auth";
 import { scopedSiteId } from "@/lib/rbac";
+import type { Site } from "@/lib/types/site.types";
 import {
   READINESS_READY_THRESHOLD,
   READINESS_WEIGHTS,
   getSitesWithComputedReadiness,
 } from "@/lib/workforce-metrics";
-import { nectarColors } from "@/lib/theme";
+import { Section } from "@/components/quiet";
 
-export default function SiteReadiness() {
+/**
+ * One readiness score per running plant, lowest first. Plant names and locations come from the
+ * sites API (`sites`); the score itself is the same computed readiness the Sites page shows.
+ */
+export default function SiteReadiness({ sites = [] }: { sites?: Site[] }) {
+  const { token } = theme.useToken();
   const session = getSession();
   const siteScope = scopedSiteId(session);
-  const sorted = getSitesWithComputedReadiness(siteScope).sort(
-    (a, b) => a.readiness - b.readiness,
-  );
+  const byId = new Map(sites.map((s) => [s.id, s]));
+  const rows = getSitesWithComputedReadiness(siteScope)
+    .filter((s) => !sites.length || byId.has(s.id))
+    .sort((a, b) => a.readiness - b.readiness);
+
+  const w = READINESS_WEIGHTS;
+  const formula = `${Math.round(w.staffing * 100)}% staffing · ${Math.round(w.training * 100)}% training · ${Math.round(
+    w.skill * 100,
+  )}% skills · ${Math.round(w.coverage * 100)}% absence cover`;
 
   return (
-    <div
-      style={{
-        background: nectarColors.white,
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "var(--font-fraunces), Georgia, serif",
-          fontSize: 18,
-          color: nectarColors.ink,
-          marginBottom: 4,
-        }}
-      >
-        Site readiness
+    <Section title="Site readiness" extra={<Link href="/sites">All sites</Link>} flush>
+      <div style={{ padding: "12px 16px 0", fontSize: 13, color: token.colorTextSecondary }}>
+        Can each plant run safely today? {READINESS_READY_THRESHOLD}% or more counts as ready. Built from {formula}.
       </div>
-      <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
-        One score per plant: “can we safely run O&amp;M today?” Built from
-        staffing, training, skills, and open absences (≥{READINESS_READY_THRESHOLD}
-        % = ready).
-      </p>
-      <p style={{ margin: "0 0 16px", color: nectarColors.muted, fontSize: 12 }}>
-        Formula: {Math.round(READINESS_WEIGHTS.staffing * 100)}% staffing +{" "}
-        {Math.round(READINESS_WEIGHTS.training * 100)}% training +{" "}
-        {Math.round(READINESS_WEIGHTS.skill * 100)}% skills +{" "}
-        {Math.round(READINESS_WEIGHTS.coverage * 100)}% absence cover. Hover a
-        plant for the breakdown.
-      </p>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {sorted.map((site) => {
+      <ul style={{ listStyle: "none", margin: 0, padding: "4px 0 8px" }}>
+        {rows.map((site) => {
           const b = site.readinessBreakdown;
-          const tip = (
-            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-              <div>
-                Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})
-              </div>
-              <div>
-                Training {b.trainingPct}% ({b.overdueTrainingCount} overdue)
-              </div>
-              <div>Skills {b.skillPct}%</div>
-              <div>
-                Cover {b.coveragePct}% ({b.openAbsences} open absences)
-              </div>
-            </div>
-          );
+          const api = byId.get(site.id);
+          const color =
+            site.readiness < 70 ? token.colorError : site.readiness < READINESS_READY_THRESHOLD ? token.colorWarning : token.colorPrimary;
           return (
-            <Tooltip key={site.id} title={tip}>
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 4,
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 13, color: nectarColors.ink }}>
-                    {site.name}
-                    <span style={{ color: nectarColors.muted }}>
-                      {" "}
-                      · {site.plantType} · {site.headcount} staff
+            <li key={site.id} style={{ padding: "10px 16px" }}>
+              <Tooltip
+                title={
+                  <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                    <div>Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})</div>
+                    <div>Training {b.trainingPct}% ({b.overdueTrainingCount} overdue)</div>
+                    <div>Skills {b.skillPct}%</div>
+                    <div>Cover {b.coveragePct}% · {b.openAbsences} open absences</div>
+                  </div>
+                }
+              >
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6, fontSize: 13 }}>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ color: token.colorText, fontWeight: 500 }}>{api?.name ?? site.name}</span>
+                      <span style={{ color: token.colorTextSecondary }}> · {api?.location ?? site.location}</span>
                     </span>
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      fontVariantNumeric: "tabular-nums",
-                      color:
-                        site.readiness < 70
-                          ? nectarColors.alert
-                          : nectarColors.ink,
-                    }}
-                  >
-                    {site.readiness}%
-                  </span>
+                    <span style={{ fontVariantNumeric: "tabular-nums", color: site.readiness < 70 ? token.colorError : token.colorText }}>
+                      {site.readiness}%
+                    </span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 2, background: token.colorFillSecondary }}>
+                    <div data-anim="bar" style={{ width: `${site.readiness}%`, height: "100%", borderRadius: 2, background: color }} />
+                  </div>
                 </div>
-                <Progress
-                  percent={site.readiness}
-                  showInfo={false}
-                  strokeColor={
-                    site.readiness < 70
-                      ? nectarColors.alert
-                      : site.readiness < 85
-                        ? nectarColors.sky
-                        : nectarColors.mint
-                  }
-                  railColor="#E2E8F0"
-                  size={["100%", 8]}
-                />
-              </div>
-            </Tooltip>
+              </Tooltip>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </Section>
   );
 }

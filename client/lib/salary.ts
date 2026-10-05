@@ -69,7 +69,7 @@ function buildSalaryHistory(): SalaryPayment[] {
         bankName: bank,
         accountLast4: last4,
         paymentMode: i % 3 === 0 ? "NEFT" : i % 3 === 1 ? "RTGS" : "UPI",
-        status: i === 0 && emp.id === "e-etp-s3" ? "pending" : "paid",
+        status: i === 0 && emp.id === "emp0128" ? "pending" : "paid",
         remarks: otBonus ? `Includes OT payout ₹${otBonus}` : undefined,
       });
     });
