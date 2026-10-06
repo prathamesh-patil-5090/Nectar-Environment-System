@@ -11,6 +11,7 @@ import {
   getSitesWithComputedReadiness,
 } from "@/lib/workforce-metrics";
 import { Section } from "@/components/quiet";
+import { useT } from "@/lib/i18n";
 
 /**
  * One readiness score per running plant, lowest first. Plant names and locations come from the
@@ -18,6 +19,7 @@ import { Section } from "@/components/quiet";
  */
 export default function SiteReadiness({ sites = [] }: { sites?: Site[] }) {
   const { token } = theme.useToken();
+  const t = useT();
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const byId = new Map(sites.map((s) => [s.id, s]));
@@ -26,14 +28,14 @@ export default function SiteReadiness({ sites = [] }: { sites?: Site[] }) {
     .sort((a, b) => a.readiness - b.readiness);
 
   const w = READINESS_WEIGHTS;
-  const formula = `${Math.round(w.staffing * 100)}% staffing · ${Math.round(w.training * 100)}% training · ${Math.round(
-    w.skill * 100,
-  )}% skills · ${Math.round(w.coverage * 100)}% absence cover`;
+  const formula = `${Math.round(w.staffing * 100)}% ${t("dash.staffing")} · ${Math.round(w.training * 100)}% ${t(
+    "dash.training",
+  )} · ${Math.round(w.skill * 100)}% ${t("dash.skills")} · ${Math.round(w.coverage * 100)}% ${t("dash.cover")}`;
 
   return (
-    <Section title="Site readiness" extra={<Link href="/sites">All sites</Link>} flush>
+    <Section title={t("dash.siteReadiness")} extra={<Link href="/sites">{t("dash.allSites")}</Link>} flush>
       <div style={{ padding: "12px 16px 0", fontSize: 13, color: token.colorTextSecondary }}>
-        Can each plant run safely today? {READINESS_READY_THRESHOLD}% or more counts as ready. Built from {formula}.
+        {t("dash.readinessIntro", { n: READINESS_READY_THRESHOLD, formula })}
       </div>
       <ul style={{ listStyle: "none", margin: 0, padding: "4px 0 8px" }}>
         {rows.map((site) => {
@@ -46,10 +48,18 @@ export default function SiteReadiness({ sites = [] }: { sites?: Site[] }) {
               <Tooltip
                 title={
                   <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                    <div>Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})</div>
-                    <div>Training {b.trainingPct}% ({b.overdueTrainingCount} overdue)</div>
-                    <div>Skills {b.skillPct}%</div>
-                    <div>Cover {b.coveragePct}% · {b.openAbsences} open absences</div>
+                    <div>
+                      {t("dash.staffing")} {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})
+                    </div>
+                    <div>
+                      {t("dash.training")} {b.trainingPct}% ({b.overdueTrainingCount} {t("dash.overdue")})
+                    </div>
+                    <div>
+                      {t("dash.skills")} {b.skillPct}%
+                    </div>
+                    <div>
+                      {t("dash.cover")} {b.coveragePct}% · {b.openAbsences} {t("dash.openAbsences")}
+                    </div>
                   </div>
                 }
               >

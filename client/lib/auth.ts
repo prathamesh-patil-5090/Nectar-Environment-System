@@ -1,3 +1,5 @@
+import { localizedRecord } from "@/lib/i18n/localized";
+
 export const AUTH_STORAGE_KEY = "nectar-enviro-session";
 
 /**
@@ -23,17 +25,23 @@ export type UserRole =
   | "supervisor"
   | "employee";
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  director: "Director",
-  manager: "Manager",
-  management: "Management",
-  hr: "HR Manager",
-  site_incharge: "Site In-Charge",
-  shift_incharge: "Shift In-Charge",
-  safety_incharge: "Safety In-Charge",
-  supervisor: "Supervisor",
-  employee: "Employee",
-};
+const ROLE_KEYS = [
+  "director",
+  "manager",
+  "management",
+  "hr",
+  "site_incharge",
+  "shift_incharge",
+  "safety_incharge",
+  "supervisor",
+  "employee",
+] as const satisfies readonly UserRole[];
+
+/** Locale-aware role labels (English / Hindi / Marathi via i18n). */
+export const ROLE_LABELS: Record<UserRole, string> = localizedRecord(
+  "roles",
+  ROLE_KEYS,
+);
 
 export type DemoUser = {
   email: string;

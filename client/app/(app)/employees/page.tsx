@@ -12,20 +12,16 @@ import { getSites } from "@/lib/api/sites";
 import type { Employee } from "@/lib/types/employee.types";
 import type { Site } from "@/lib/types/site.types";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
+import {
+  translateDepartment,
+  translateDesignation,
+  translatePersonName,
+  translateSiteName,
+  useI18n,
+  useT,
+} from "@/lib/i18n";
 
 type TrainingStatus = Employee["trainingStatus"];
-
-const TRAINING_LABEL: Record<TrainingStatus, string> = {
-  compliant: "Compliant",
-  "due-soon": "Due soon",
-  overdue: "Overdue",
-};
-
-const TYPE_LABEL: Record<Employee["employeeType"], string> = {
-  permanent: "Permanent",
-  contract: "Contract",
-  deputed: "Deputed",
-};
 
 /** Below this the skill score is flagged — same cut-off the page used before. */
 const SKILL_FLAG = 70;
@@ -40,9 +36,23 @@ const initials = (name: string) =>
 
 export default function EmployeesPage() {
   const { token } = theme.useToken();
+  const t = useT();
+  const { locale } = useI18n();
   const router = useRouter();
   const session = getSession();
   const siteScope = scopedSiteId(session);
+
+  const TRAINING_LABEL: Record<TrainingStatus, string> = {
+    compliant: t("employeesUi.compliant"),
+    "due-soon": t("employeesUi.dueSoon"),
+    overdue: t("employeesUi.overdue"),
+  };
+
+  const TYPE_LABEL: Record<Employee["employeeType"], string> = {
+    permanent: t("employeesUi.permanent"),
+    contract: t("employeesUi.contract"),
+    deputed: t("employeesUi.deputed"),
+  };
 
   // Roster and plant names both come from the DB.
   const [employees, setEmployees] = useState<Employee[] | null>(null);
@@ -87,9 +97,11 @@ export default function EmployeesPage() {
           [e.name, e.id, e.email, e.designation, e.department].some((v) => v?.toLowerCase().includes(q)),
       )
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [visible, siteFilter, query]);
+  }, [visible, siteFilter, query, locale]);
 
-  const { pageRef, tableRef } = useTableMotion(employees ? data.map((e) => e.id).join("|") : "");
+  const { pageRef, tableRef } = useTableMotion(
+    employees ? `${locale}|${data.map((e) => e.id).join("|")}` : "",
+  );
 
   const trainingColor: Record<TrainingStatus, string> = {
     compliant: token.colorSuccess,
@@ -102,7 +114,7 @@ export default function EmployeesPage() {
 
   const columns: ColumnsType<Employee> = [
     {
-      title: "Employee",
+      title: t("common.employee"),
       dataIndex: "name",
       key: "name",
       sorter: (a, b) => a.name.localeCompare(b.name),
@@ -126,7 +138,7 @@ export default function EmployeesPage() {
             {initials(name)}
           </span>
           <div style={{ lineHeight: 1.35, minWidth: 0 }}>
-            <div style={{ fontWeight: 500, color: token.colorText }}>{name}</div>
+            <div style={{ fontWeight: 500, color: token.colorText }}>{translatePersonName(name)}</div>
             <div style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", ...muted }}>
               {e.id.toUpperCase()} · {e.email}
             </div>
@@ -135,15 +147,17 @@ export default function EmployeesPage() {
       ),
     },
     {
-      title: "Designation",
+      title: t("employeesUi.designation"),
       dataIndex: "designation",
       key: "designation",
-      filters: [...new Set(visible.map((e) => e.designation))].sort().map((d) => ({ text: d, value: d })),
+      filters: [...new Set(visible.map((e) => e.designation))]
+        .sort()
+        .map((d) => ({ text: translateDesignation(d), value: d })),
       onFilter: (value, e) => e.designation === value,
       render: (designation: string, e) => (
         <div style={{ lineHeight: 1.35 }}>
-          <div>{designation || e.role}</div>
-          <div style={{ fontSize: 13, ...muted }}>{e.department}</div>
+          <div>{translateDesignation(designation || e.role)}</div>
+          <div style={{ fontSize: 13, ...muted }}>{translateDepartment(e.department)}</div>
         </div>
       ),
     },
@@ -151,21 +165,27 @@ export default function EmployeesPage() {
       ? []
       : [
           {
-            title: "Site",
+            title: t("common.site"),
             key: "site",
-            render: (_: unknown, e: Employee) => (e.siteId ? (siteName.get(e.siteId) ?? e.siteId) : "Head office"),
+            render: (_: unknown, e: Employee) =>
+              e.siteId
+                ? translateSiteName(siteName.get(e.siteId) ?? e.siteId)
+                : t("employeesUi.headOffice"),
           } satisfies ColumnsType<Employee>[number],
         ]),
     {
-      title: "Type",
+      title: t("employeesUi.type"),
       dataIndex: "employeeType",
       key: "employeeType",
-      filters: (Object.keys(TYPE_LABEL) as Employee["employeeType"][]).map((t) => ({ text: TYPE_LABEL[t], value: t })),
+      filters: (Object.keys(TYPE_LABEL) as Employee["employeeType"][]).map((k) => ({
+        text: TYPE_LABEL[k],
+        value: k,
+      })),
       onFilter: (value, e) => e.employeeType === value,
       render: (type: Employee["employeeType"]) => (type ? TYPE_LABEL[type] : empty),
     },
     {
-      title: "Skill score",
+      title: t("employeesUi.skillScore"),
       dataIndex: "skillScore",
       key: "skillScore",
       width: 180,
@@ -188,10 +208,13 @@ export default function EmployeesPage() {
       ),
     },
     {
-      title: "Training",
+      title: t("employeesUi.training"),
       dataIndex: "trainingStatus",
       key: "trainingStatus",
-      filters: (Object.keys(TRAINING_LABEL) as TrainingStatus[]).map((s) => ({ text: TRAINING_LABEL[s], value: s })),
+      filters: (Object.keys(TRAINING_LABEL) as TrainingStatus[]).map((s) => ({
+        text: TRAINING_LABEL[s],
+        value: s,
+      })),
       onFilter: (value, e) => e.trainingStatus === value,
       render: (status: TrainingStatus) => (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
@@ -210,15 +233,15 @@ export default function EmployeesPage() {
       >
         <p style={{ margin: 0, fontSize: 14, maxWidth: 560, ...muted }}>
           {siteScope
-            ? `Plant roster for ${siteName.get(siteScope) ?? "your site"}.`
-            : "Everyone on the roster across all plants."}{" "}
-          Open a row to see the full profile.
+            ? t("employeesUi.plantRoster", { site: siteName.get(siteScope) ?? t("dash.yourPlant") })
+            : t("employeesUi.allRoster")}{" "}
+          {t("employeesUi.openRow")}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Input
             allowClear
             prefix={<SearchOutlined style={{ color: token.colorTextQuaternary }} />}
-            placeholder="Search name, ID, email or designation"
+            placeholder={t("employeesUi.search")}
             value={query}
             onChange={(ev) => setQuery(ev.target.value)}
             style={{ width: 300, maxWidth: "100%" }}
@@ -226,17 +249,20 @@ export default function EmployeesPage() {
           {siteScope ? null : (
             <Select
               allowClear
-              placeholder="All sites"
+              placeholder={t("employeesUi.allSites")}
               value={siteFilter}
               onChange={setSiteFilter}
-              options={sites.map((s) => ({ value: s.id, label: s.name }))}
+              options={sites.map((s) => ({
+            value: s.id,
+            label: translateSiteName(s.name),
+          }))}
               style={{ width: 220, maxWidth: "100%" }}
             />
           )}
         </div>
       </div>
 
-      {error ? <Alert type="error" showIcon message="Could not load employees" description={error} /> : null}
+      {error ? <Alert type="error" showIcon message={t("employeesUi.loadError")} description={error} /> : null}
 
       <div
         ref={tableRef}
@@ -258,7 +284,8 @@ export default function EmployeesPage() {
             pageSize: 10,
             hideOnSinglePage: true,
             showSizeChanger: false,
-            showTotal: (total, [from, to]) => `${from}–${to} of ${total} ${total === 1 ? "employee" : "employees"}`,
+            showTotal: (total, [from, to]) =>
+              t("employeesUi.showTotal", { from, to, total }),
             style: { padding: "0 16px" },
           }}
           onRow={(e) => ({

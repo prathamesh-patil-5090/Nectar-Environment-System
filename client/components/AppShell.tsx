@@ -66,33 +66,26 @@ import { hydrateAllStoresFromApi } from "@/lib/sync";
 import { ackSafetyEmergency, getActiveEmergencies } from "@/lib/api/safety";
 import type { SafetyEvent } from "@/lib/safety/types";
 import { safetyActorOf } from "@/lib/rbac";
+import { LanguageSwitcher, translatePersonName, useI18n } from "@/lib/i18n";
 
 const { Header, Sider, Content } = Layout;
 
 const SIDER_COLLAPSED_KEY = "nectar-enviro-sider-collapsed";
 
-const FLYOUT_TITLES: Record<string, string> = {
-  leave: "Leave",
-  shifts: "Shifts",
-  overtime: "OverTime",
-  academy: "Academy",
-  "academic-records": "Academic Records",
-  "reliever-pool": "Reliever Pool",
-  safety: "Safety",
-};
+type TFn = (key: string) => string;
 
 /** HR / Manager / Director see Training, Events + Certifications as records; everyone else as Academy. */
-function academyNavGroup(role: UserRole): NonNullable<MenuProps["items"]>[number] {
+function academyNavGroup(role: UserRole, t: TFn): NonNullable<MenuProps["items"]>[number] {
   const isRecords = role === "hr" || role === "manager" || role === "director";
   return {
     key: isRecords ? "academic-records" : "academy",
     icon: <BookOutlined />,
-    label: isRecords ? "Academic Records" : "Academy",
+    label: isRecords ? t("nav.academicRecords") : t("nav.academy"),
     children: [
-      { key: "/training", icon: <ReadOutlined />, label: "Training" },
-      { key: "/training/events", icon: <CalendarOutlined />, label: "Events" },
-      { key: "/training/mentors", icon: <TeamOutlined />, label: "Mentors" },
-      { key: "/certifications", icon: <SafetyCertificateOutlined />, label: "Certifications" },
+      { key: "/training", icon: <ReadOutlined />, label: t("nav.training") },
+      { key: "/training/events", icon: <CalendarOutlined />, label: t("nav.events") },
+      { key: "/training/mentors", icon: <TeamOutlined />, label: t("nav.mentors") },
+      { key: "/certifications", icon: <SafetyCertificateOutlined />, label: t("nav.certifications") },
     ],
   };
 }
@@ -114,9 +107,9 @@ function writeSiderCollapsed(collapsed: boolean) {
   }
 }
 
-function submenuTitleText(label: unknown): string {
+function submenuTitleText(label: unknown, fallback = "Menu"): string {
   if (typeof label === "string") return label;
-  return "Menu";
+  return fallback;
 }
 
 function GsapFlyoutCard({
@@ -146,115 +139,49 @@ function GsapFlyoutCard({
   );
 }
 
-const overtimeChildren = [
-  { key: "/overtime/overview", label: "Overview" },
-  { key: "/overtime/employees", label: "Employees" },
-  { key: "/overtime/sites", label: "Sites" },
-  { key: "/overtime/analysis", label: "Analysis & reports" },
-  { key: "/overtime/decisions", label: "Decisions" },
-];
-
-const leaveChildren = [
-  { key: "/leave", label: "Overview" },
-  { key: "/leave/requests", label: "Requests" },
-  { key: "/leave/lifecycle", label: "Lifecycle / Coverage" },
-  { key: "/leave/management", label: "Management" },
-];
-
-const safetyChildren = [
-  { key: "/safety", label: "Overview" },
-  { key: "/safety/report", label: "Report incident" },
-  { key: "/safety/incidents", label: "Incidents & near-miss" },
-  { key: "/safety/breakdowns", label: "Breakdowns" },
-  { key: "/safety/protocols", label: "Emergency protocols" },
-];
-
-/** Visible to every role — safety records are open to all. */
-const safetyNavItem: NonNullable<MenuProps["items"]>[number] = {
-  key: "safety",
-  icon: <SafetyOutlined />,
-  label: "Safety",
-  children: safetyChildren,
-};
-
-const shiftChildren = [
-  { key: "/shifts", label: "Dashboard" },
-  { key: "/shifts/master", label: "Shift Master" },
-  { key: "/shifts/schedule", label: "Schedule" },
-  { key: "/shifts/rotation", label: "Rotation" },
-  { key: "/shifts/change-requests", label: "Change Requests" },
-  { key: "/shifts/reliever-allocation", label: "Reliever Allocation" },
-  { key: "/shifts/manpower", label: "Manpower + Conflict" },
-  { key: "/shifts/deviations", label: "Deviations" },
-];
-
-// Full nav is built dynamically in AppShell from role (navItemsFiltered)
-
-const pageTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/employees": "Employees",
-  "/sites": "Sites",
-  "/training": "Training",
-  "/reliever-pool": "Reliever Pool",
-  "/reliever-pool/competition": "Reliever Competition",
-  "/leave": "Leave Overview",
-  "/leave/requests": "Leave Requests",
-  "/leave/lifecycle": "Leave · Lifecycle / Coverage",
-  "/leave/management": "Leave · Management",
-  "/shifts": "Shift Rotation",
-  "/shifts/master": "Shift Master",
-  "/shifts/schedule": "Shift Schedule",
-  "/shifts/rotation": "Shift Rotation",
-  "/shifts/change-requests": "Shift Change Requests",
-  "/shifts/reliever-allocation": "Reliever Allocation",
-  "/shifts/manpower": "Manpower + Conflict",
-  "/shifts/deviations": "Shift Deviations",
-  "/overtime/overview": "OT Overview",
-  "/overtime/employees": "Employee OT",
-  "/overtime/sites": "Site OT",
-  "/overtime/analysis": "OT Analysis & Reports",
-  "/overtime/decisions": "OT Decisions",
-  "/overtime/assign": "Assign OT",
-  "/notifications": "Notifications",
-  "/certifications": "Certifications",
-  "/salary": "Salary history",
-  "/meetings": "Meetings",
-  "/safety": "Safety",
-  "/safety/report": "Safety · Report incident",
-  "/safety/incidents": "Safety · Incidents & near-miss",
-  "/safety/breakdowns": "Safety · Breakdowns",
-  "/safety/protocols": "Safety · Emergency protocols",
-  "/safety/training": "Safety · Training",
-};
-
-/** Visible to every role; feature not built yet. */
-const meetingsNavItem: NonNullable<MenuProps["items"]>[number] = {
-  key: "/meetings",
-  icon: <VideoCameraOutlined />,
-  label: (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      Meetings
-      <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
-    </span>
-  ),
-};
-
-const medicalRecordsNavItem: NonNullable<MenuProps["items"]>[number] = {
-  key: "/medical-records",
-  icon: <MedicineBoxOutlined />,
-  label: (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      Medical records
-      <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
-    </span>
-  ),
-};
+const PAGE_TITLE_KEYS = [
+  "/dashboard",
+  "/employees",
+  "/sites",
+  "/training",
+  "/reliever-pool",
+  "/reliever-pool/competition",
+  "/leave",
+  "/leave/requests",
+  "/leave/lifecycle",
+  "/leave/management",
+  "/shifts",
+  "/shifts/master",
+  "/shifts/schedule",
+  "/shifts/rotation",
+  "/shifts/change-requests",
+  "/shifts/reliever-allocation",
+  "/shifts/manpower",
+  "/shifts/deviations",
+  "/overtime/overview",
+  "/overtime/employees",
+  "/overtime/sites",
+  "/overtime/analysis",
+  "/overtime/decisions",
+  "/overtime/assign",
+  "/notifications",
+  "/certifications",
+  "/salary",
+  "/meetings",
+  "/safety",
+  "/safety/report",
+  "/safety/incidents",
+  "/safety/breakdowns",
+  "/safety/protocols",
+  "/safety/training",
+] as const;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { token } = theme.useToken();
   const { message } = App.useApp();
+  const { t, pageTitle, locale } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -437,7 +364,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       extras.push("shifts");
     }
     if (pathname.startsWith("/training") || pathname.startsWith("/certifications")) {
-      const group = academyNavGroup(normalizeRole(user?.role));
+      const group = academyNavGroup(normalizeRole(user?.role), t);
       if (group?.key) extras.push(String(group.key));
     }
     if (!extras.length) return;
@@ -455,7 +382,108 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [pathname, collapsed, user]);
+  }, [pathname, collapsed, user, t]);
+
+  const shiftChildren = useMemo(
+    () => [
+      { key: "/shifts", label: t("nav.shiftsDashboard") },
+      { key: "/shifts/master", label: t("nav.shiftMaster") },
+      { key: "/shifts/schedule", label: t("nav.schedule") },
+      { key: "/shifts/rotation", label: t("nav.rotation") },
+      { key: "/shifts/change-requests", label: t("nav.changeRequests") },
+      { key: "/shifts/reliever-allocation", label: t("nav.relieverAllocation") },
+      { key: "/shifts/manpower", label: t("nav.manpowerConflict") },
+      { key: "/shifts/deviations", label: t("nav.deviations") },
+    ],
+    [t],
+  );
+
+  const safetyChildren = useMemo(
+    () => [
+      { key: "/safety", label: t("nav.safetyOverview") },
+      { key: "/safety/report", label: t("nav.safetyReport") },
+      { key: "/safety/incidents", label: t("nav.safetyIncidents") },
+      { key: "/safety/breakdowns", label: t("nav.safetyBreakdowns") },
+      { key: "/safety/protocols", label: t("nav.safetyProtocols") },
+    ],
+    [t],
+  );
+
+  const leaveChildren = useMemo(
+    () => [
+      { key: "/leave", label: t("nav.leaveOverview") },
+      { key: "/leave/requests", label: t("nav.leaveRequests") },
+      { key: "/leave/lifecycle", label: t("nav.leaveLifecycle") },
+      { key: "/leave/management", label: t("nav.leaveManagement") },
+    ],
+    [t],
+  );
+
+  const overtimeChildren = useMemo(
+    () => [
+      { key: "/overtime/overview", label: t("nav.otOverview") },
+      { key: "/overtime/employees", label: t("nav.otEmployees") },
+      { key: "/overtime/sites", label: t("nav.otSites") },
+      { key: "/overtime/analysis", label: t("nav.otAnalysis") },
+      { key: "/overtime/decisions", label: t("nav.otDecisions") },
+    ],
+    [t],
+  );
+
+  const safetyNavItem = useMemo(
+    (): NonNullable<MenuProps["items"]>[number] => ({
+      key: "safety",
+      icon: <SafetyOutlined />,
+      label: t("nav.safety"),
+      children: safetyChildren,
+    }),
+    [t, safetyChildren],
+  );
+
+  const meetingsNavItem = useMemo(
+    (): NonNullable<MenuProps["items"]>[number] => ({
+      key: "/meetings",
+      icon: <VideoCameraOutlined />,
+      label: (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {t("nav.meetings")}
+          <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>
+            {t("app.soon")}
+          </Tag>
+        </span>
+      ),
+    }),
+    [t],
+  );
+
+  const medicalRecordsNavItem = useMemo(
+    (): NonNullable<MenuProps["items"]>[number] => ({
+      key: "/medical-records",
+      icon: <MedicineBoxOutlined />,
+      label: (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {t("nav.medicalRecords")}
+          <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>
+            {t("app.soon")}
+          </Tag>
+        </span>
+      ),
+    }),
+    [t],
+  );
+
+  const flyoutTitles = useMemo(
+    (): Record<string, string> => ({
+      leave: t("nav.leave"),
+      shifts: t("nav.shifts"),
+      overtime: t("nav.overtime"),
+      academy: t("nav.academy"),
+      "academic-records": t("nav.academicRecords"),
+      "reliever-pool": t("nav.relieverPool"),
+      safety: t("nav.safety"),
+    }),
+    [t],
+  );
 
   const selectedKey = useMemo(() => {
     // 1. Leave routes
@@ -529,8 +557,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/training/mentors")) return "/training/mentors";
 
-    // 6. Direct match from pageTitles
-    const match = Object.keys(pageTitles).find(
+    // 6. Direct match from known page keys
+    const match = PAGE_TITLE_KEYS.find(
       (key) =>
         !key.startsWith("/overtime") &&
         !key.startsWith("/leave") &&
@@ -538,7 +566,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         (pathname === key || pathname.startsWith(`${key}/`)),
     );
     return match ?? "/dashboard";
-  }, [pathname]);
+  }, [pathname, shiftChildren, safetyChildren]);
 
   // GSAP: Smooth pop/glow transition when active menu item changes
   useEffect(() => {
@@ -559,65 +587,49 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const headerTitle = useMemo(() => {
     if (pathname.startsWith("/employees/")) {
       const id = pathname.split("/")[2];
-      return getEmployeeById(id)?.name ?? "Employee";
+      return getEmployeeById(id)?.name ?? t("common.employee");
     }
     if (pathname.startsWith("/leave/requests/")) {
-      return "Leave detail";
+      return t("pages./leave/requests");
     }
-    if (pathname.startsWith("/safety/incidents/")) return "Safety · Case";
-    if (pathname.startsWith("/safety/breakdowns/")) return "Safety · Breakdown";
+    if (pathname.startsWith("/safety/incidents/")) return t("pages./safety/incidents");
+    if (pathname.startsWith("/safety/breakdowns/")) return t("pages./safety/breakdowns");
     if (pathname.startsWith("/training/")) {
-      const section = pathname.split("/")[2];
-      const titles: Record<string, string> = {
-        home: "Training · My learning home",
-        explore: "Training · Explore",
-        course: "Training · Course",
-        learn: "Training · Course player",
-        track: "Training · Specialization",
-        "my-learning": "Training · My Learning",
-        events: "Training · Events",
-        communities: "Training · Community",
-        mentor: "Training · Mentor Studio",
-        mentors: "Training · Mentors",
-        team: "Training · My team",
-      };
-      return titles[section] ?? "Training";
+      return t("nav.training");
     }
     if (pathname.startsWith("/reliever-pool/competition")) {
-      return "Reliever Competition";
+      return t("pages./reliever-pool/competition");
     }
     if (pathname.startsWith("/overtime/employees/")) {
       const id = pathname.split("/")[3];
-      return getEmployeeById(id)?.name
-        ? `OT · ${getEmployeeById(id)!.name}`
-        : "Employee OT";
+      const name = getEmployeeById(id)?.name;
+      return name ? `OT · ${name}` : t("pages./overtime/employees");
     }
     if (pathname.startsWith("/overtime/sites/")) {
       const id = pathname.split("/")[3];
-      return getSiteById(id)?.name
-        ? `OT · ${getSiteById(id)!.name}`
-        : "Site OT";
+      const name = getSiteById(id)?.name;
+      return name ? `OT · ${name}` : t("pages./overtime/sites");
     }
-    return pageTitles[selectedKey] ?? "Dashboard";
-  }, [pathname, selectedKey]);
+    return pageTitle(selectedKey);
+  }, [pathname, selectedKey, t, pageTitle]);
 
   const navItemsFiltered = useMemo(() => {
     const role = normalizeRole(user?.role);
     if (role === "employee") {
       return [
-        { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+        { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
         {
           key: "leave",
           icon: <CalendarOutlined />,
-          label: "Leave",
+          label: t("nav.leave"),
           children: [
-            { key: "/leave", label: "Overview" },
-            { key: "/leave/requests", label: "My requests" },
+            { key: "/leave", label: t("nav.leaveOverview") },
+            { key: "/leave/requests", label: t("nav.leaveRequests") },
           ],
         },
-        academyNavGroup(role),
+        academyNavGroup(role, t),
         safetyNavItem,
-        { key: "/salary", icon: <WalletOutlined />, label: "Salary history" },
+        { key: "/salary", icon: <WalletOutlined />, label: t("nav.salary") },
         meetingsNavItem,
         medicalRecordsNavItem,
       ] as MenuProps["items"];
@@ -641,45 +653,45 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       : [];
 
     const items: MenuProps["items"] = [
-      { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+      { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
       ...(canViewEmployeeRoster(user)
-        ? [{ key: "/employees", icon: <TeamOutlined />, label: "Employees" }]
+        ? [{ key: "/employees", icon: <TeamOutlined />, label: t("nav.employees") }]
         : []),
     ];
 
     if (canViewSitesNav(user)) {
-      items.push({ key: "/sites", icon: <EnvironmentOutlined />, label: "Sites" });
+      items.push({ key: "/sites", icon: <EnvironmentOutlined />, label: t("nav.sites") });
     }
 
-    items.push(academyNavGroup(role));
+    items.push(academyNavGroup(role, t));
 
     if (canViewShiftsNav(user) && shiftKids.length) {
-      items.push({ key: "shifts", icon: <ScheduleOutlined />, label: "Shifts", children: shiftKids });
+      items.push({ key: "shifts", icon: <ScheduleOutlined />, label: t("nav.shifts"), children: shiftKids });
     }
 
     if (canViewRelieverPoolNav(user)) {
       items.push({
         key: "reliever-pool",
         icon: <ClusterOutlined />,
-        label: "Reliever Pool",
+        label: t("nav.relieverPool"),
         children: [
-          { key: "/reliever-pool", label: "Pool" },
-          { key: "/reliever-pool/competition", label: "Competition" },
+          { key: "/reliever-pool", label: t("nav.relieverPool") },
+          { key: "/reliever-pool/competition", label: t("nav.competition") },
         ],
       });
     }
 
-    items.push({ key: "leave", icon: <CalendarOutlined />, label: "Leave", children: leaveKids });
+    items.push({ key: "leave", icon: <CalendarOutlined />, label: t("nav.leave"), children: leaveKids });
 
     if (canViewOtModule(user)) {
       items.push({
         key: "overtime",
         icon: <ClockCircleOutlined />,
-        label: "OverTime",
+        label: t("nav.overtime"),
         children: [
           ...overtimeChildren,
           ...(canAssignOt(user)
-            ? [{ key: "/overtime/assign", label: "Assign / notify" }]
+            ? [{ key: "/overtime/assign", label: t("pages./overtime/assign") }]
             : []),
         ],
       });
@@ -690,7 +702,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     items.push(medicalRecordsNavItem);
 
     return items;
-  }, [user]);
+  }, [
+    user,
+    t,
+    leaveChildren,
+    shiftChildren,
+    overtimeChildren,
+    safetyNavItem,
+    meetingsNavItem,
+    medicalRecordsNavItem,
+    locale,
+  ]);
 
   const profileHref = user?.employeeId
     ? `/employees/${user.employeeId}`
@@ -701,16 +723,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const userMenu: MenuProps["items"] = [
     ...(profileHref
       ? [
-          { key: "my-profile", icon: <UserOutlined />, label: "My Profile", onClick: () => router.push(profileHref) },
+          { key: "my-profile", icon: <UserOutlined />, label: t("nav.myProfile"), onClick: () => router.push(profileHref) },
           { type: "divider" as const },
         ]
       : []),
-    { key: "settings", icon: <SettingOutlined />, label: "Settings", onClick: () => setSettingsOpen(true) },
-    { key: "role", label: `Role: ${roleLabel(user?.role)}`, disabled: true },
+    { key: "settings", icon: <SettingOutlined />, label: t("app.settings"), onClick: () => setSettingsOpen(true) },
+    { key: "role", label: `${t("common.role")}: ${roleLabel(user?.role)}`, disabled: true },
     {
       key: "logout",
       icon: <LogoutOutlined />,
-      label: "Log out",
+      label: t("app.logout"),
       onClick: () => {
         logout();
         router.replace("/login");
@@ -764,12 +786,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 lineHeight: 1.2, fontWeight: 600, whiteSpace: "nowrap",
               }}
             >
-              Nectar Enviro
+              {t("app.name")}
             </div>
             <div
               style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: "0.02em", whiteSpace: "nowrap" }}
             >
-              Ops Console
+              {t("app.tagline")}
             </div>
           </div>
         </Link>
@@ -809,9 +831,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const path = info.keys ?? [];
             const key = String(path[path.length - 1] ?? path[0] ?? "");
             const title =
-              FLYOUT_TITLES[key] ??
+              flyoutTitles[key] ??
               submenuTitleText(
                 (info.item as { label?: unknown } | undefined)?.label,
+                t("app.menu"),
               );
             return (
               <GsapFlyoutCard title={title}>{node as ReactElement}</GsapFlyoutCard>
@@ -861,10 +884,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <LanguageSwitcher variant="compact" />
             {user?.employeeId ? (
               <button
                 type="button"
-                aria-label="Notifications"
+                aria-label={t("nav.notifications")}
                 onClick={() => router.push("/notifications")}
                 style={{
                   border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center",
@@ -883,7 +907,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <Avatar size="small" icon={<UserOutlined />} style={{ background: nectarColors.leaf }} />
-                <span style={{ color: nectarColors.ink, fontSize: 14 }}>{user?.name}</span>
+                <span style={{ color: nectarColors.ink, fontSize: 14 }}>
+                  {translatePersonName(user?.name)}
+                </span>
               </button>
             </Dropdown>
           </div>
@@ -908,13 +934,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <Link href={`/safety/incidents/${e.id}`}>View</Link>
+                <Link href={`/safety/incidents/${e.id}`}>{t("common.view")}</Link>
                 <button
                   type="button"
                   onClick={() => void acknowledgeEmergency(e.id)}
                   style={{ background: "#C62828", color: "#fff", border: 0, borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}
                 >
-                  Acknowledge
+                  {t("common.acknowledge")}
                 </button>
               </div>
             </div>
@@ -924,21 +950,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </Layout>
 
       <Modal
-        title="Settings"
+        title={t("settings.title")}
         open={settingsOpen}
         onCancel={() => setSettingsOpen(false)}
-        okText="Reset demo data"
+        okText={t("settings.resetDemo")}
         okButtonProps={{ danger: true }}
+        cancelText={t("common.cancel")}
         onOk={() => {
           resetDemoLocalData();
           setSettingsOpen(false);
           window.location.reload();
         }}
       >
+        <LanguageSwitcher variant="full" style={{ marginBottom: 16 }} />
+        <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
+          {t("settings.languageHint")}
+        </p>
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          Clear leave, shift, reliever, OT assign, notification, and training
-          edits saved in this browser. Built-in demo records come back. Your
-          login stays signed in.
+          {t("settings.resetDemoHint")}
         </p>
       </Modal>
     </Layout>

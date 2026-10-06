@@ -1,9 +1,11 @@
 /**
  * Safety rules — status machine, role permissions, clearance and reminder timing.
  *
- * SHARED FILE: an identical copy lives at client/lib/safety/rules.ts.
- * client/lib/safety/rules-parity.test.ts fails if the two drift — edit both together.
+ * SHARED FILE: logic mirrors server/src/modules/safety/safety-rules.ts.
+ * Display labels on the client are locale-aware (EN / HI / MR).
  */
+
+import { localizedRecord } from "@/lib/i18n/localized";
 
 export type SafetyEventType = "incident" | "near_miss" | "breakdown";
 
@@ -363,34 +365,39 @@ export function otTotals(entries: { employeeId: string; hours: number }[] = []):
   return { people, hours };
 }
 
-export const SAFETY_STATUS_LABELS: Record<SafetyStatus, string> = {
-  REPORTED: "Reported",
-  ACKNOWLEDGED: "Acknowledged",
-  INVESTIGATING: "Investigating",
-  ACTION_PENDING: "Action pending",
-  RESOLVED: "Solved",
-  CLOSED: "Closed",
-  REOPENED: "Reopened",
-};
+export const SAFETY_STATUS_LABELS: Record<SafetyStatus, string> = localizedRecord(
+  "safety.status",
+  [
+    "REPORTED",
+    "ACKNOWLEDGED",
+    "INVESTIGATING",
+    "ACTION_PENDING",
+    "RESOLVED",
+    "CLOSED",
+    "REOPENED",
+  ] as const,
+);
 
-export const SAFETY_TYPE_LABELS: Record<SafetyEventType, string> = {
-  incident: "Incident",
-  near_miss: "Near-miss",
-  breakdown: "Breakdown",
-};
+export const SAFETY_TYPE_LABELS: Record<SafetyEventType, string> = localizedRecord(
+  "safety.type",
+  ["incident", "near_miss", "breakdown"] as const,
+);
 
-export const SAFETY_CATEGORY_LABELS: Record<SafetyCategory, string> = {
-  first_aid: "First aid",
-  medical: "Medical treatment",
-  lost_time: "Lost-time injury",
-  fatal: "Fatal injury",
-  death: "Death",
-  plant_problem: "Plant problem",
-  fire: "Fire",
-  chemical: "Chemical",
-  electrical: "Electrical",
-  other: "Other",
-};
+export const SAFETY_CATEGORY_LABELS: Record<SafetyCategory, string> = localizedRecord(
+  "safety.category",
+  [
+    "first_aid",
+    "medical",
+    "lost_time",
+    "fatal",
+    "death",
+    "plant_problem",
+    "fire",
+    "chemical",
+    "electrical",
+    "other",
+  ] as const,
+);
 
 /** "Other — {custom hazard}" when the reporter named it, else the plain category label. */
 export function safetyCategoryLabel(ev: { category: SafetyCategory; categoryOther?: string }): string {
@@ -398,9 +405,5 @@ export function safetyCategoryLabel(ev: { category: SafetyCategory; categoryOthe
   return ev.category === "other" && ev.categoryOther?.trim() ? `${base} — ${ev.categoryOther.trim()}` : base;
 }
 
-export const SAFETY_SEVERITY_LABELS: Record<SafetySeverity, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
-};
+export const SAFETY_SEVERITY_LABELS: Record<SafetySeverity, string> =
+  localizedRecord("safety.severity", ["low", "medium", "high", "critical"] as const);

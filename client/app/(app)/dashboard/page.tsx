@@ -17,18 +17,19 @@ import { normalizeRole, roleLabel, scopedSiteId, selfEmployeeId } from "@/lib/rb
 import { getUrgentTrainingItems, useTrainingData } from "@/lib/training";
 import { READINESS_READY_THRESHOLD, countComplianceReadySites } from "@/lib/workforce-metrics";
 import { useDashboardMotion } from "@/lib/motion/use-dashboard-motion";
+import { translatePersonName, useT } from "@/lib/i18n";
 
 type Reporting = { manager?: Employee; sic?: Employee; supervisor?: Employee };
 
 export default function DashboardPage() {
   const { token } = theme.useToken();
+  const t = useT();
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const role = normalizeRole(session?.role);
   const empId = selfEmployeeId(session);
   const isEmployee = role === "employee";
 
-  // People and plants come from the database.
   const [roster, setRoster] = useState<Employee[] | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [me, setMe] = useState<Employee | null>(null);
@@ -81,15 +82,16 @@ export default function DashboardPage() {
   const ready = isEmployee ? Boolean(me) : roster !== null;
   const pageRef = useDashboardMotion(ready);
 
+  const plantName = siteScope
+    ? (sites.find((s) => s.id === siteScope)?.name ?? t("dash.yourPlant"))
+    : null;
   const subtitle =
-    role === "director"
-      ? "Across all running plants."
-      : siteScope
-        ? `${sites.find((s) => s.id === siteScope)?.name ?? "Your plant"}.`
-        : "Across all running plants.";
+    role === "director" || !siteScope
+      ? t("dash.acrossAllPlants")
+      : `${plantName}.`;
 
   if (error && !roster && !me) {
-    return <Alert type="error" showIcon title="Could not load the dashboard" description={error} />;
+    return <Alert type="error" showIcon title={t("dash.loadError")} description={error} />;
   }
   if (!ready) {
     return <div style={{ padding: 48, textAlign: "center" }}><Spin /></div>;
@@ -106,21 +108,39 @@ export default function DashboardPage() {
   return (
     <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p data-anim="intro" style={{ margin: 0, fontSize: 14, color: token.colorTextSecondary }}>
-        {subtitle} Signed in as {roleLabel(session?.role)}
-        {me ? ` · ${me.name}` : ""}.
+        {subtitle}{" "}
+        {t("dash.signedInAs", { role: roleLabel(session?.role) })}
+        {me ? ` · ${translatePersonName(me.name)}` : ""}.
       </p>
 
       <div data-anim="intro">
         <NumberRow
           items={[
-            { label: "Employees", value: active.length, hint: siteScope ? "On this plant's roster" : "Across all plants" },
-            { label: "Running plants", value: plants.length, hint: plants.map((p) => p.location.split(",")[0]).join(" · ") || undefined },
-            { label: "Average skill score", value: `${skillCoverage}%`, hint: "Active employees" },
-            { label: "Urgent training", value: urgentTraining, hint: "Overdue or due in 2 weeks", alert: urgentTraining > 0 },
             {
-              label: "Ready plants",
-              value: `${readySites} of ${plants.length}`,
-              hint: `Readiness ${READINESS_READY_THRESHOLD}% or more`,
+              label: t("dash.employees"),
+              value: active.length,
+              hint: siteScope ? t("dash.onThisPlant") : t("dash.acrossAllPlantsHint"),
+            },
+            {
+              label: t("dash.runningPlants"),
+              value: plants.length,
+              hint: plants.map((p) => p.location.split(",")[0]).join(" · ") || undefined,
+            },
+            {
+              label: t("dash.avgSkill"),
+              value: `${skillCoverage}%`,
+              hint: t("dash.activeEmployees"),
+            },
+            {
+              label: t("dash.urgentTraining"),
+              value: urgentTraining,
+              hint: t("dash.urgentHint"),
+              alert: urgentTraining > 0,
+            },
+            {
+              label: t("dash.readyPlants"),
+              value: `${readySites} ${t("dash.of")} ${plants.length}`,
+              hint: t("dash.readinessHint", { n: READINESS_READY_THRESHOLD }),
               alert: readySites < plants.length,
             },
           ]}

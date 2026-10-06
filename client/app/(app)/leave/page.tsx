@@ -21,6 +21,7 @@ import {
 import { nectarColors } from "@/lib/theme";
 import { rowWrapGap1BgR8, sSerifText22Ink, sWhitePadR12BorderShadow } from "@/lib/styles";
 import Panel from "@/components/Panel";
+import { translatePersonName, useT } from "@/lib/i18n";
 
 const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
   REQUESTED: nectarColors.sky,
@@ -40,6 +41,7 @@ const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
 };
 
 export default function LeaveOverviewPage() {
+  const t = useT();
   const session = getSession();
   const siteScope = scopedSiteId(session);
   const empScope = scopedEmployeeId(session);
@@ -61,49 +63,51 @@ export default function LeaveOverviewPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={sWhitePadR12BorderShadow}>
-        <div style={sSerifText22Ink}>Leave & absence</div>
+        <div style={sSerifText22Ink}>{t("leaveUi.title")}</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted, maxWidth: 720 }}>
-          {isSelf
-            ? "Your leave requests, status, and history. Apply for leave or track approvals here."
-            : "Employee self-request → Manager approve/reject. Supervisor on-behalf → employee consent → Manager. Connected to reliever pool and OT risk. (HR validation is disabled for this demo.)"}
+          {isSelf ? t("leaveUi.selfSubtitle") : t("leaveUi.mgmtSubtitle")}
         </p>
         <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/leave/requests"><Button type="primary" icon={<PlusOutlined />}>{isSelf ? "Request leave" : "New leave / absence"}</Button></Link>
+          <Link href="/leave/requests">
+            <Button type="primary" icon={<PlusOutlined />}>
+              {isSelf ? t("leaveUi.requestLeave") : t("leaveUi.newLeave")}
+            </Button>
+          </Link>
         </div>
       </div>
 
       <div style={rowWrapGap1BgR8}>
         {isSelf ? (
           <>
-            <KpiStat label="My requests" value={kpis.totalRequests} hint="All statuses" />
-            <KpiStat label="Pending" value={kpis.pendingRequests} tone="info" />
-            <KpiStat label="Approved" value={kpis.approvedCount} tone="positive" />
-            <KpiStat label="Rejected" value={kpis.rejectedCount} tone="alert" />
+            <KpiStat label={t("leaveUi.myRequests")} value={kpis.totalRequests} hint={t("leaveUi.allStatuses")} />
+            <KpiStat label={t("leaveUi.pending")} value={kpis.pendingRequests} tone="info" />
+            <KpiStat label={t("leaveUi.approved")} value={kpis.approvedCount} tone="positive" />
+            <KpiStat label={t("leaveUi.rejected")} value={kpis.rejectedCount} tone="alert" />
           </>
         ) : showMgmt ? (
           <>
-            <KpiStat label="Total employees" value={kpis.totalEmployees} />
-            <KpiStat label="Currently on leave" value={kpis.currentlyOnLeave} tone="info" />
-            <KpiStat label="Unexplained absence" value={kpis.leaveWithoutInformation} tone="alert" />
-            <KpiStat label="Critical site shortages" value={kpis.criticalSiteShortages} tone="alert" />
-            <KpiStat label="Leave → OT risk" value={kpis.leaveOtRisk} tone="alert" />
-            <KpiStat label="Long leave cases" value={kpis.longLeaveCases} tone="info" />
+            <KpiStat label={t("leaveUi.totalEmployees")} value={kpis.totalEmployees} />
+            <KpiStat label={t("leaveUi.currentlyOnLeave")} value={kpis.currentlyOnLeave} tone="info" />
+            <KpiStat label={t("leaveUi.unexplainedAbsence")} value={kpis.leaveWithoutInformation} tone="alert" />
+            <KpiStat label={t("leaveUi.criticalShortages")} value={kpis.criticalSiteShortages} tone="alert" />
+            <KpiStat label={t("leaveUi.leaveOtRisk")} value={kpis.leaveOtRisk} tone="alert" />
+            <KpiStat label={t("leaveUi.longLeave")} value={kpis.longLeaveCases} tone="info" />
           </>
         ) : showPending ? (
           <>
-            <KpiStat label="Pending leave requests" value={kpis.pendingRequests} tone="info" />
-            <KpiStat label="Unverified absences" value={kpis.unverifiedAbsences} tone="alert" />
-            <KpiStat label="Employees on leave" value={kpis.currentlyOnLeave} />
-            <KpiStat label="Leave without information" value={kpis.leaveWithoutInformation} tone="alert" />
-            <KpiStat label="Overdue leave closure" value={kpis.overdueLeaveClosure} tone="alert" />
-            <KpiStat label="Leave → OT risk" value={kpis.leaveOtRisk} hint="Needs replacement plan" />
+            <KpiStat label={t("leaveUi.pendingRequests")} value={kpis.pendingRequests} tone="info" />
+            <KpiStat label={t("leaveUi.unverifiedAbsences")} value={kpis.unverifiedAbsences} tone="alert" />
+            <KpiStat label={t("leaveUi.employeesOnLeave")} value={kpis.currentlyOnLeave} />
+            <KpiStat label={t("leaveUi.leaveWithoutInfo")} value={kpis.leaveWithoutInformation} tone="alert" />
+            <KpiStat label={t("leaveUi.overdueClosure")} value={kpis.overdueLeaveClosure} tone="alert" />
+            <KpiStat label={t("leaveUi.leaveOtRisk")} value={kpis.leaveOtRisk} hint={t("leaveUi.needsReplacement")} />
           </>
         ) : (
           <>
-            <KpiStat label="Pending at site" value={kpis.pendingRequests} tone="info" />
-            <KpiStat label="On leave today" value={kpis.currentlyOnLeave} />
-            <KpiStat label="OT risk cases" value={kpis.leaveOtRisk} tone="alert" />
-            <KpiStat label="Needs return confirm" value={kpis.overdueLeaveClosure} tone="alert" />
+            <KpiStat label={t("leaveUi.pendingAtSite")} value={kpis.pendingRequests} tone="info" />
+            <KpiStat label={t("leaveUi.onLeaveToday")} value={kpis.currentlyOnLeave} />
+            <KpiStat label={t("leaveUi.otRiskCases")} value={kpis.leaveOtRisk} tone="alert" />
+            <KpiStat label={t("leaveUi.needsReturn")} value={kpis.overdueLeaveClosure} tone="alert" />
           </>
         )}
       </div>
@@ -112,10 +116,10 @@ export default function LeaveOverviewPage() {
         style={{ display: "grid", gridTemplateColumns: isSelf ? "1fr" : "1.2fr 1fr", gap: 16 }}
         className="nectar-ot-two"
       >
-        <Panel title={isSelf ? "My recent leave" : "Recent leave activity"}>
+        <Panel title={isSelf ? t("leaveUi.myRecent") : t("leaveUi.recentActivity")}>
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {recent.length === 0 ? (
-              <li style={{ color: nectarColors.muted, fontSize: 13 }}>No leave requests yet.</li>
+              <li style={{ color: nectarColors.muted, fontSize: 13 }}>{t("leaveUi.noRequests")}</li>
             ) : null}
             {recent.map((l) => (
               <li key={l.id} style={{ padding: "12px 0", borderBottom: `1px solid ${nectarColors.sand}` }}>
@@ -123,9 +127,11 @@ export default function LeaveOverviewPage() {
                   <Link href={`/leave/requests/${l.id}`} style={{ fontWeight: 600, color: nectarColors.leaf }}>
                     {isSelf
                       ? `${l.startDate} → ${l.endDate}`
-                      : l.employeeName}
+                      : translatePersonName(l.employeeName)}
                   </Link>
-                  <Tag color={STATUS_COLOR[l.status] ?? nectarColors.muted} style={{ border: "none", margin: 0 }}>{LEAVE_STATUS_LABELS[l.status]}</Tag>
+                  <Tag color={STATUS_COLOR[l.status] ?? nectarColors.muted} style={{ border: "none", margin: 0 }}>
+                    {LEAVE_STATUS_LABELS[l.status]}
+                  </Tag>
                 </div>
                 <div style={{ fontSize: 12, color: nectarColors.muted }}>
                   {isSelf ? null : (
@@ -135,8 +141,8 @@ export default function LeaveOverviewPage() {
                   )}
                   {l.mode} ·{" "}
                   {l.entrySource === "supervisor_on_behalf"
-                    ? `Entered by supervisor (${l.enteredByName})`
-                    : "Requested by employee"}
+                    ? t("leaveUi.enteredBySupervisor", { name: l.enteredByName ?? "" })
+                    : t("leaveUi.requestedByEmployee")}
                   {l.rejectionReason ? ` · ${l.rejectionReason}` : ""}
                 </div>
               </li>
@@ -145,19 +151,19 @@ export default function LeaveOverviewPage() {
         </Panel>
 
         {isSelf ? null : (
-        <Panel title="Hierarchy reminder">
+        <Panel title={t("leaveUi.hierarchy")}>
           <ol style={{ margin: 0, paddingLeft: 18, color: nectarColors.ink, fontSize: 13, lineHeight: 1.7 }}>
-            <li>Employee informs (or supervisor records)</li>
-            <li>Supervisor verifies / enters</li>
-            <li>Manager checks manpower & approves</li>
-            <li>Employee sees status & rejection reasons</li>
+            <li>{t("leaveUi.h1")}</li>
+            <li>{t("leaveUi.h2")}</li>
+            <li>{t("leaveUi.h3")}</li>
+            <li>{t("leaveUi.h4")}</li>
           </ol>
           {pending.length ? (
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>Needs attention</div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>{t("leaveUi.needsAttention")}</div>
               {pending.slice(0, 3).map((p) => (
                 <div key={p.id} style={{ fontSize: 12, marginBottom: 6 }}>
-                  <Link href={`/leave/requests/${p.id}`}>{p.employeeName}</Link>{" "}
+                  <Link href={`/leave/requests/${p.id}`}>{translatePersonName(p.employeeName)}</Link>{" "}
                   — {LEAVE_STATUS_LABELS[p.status]}
                 </div>
               ))}

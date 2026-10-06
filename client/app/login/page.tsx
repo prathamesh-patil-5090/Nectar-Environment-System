@@ -11,6 +11,7 @@ import {
   login,
   ROLE_LABELS,
 } from "@/lib/auth";
+import { LanguageSwitcher, useI18n } from "@/lib/i18n";
 
 import InteractiveEnvironmentalCanvas, {
   type ThemeMode,
@@ -43,6 +44,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const themeMode: ThemeMode = "deep";
+  const { t, locale } = useI18n();
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -55,7 +57,7 @@ export default function LoginPage() {
     setError(null);
     const user = login(values.email, values.password);
     if (!user) {
-      setError("Invalid email or password. Use the demo credentials below.");
+      setError(t("login.invalidCreds"));
       setLoading(false);
       return;
     }
@@ -74,12 +76,23 @@ export default function LoginPage() {
         padding: "32px 16px", position: "relative", overflow: "hidden", backgroundColor: "#060f17",
       }}
     >
-      {/* Interactive Hydrodynamic Wavefield Canvas */}
       <InteractiveEnvironmentalCanvas themeMode={themeMode} />
 
-      {/* Main Container */}
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 20,
+          background: "rgba(255,255,255,0.92)",
+          borderRadius: 10,
+          padding: "4px 8px",
+        }}
+      >
+        <LanguageSwitcher variant="compact" />
+      </div>
+
       <div className="nectar-login-enter" style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 10 }}>
-        {/* Brand Header */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <Typography.Title
             level={1}
@@ -88,16 +101,15 @@ export default function LoginPage() {
               color: "#FFFFFF", fontWeight: 700, letterSpacing: "-0.03em",
             }}
           >
-            Nectar Enviro
+            {t("app.name")}
           </Typography.Title>
           <Typography.Paragraph
             style={{ margin: "6px 0 0", color: "rgba(255, 255, 255, 0.65)", fontSize: 14, letterSpacing: "0.01em" }}
           >
-            Workforce &amp; site readiness console
+            {t("app.tagline")}
           </Typography.Paragraph>
         </div>
 
-        {/* Elevated Modern Card */}
         <div
           style={{
             background: "#FFFFFF",
@@ -117,6 +129,7 @@ export default function LoginPage() {
           ) : null}
 
           <Form
+            key={locale}
             form={form}
             layout="vertical"
             requiredMark={false}
@@ -125,12 +138,10 @@ export default function LoginPage() {
           >
             <Form.Item
               name="email"
-              label={
-                <span style={sText13SemiboldColor}>Email Address</span>
-              }
+              label={<span style={sText13SemiboldColor}>{t("login.email")}</span>}
               rules={[
-                { required: true, message: "Enter your email" },
-                { type: "email", message: "Enter a valid email" },
+                { required: true, message: t("login.enterEmail") },
+                { type: "email", message: t("login.validEmail") },
               ]}
               style={{ marginBottom: 16 }}
             >
@@ -145,15 +156,13 @@ export default function LoginPage() {
 
             <Form.Item
               name="password"
-              label={
-                <span style={sText13SemiboldColor}>Password</span>
-              }
-              rules={[{ required: true, message: "Enter your password" }]}
+              label={<span style={sText13SemiboldColor}>{t("login.password")}</span>}
+              rules={[{ required: true, message: t("login.enterPassword") }]}
               style={{ marginBottom: 20 }}
             >
               <Input.Password
                 prefix={<LockOutlined style={{ color: "rgba(28, 68, 99, 0.6)", fontSize: 14 }} />}
-                placeholder="Password"
+                placeholder={t("login.password")}
                 size="large"
                 autoComplete="current-password"
                 style={sText14R10Border}
@@ -173,12 +182,11 @@ export default function LoginPage() {
                   boxShadow: "0 6px 18px -2px rgba(28, 68, 99, 0.4)", cursor: "pointer",
                 }}
               >
-                Sign in
+                {t("login.signIn")}
               </Button>
             </Form.Item>
           </Form>
 
-          {/* Quick Demo Accounts Drawer */}
           <div style={{ paddingTop: 14, borderTop: "1px solid #EEF2F6" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span
@@ -187,12 +195,12 @@ export default function LoginPage() {
                   textTransform: "uppercase",
                 }}
               >
-                Demo Accounts
+                {t("login.demoAccounts")}
               </span>
               <span
                 style={{ fontSize: 11.5, color: "#64748B", background: "#F1F5F9", padding: "2px 8px", borderRadius: 6 }}
               >
-                pwd:{" "}
+                {t("login.pwd")}:{" "}
                 <code style={{ fontWeight: 650, color: "#1C4463", fontFamily: "monospace" }}>{DEMO_CREDENTIALS.password}</code>
               </span>
             </div>
@@ -236,16 +244,14 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Footer Info */}
       <footer
         style={{
           position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center", zIndex: 10, fontSize: 11.5,
           color: "rgba(255, 255, 255, 0.4)", letterSpacing: "0.04em", pointerEvents: "none",
         }}
       >
-        ETP (Effluent Treatment) · RO (Reverse Osmosis) · MEE (Multi-Effect Evaporator)
+        {t("login.footerPlants")}
       </footer>
     </div>
   );
 }
-

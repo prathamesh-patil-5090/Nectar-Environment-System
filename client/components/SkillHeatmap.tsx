@@ -3,6 +3,7 @@
 import { theme } from "antd";
 import { skillLabels, skillMatrix, type SkillKey } from "@/lib/mock-data";
 import { Section } from "@/components/quiet";
+import { useT } from "@/lib/i18n";
 
 const skillKeys = Object.keys(skillLabels) as SkillKey[];
 
@@ -12,6 +13,7 @@ const skillKeys = Object.keys(skillLabels) as SkillKey[];
  */
 export default function SkillHeatmap() {
   const { token } = theme.useToken();
+  const t = useT();
   const cell = (score: number) =>
     score < 55
       ? { color: token.colorError, background: token.colorErrorBg }
@@ -20,16 +22,15 @@ export default function SkillHeatmap() {
         : { color: token.colorText, background: "transparent" };
 
   return (
-    <Section title="Skill matrix" extra="Expected strength by role, 0–100" flush>
+    <Section title={t("dash.skillMatrix")} extra={t("dash.skillMatrixExtra")} flush>
       <div style={{ padding: "12px 16px 0", fontSize: 13, color: token.colorTextSecondary }}>
-        What each kind of job is expected to be good at, not one named person. When planning leave cover, prefer a role that is
-        strong on the skill you need.
+        {t("dash.skillMatrixIntro")}
       </div>
       <div style={{ overflowX: "auto", padding: "8px 8px 12px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560, fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", fontWeight: 500, color: token.colorTextSecondary, padding: "8px" }}>Role</th>
+              <th style={{ textAlign: "left", fontWeight: 500, color: token.colorTextSecondary, padding: "8px" }}>{t("common.role")}</th>
               {skillKeys.map((key) => (
                 <th key={key} style={{ fontWeight: 500, color: token.colorTextSecondary, padding: "8px 6px", textAlign: "right" }}>
                   {skillLabels[key]}

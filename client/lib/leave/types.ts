@@ -1,3 +1,5 @@
+import { localizedRecord } from "@/lib/i18n/localized";
+
 export type LeaveMode = "planned" | "emergency";
 
 export type LeaveType =
@@ -130,29 +132,29 @@ export type LeaveImpact = {
   risk: "none" | "low" | "high";
 };
 
-export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-  casual: "Casual",
-  sick: "Sick",
-  family_emergency: "Family emergency",
-  unpaid: "Unpaid",
-  other: "Other",
-};
+export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = localizedRecord(
+  "leave.type",
+  ["casual", "sick", "family_emergency", "unpaid", "other"] as const,
+);
 
-export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
-  REQUESTED: "Requested",
-  PENDING_EMPLOYEE_CONSENT: "Awaiting employee consent",
-  SUPERVISOR_VERIFIED: "Supervisor verified",
-  SITE_APPROVED: "Site approved",
-  MANAGER_APPROVED: "Manager approved — awaiting Director",
-  HR_VALIDATED: "HR validated",
-  APPROVED: "Approved",
-  ABSENT: "Absent",
-  SUPERVISOR_RECORDED: "Supervisor recorded",
-  SITE_VERIFIED: "Site verified",
-  CLOSED: "Closed",
-  PENDING_INFORMATION: "Pending information",
-  UNEXPLAINED_ABSENCE: "Unexplained absence",
-  REJECTED: "Rejected",
-  CANCELLED: "Withdrawn",
-  EXTENSION_REQUIRED: "Extension required",
-};
+export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = localizedRecord(
+  "leave.status",
+  [
+    "REQUESTED",
+    "PENDING_EMPLOYEE_CONSENT",
+    "SUPERVISOR_VERIFIED",
+    "SITE_APPROVED",
+    "MANAGER_APPROVED",
+    "HR_VALIDATED",
+    "APPROVED",
+    "ABSENT",
+    "SUPERVISOR_RECORDED",
+    "SITE_VERIFIED",
+    "CLOSED",
+    "PENDING_INFORMATION",
+    "UNEXPLAINED_ABSENCE",
+    "REJECTED",
+    "CANCELLED",
+    "EXTENSION_REQUIRED",
+  ] as const,
+);
