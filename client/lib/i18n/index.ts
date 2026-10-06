@@ -8,6 +8,17 @@ export {
   pageTitle,
   translateRole,
 } from "./translate";
+export {
+  tr,
+  trData,
+  trTable,
+  intlLocale,
+  trEnum,
+  hasPhrase,
+  loadPhraseCatalog,
+  type PhraseParams,
+} from "./phrases";
+export { trNode, trCell } from "./rich";
 export { I18nProvider, useI18n, useT } from "./I18nProvider";
 export { default as LanguageSwitcher } from "./LanguageSwitcher";
 export {

@@ -5,6 +5,7 @@ import type { SafetyTimelineEntry } from "@/lib/safety/types";
 import { roleLabel } from "@/lib/rbac";
 import type { UserRole } from "@/lib/auth";
 
+import { intlLocale, trData } from "@/lib/i18n";
 export default function EventTimeline({ entries }: { entries: SafetyTimelineEntry[] }) {
   const { token } = theme.useToken();
   // Quiet by default; only the moments that change the case's course get a colour.
@@ -20,12 +21,12 @@ export default function EventTimeline({ entries }: { entries: SafetyTimelineEntr
     color: color(t.kind),
     content: (
       <div>
-        <div style={{ fontWeight: 500, color: token.colorText }}>{t.title}</div>
+        <div style={{ fontWeight: 500, color: token.colorText }}>{trData(t.title)}</div>
         <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
-          {t.actorName} · {roleLabel(t.actorRole as UserRole)} · {new Date(t.at).toLocaleString("en-IN")}
+          {trData(t.actorName)} · {trData(roleLabel(t.actorRole as UserRole))} · {new Date(t.at).toLocaleString(intlLocale())}
         </div>
         {t.detail ? (
-          <div style={{ marginTop: 4, whiteSpace: "pre-wrap", wordBreak: "break-word", color: token.colorText }}>{t.detail}</div>
+          <div style={{ marginTop: 4, whiteSpace: "pre-wrap", wordBreak: "break-word", color: token.colorText }}>{trData(t.detail)}</div>
         ) : null}
       </div>
     ),

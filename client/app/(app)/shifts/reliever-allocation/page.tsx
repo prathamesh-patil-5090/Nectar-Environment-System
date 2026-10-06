@@ -8,6 +8,7 @@ import { getRelievers } from "@/lib/reliever/pool";
 import { computeShiftImpact, candidateDisplaySource } from "@/lib/shift-impact";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText22 } from "@/lib/styles";
+import { tr, trNode, trData } from "@/lib/i18n";
 
 const TODAY = "2026-09-23";
 
@@ -25,21 +26,18 @@ export default function RelieverAllocationPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div style={sSerifText22}>Reliever allocation</div>
+        <div style={sSerifText22}>{tr("Reliever allocation")}</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Shift Impact: leave vacancies and roster gaps with ranked cover
-          (employees + pool). Manage availability in{" "}
-          <Link href="/reliever-pool">Reliever Pool</Link>.
+          {trNode("Shift Impact: leave vacancies and roster gaps with ranked cover (employees + pool). Manage availability in {link}.", { link: <Link href="/reliever-pool">{tr("Reliever Pool")}</Link> })}
         </p>
         <div style={{ marginTop: 8, fontSize: 13, color: nectarColors.muted }}>
-          OT risk: <strong>{report.risk}</strong> · Uncovered:{" "}
-          {report.uncoveredCount} · Est. OT {report.potentialOtHours} hrs
+          {trNode("OT risk: {risk} · Uncovered: {uncovered} · Est. OT {hours} hrs", { risk: <strong>{tr(report.risk)}</strong>, uncovered: report.uncoveredCount, hours: report.potentialOtHours })}
         </div>
       </div>
 
       <Select
         allowClear
-        placeholder="Site"
+        placeholder={tr("Site")}
         style={{ maxWidth: 240 }}
         value={siteId}
         options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -50,20 +48,20 @@ export default function RelieverAllocationPage() {
         rowKey={(r) => r.id}
         dataSource={rows}
         style={{ background: nectarColors.white }}
-        locale={{ emptyText: "No open shift vacancies for this window" }}
+        locale={{ emptyText: tr("No open shift vacancies for this window") }}
         columns={[
-          { title: "Site", dataIndex: "siteId", render: (id: string) => getSiteName(id) },
-          { title: "Date", dataIndex: "date" },
-          { title: "Shift", dataIndex: "shiftCode", render: (c: string) => <Tag>{c}</Tag> },
+          { title: tr("Site"), dataIndex: "siteId", render: (id: string) => trData(getSiteName(id)) },
+          { title: tr("Date"), dataIndex: "date" },
+          { title: tr("Shift"), dataIndex: "shiftCode", render: (c: string) => <Tag>{trData(c)}</Tag> },
           {
-            title: "Source",
+            title: tr("Source"),
             dataIndex: "source",
             render: (s: string) => (
-              <Tag color={s === "leave" ? nectarColors.sky : "#D97706"}>{s === "leave" ? "Leave" : "Roster gap"}</Tag>
+              <Tag color={s === "leave" ? nectarColors.sky : "#D97706"}>{s === "leave" ? tr("Leave") : tr("Roster gap")}</Tag>
             ),
           },
           {
-            title: "Absent",
+            title: tr("Absent"),
             key: "absent",
             render: (_, r) =>
               r.absentEmployeeName ?? (
@@ -71,7 +69,7 @@ export default function RelieverAllocationPage() {
               ),
           },
           {
-            title: "Status",
+            title: tr("Status"),
             dataIndex: "status",
             render: (s: string) => (
               <Tag
@@ -83,12 +81,12 @@ export default function RelieverAllocationPage() {
                       : "#D97706"
                 }
               >
-                {s}
+                {trData(s)}
               </Tag>
             ),
           },
           {
-            title: "Top cover candidates",
+            title: tr("Top cover candidates"),
             key: "candidates",
             render: (_, r) => {
               if (r.status !== "open") {
@@ -98,7 +96,7 @@ export default function RelieverAllocationPage() {
               }
               if (!r.candidates.length) {
                 return (
-                  <span style={{ color: nectarColors.alert }}>No match — OT risk</span>
+                  <span style={{ color: nectarColors.alert }}>{tr("No match — OT risk")}</span>
                 );
               }
               return r.candidates.slice(0, 3).map((c) => {
@@ -107,18 +105,18 @@ export default function RelieverAllocationPage() {
                 return (
                   <Tag key={c.id} color={nectarColors.leaf}>
                     {c.name || poolName || empName || c.id} ·{" "}
-                    {candidateDisplaySource(c.source)}
+                    {trData(candidateDisplaySource(c.source))}
                   </Tag>
                 );
               });
             },
           },
           {
-            title: "Leave",
+            title: tr("Leave"),
             key: "leave",
             render: (_, r) =>
               r.leaveId ? (
-                <Link href={`/leave/requests/${r.leaveId}`}>Open</Link>
+                <Link href={`/leave/requests/${r.leaveId}`}>{tr("Open")}</Link>
               ) : (
                 "—"
               ),

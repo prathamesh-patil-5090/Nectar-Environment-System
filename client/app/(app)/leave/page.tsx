@@ -21,7 +21,7 @@ import {
 import { nectarColors } from "@/lib/theme";
 import { rowWrapGap1BgR8, sSerifText22Ink, sWhitePadR12BorderShadow } from "@/lib/styles";
 import Panel from "@/components/Panel";
-import { translatePersonName, useT } from "@/lib/i18n";
+import { translatePersonName, useT, trData } from "@/lib/i18n";
 
 const STATUS_COLOR: Partial<Record<LeaveStatus, string>> = {
   REQUESTED: nectarColors.sky,
@@ -139,7 +139,7 @@ export default function LeaveOverviewPage() {
                       {l.startDate} → {l.endDate} ·{" "}
                     </>
                   )}
-                  {l.mode} ·{" "}
+                  {trData(l.mode)} ·{" "}
                   {l.entrySource === "supervisor_on_behalf"
                     ? t("leaveUi.enteredBySupervisor", { name: l.enteredByName ?? "" })
                     : t("leaveUi.requestedByEmployee")}

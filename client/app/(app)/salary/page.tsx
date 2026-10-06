@@ -41,6 +41,7 @@ import { nectarColors } from "@/lib/theme";
 import { getEmployeeById, getSiteById } from "@/lib/mock-data";
 import { rowCenterBetween2, sSerifText16SemiboldInkM0 } from "@/lib/styles";
 import type { CSSProperties } from "react";
+import { tr, intlLocale, translateDesignation, translateDepartment, trData, trEnum } from "@/lib/i18n";
 
 const colBetweenWhitePadR14BorderShadow2: CSSProperties = {
   background: nectarColors.white,
@@ -131,7 +132,7 @@ export default function SalaryPage() {
 
   if (!empId || !employee) {
     return (
-      <Empty description="Salary history is available on accounts linked to an employee profile. Open My Employee → Salary, or sign in as an employee." />
+      <Empty description={tr("Salary history is available on accounts linked to an employee profile. Open My Employee → Salary, or sign in as an employee.")} />
     );
   }
 
@@ -175,7 +176,7 @@ export default function SalaryPage() {
 
   const columns: ColumnsType<SalaryPayment> = [
     {
-      title: "Salary Cycle",
+      title: tr("Salary Cycle"),
       dataIndex: "salaryMonth",
       key: "salaryMonth",
       render: (m: string) => {
@@ -186,14 +187,14 @@ export default function SalaryPage() {
             <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 14 }}>{salaryMonthLabel(m)}</div>
             <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>
               01 {salaryMonthLabel(m).split(" ")[0].slice(0, 3)} – {lastDay}{" "}
-              {salaryMonthLabel(m).split(" ")[0].slice(0, 3)} {year}
+              {salaryMonthLabel(m).split(" ")[0].slice(0, 3)} {trData(year)}
             </div>
           </div>
         );
       },
     },
     {
-      title: "Net Disbursed",
+      title: tr("Net Disbursed"),
       dataIndex: "amount",
       key: "amount",
       render: (a: number) => (
@@ -207,12 +208,12 @@ export default function SalaryPage() {
       ),
     },
     {
-      title: "Disbursement Date",
+      title: tr("Disbursement Date"),
       dataIndex: "paymentDate",
       key: "paymentDate",
       render: (d: string, r: SalaryPayment) => {
         const dateObj = new Date(d);
-        const formattedDate = dateObj.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+        const formattedDate = dateObj.toLocaleDateString(intlLocale(), { day: "2-digit", month: "short", year: "numeric" });
         return (
           <div>
             <div
@@ -221,7 +222,7 @@ export default function SalaryPage() {
               }}
             >
               <CalendarOutlined style={{ color: nectarColors.leaf, fontSize: 12 }} />
-              {formattedDate}
+              {trData(formattedDate)}
             </div>
             <div
               style={{
@@ -236,7 +237,7 @@ export default function SalaryPage() {
       },
     },
     {
-      title: "Bank & Account",
+      title: tr("Bank & Account"),
       key: "bank",
       render: (_, r: SalaryPayment) => (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -249,14 +250,14 @@ export default function SalaryPage() {
             <BankOutlined />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13, color: nectarColors.ink }}>{r.bankName}</div>
-            <div style={{ fontSize: 11, fontFamily: "monospace", color: nectarColors.muted, letterSpacing: "0.05em" }}>•••• {r.accountLast4}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: nectarColors.ink }}>{trData(r.bankName)}</div>
+            <div style={{ fontSize: 11, fontFamily: "monospace", color: nectarColors.muted, letterSpacing: "0.05em" }}>•••• {trData(r.accountLast4)}</div>
           </div>
         </div>
       ),
     },
     {
-      title: "Mode",
+      title: tr("Mode"),
       dataIndex: "paymentMode",
       key: "paymentMode",
       render: (m: SalaryPayment["paymentMode"]) => (
@@ -272,7 +273,7 @@ export default function SalaryPage() {
       ),
     },
     {
-      title: "Status",
+      title: tr("Status"),
       dataIndex: "status",
       key: "status",
       render: (s: SalaryPayment["status"]) => {
@@ -292,13 +293,13 @@ export default function SalaryPage() {
                 boxShadow: isPaid ? "0 0 6px #22C55E" : "none",
               }}
             />
-            {s}
+            {trEnum(s)}
           </span>
         );
       },
     },
     {
-      title: "Remarks",
+      title: tr("Remarks"),
       dataIndex: "remarks",
       key: "remarks",
       render: (r?: string) => {
@@ -317,17 +318,17 @@ export default function SalaryPage() {
             }}
           >
             {isOt && <ThunderboltOutlined style={{ fontSize: 11 }} />}
-            {r}
+            {trData(r)}
           </span>
         );
       },
     },
     {
-      title: "Slip",
+      title: tr("Slip"),
       key: "action",
       align: "center",
       render: (_, r: SalaryPayment) => (
-        <Tooltip title="View Payslip">
+        <Tooltip title={tr("View Payslip")}>
           <Button
             type="text"
             size="small"
@@ -338,7 +339,7 @@ export default function SalaryPage() {
               alignItems: "center", gap: 4,
             }}
           >
-            Slip
+            {tr("Slip")}
           </Button>
         </Tooltip>
       ),
@@ -363,7 +364,7 @@ export default function SalaryPage() {
                 color: nectarColors.ink, letterSpacing: "-0.01em",
               }}
             >
-              Salary & Disbursement History
+              {tr("Salary & Disbursement History")}
             </h1>
             <span
               style={{
@@ -372,7 +373,7 @@ export default function SalaryPage() {
               }}
             >
               <CheckCircleFilled style={{ color: "#16A34A", fontSize: 12 }} />
-              Direct Deposit Verified
+              {tr("Direct Deposit Verified")}
             </span>
           </div>
 
@@ -382,13 +383,13 @@ export default function SalaryPage() {
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontWeight: 600, color: nectarColors.ink }}>{employee.name}</span>
+            <span style={{ fontWeight: 600, color: nectarColors.ink }}>{trData(employee.name)}</span>
             <span>·</span>
-            <span>{employee.designation}</span>
+            <span>{trData(employee.designation)}</span>
             <span>·</span>
-            <span>{site?.name ?? "Treatment Plant"}</span>
+            <span>{site?.name ? trData(site.name) : tr("Treatment Plant")}</span>
             <span>·</span>
-            <span style={{ fontFamily: "monospace" }}>Emp ID: {employee.id}</span>
+            <span style={{ fontFamily: "monospace" }}>{tr("Emp ID: {id}", { id: employee.id })}</span>
           </div>
         </div>
 
@@ -401,7 +402,7 @@ export default function SalaryPage() {
               color: nectarColors.ink,
             }}
           >
-            Export Statement (CSV)
+            {tr("Export Statement (CSV)")}
           </Button>
         </div>
       </div>
@@ -409,35 +410,35 @@ export default function SalaryPage() {
       {/* 2. EXECUTIVE METRIC CARDS (Bento Row) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
         <MetricCard
-          label="Latest Net Payout"
-          badge={<Tag color="success" style={{ margin: 0, borderRadius: 12, fontSize: 11 }}>Credited</Tag>}
+          label={tr("Latest Net Payout")}
+          badge={<Tag color="success" style={{ margin: 0, borderRadius: 12, fontSize: 11 }}>{tr("Credited")}</Tag>}
           value={latest ? formatInrAmount(latest.amount) : "—"}
-          sub={<>{latest ? salaryMonthLabel(latest.salaryMonth) : "—"} · Disbursed</>}
+          sub={<>{latest ? salaryMonthLabel(latest.salaryMonth) : "—"}{" "}{tr("· Disbursed")}</>}
         />
         <MetricCard
-          label="Cumulative Recorded"
+          label={tr("Cumulative Recorded")}
           badge={
-            <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.leaf, background: "rgba(28, 68, 99, 0.08)", padding: "2px 8px", borderRadius: 12 }}>{rawRows.length} Cycles</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.leaf, background: "rgba(28, 68, 99, 0.08)", padding: "2px 8px", borderRadius: 12 }}>{tr("{rawRowCount} Cycles", { rawRowCount: rawRows.length })}</span>
           }
           value={formatInrAmount(totalYtd)}
-          sub="Total disbursements on record"
+          sub={tr("Total disbursements on record")}
         />
         <MetricCard
-          label="Salary Deposit Account"
+          label={tr("Salary Deposit Account")}
           badge={<BankOutlined style={{ color: nectarColors.leaf, fontSize: 14 }} />}
-          value={latest?.bankName ?? "HDFC Bank"}
+          value={trData(latest?.bankName ?? "HDFC Bank")}
           valueStyle={{ fontSize: 18, fontWeight: 700, color: nectarColors.ink, lineHeight: 1.2, display: "flex", alignItems: "center", gap: 6 }}
           sub={<>A/C: ••••{latest?.accountLast4 ?? "5444"} · {latest?.paymentMode ?? "NEFT"}</>}
           subStyle={{ fontSize: 12, color: nectarColors.muted, marginTop: 4, fontFamily: "monospace" }}
         />
         <MetricCard
-          label="Overtime Compensation"
+          label={tr("Overtime Compensation")}
           badge={
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#B45309", background: "#FEF3C7", padding: "2px 7px", borderRadius: 12 }}>OT Active</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#B45309", background: "#FEF3C7", padding: "2px 7px", borderRadius: 12 }}>{tr("OT Active")}</span>
           }
           value={formatInrAmount(totalOtPayout)}
           valueStyle={{ fontSize: 26, fontWeight: 700, color: "#9A3412", fontFamily: "var(--font-fraunces), Georgia, serif", lineHeight: 1.1 }}
-          sub="OT Rate: ₹270/hr · Automatically credited"
+          sub={tr("OT Rate: ₹270/hr · Automatically credited")}
         />
       </div>
 
@@ -456,21 +457,21 @@ export default function SalaryPage() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h2 style={sSerifText16SemiboldInkM0}>Disbursement Register</h2>
+            <h2 style={sSerifText16SemiboldInkM0}>{tr("Disbursement Register")}</h2>
             <span
               style={{
                 fontSize: 11, fontWeight: 600, color: nectarColors.leaf, background: "rgba(28, 68, 99, 0.06)",
                 border: "1px solid rgba(28, 68, 99, 0.12)", padding: "2px 8px", borderRadius: 12,
               }}
             >
-              {filteredRows.length} {filteredRows.length === 1 ? "Record" : "Records"}
+              {filteredRows.length} {filteredRows.length === 1 ? tr("Record") : tr("Records")}
             </span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <Input
               prefix={<SearchOutlined style={{ color: nectarColors.muted }} />}
-              placeholder="Search month, bank, or remarks..."
+              placeholder={tr("Search month, bank, or remarks...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               allowClear
@@ -482,7 +483,7 @@ export default function SalaryPage() {
               onChange={(val) => setSelectedMode(val)}
               style={{ width: 130 }}
               options={[
-                { value: "all", label: "All Modes" },
+                { value: "all", label: tr("All Modes") },
                 { value: "NEFT", label: "NEFT" },
                 { value: "RTGS", label: "RTGS" },
                 { value: "UPI", label: "UPI" },
@@ -520,10 +521,10 @@ export default function SalaryPage() {
                     color: nectarColors.leaf,
                   }}
                 >
-                  NECTAR ENVIRONMENT-SYSTEMS
+                  {tr("NECTAR ENVIRONMENT-SYSTEMS")}
                 </div>
-                <div style={{ fontSize: 12, color: nectarColors.muted, marginTop: 2 }}>Water & Environmental Technologies Pvt. Ltd. · Treatment Plants Division</div>
-                <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Site: {site?.name ?? "Pune ETP Facility"} ({site?.plantType ?? "ETP"}) · Maharashtra</div>
+                <div style={{ fontSize: 12, color: nectarColors.muted, marginTop: 2 }}>{tr("Water & Environmental Technologies Pvt. Ltd. · Treatment Plants Division")}</div>
+                <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{tr("Site: {site} ({plant}) · Maharashtra", { site: site?.name ? trData(site.name) : tr("Pune ETP Facility"), plant: site?.plantType ?? "ETP" })}</div>
               </div>
 
               <div style={{ textAlign: "right" }}>
@@ -533,10 +534,10 @@ export default function SalaryPage() {
                     borderRadius: 6, fontSize: 12, fontWeight: 700, color: "#166534",
                   }}
                 >
-                  PAID SALARY SLIP
+                  {tr("PAID SALARY SLIP")}
                 </span>
                 <div style={{ fontSize: 12, fontWeight: 600, color: nectarColors.ink, marginTop: 6 }}>{salaryMonthLabel(activeSlip.salaryMonth)}</div>
-                <div style={{ fontSize: 11, color: nectarColors.muted }}>Ref: PAY-{activeSlip.id.toUpperCase()}</div>
+                <div style={{ fontSize: 11, color: nectarColors.muted }}>{tr("Ref: PAY-{id}", { id: activeSlip.id.toUpperCase() })}</div>
               </div>
             </div>
 
@@ -549,28 +550,28 @@ export default function SalaryPage() {
               }}
             >
               <div>
-                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>EMPLOYEE NAME</span>
-                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{employee.name}</span>
+                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("EMPLOYEE NAME")}</span>
+                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{trData(employee.name)}</span>
               </div>
               <div>
-                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>EMPLOYEE ID</span>
+                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("EMPLOYEE ID")}</span>
                 <span style={{ fontWeight: 600, color: nectarColors.ink, fontFamily: "monospace" }}>{employee.id}</span>
               </div>
               <div>
-                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>DESIGNATION</span>
-                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{employee.designation}</span>
+                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("DESIGNATION")}</span>
+                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{translateDesignation(employee.designation)}</span>
               </div>
               <div>
-                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>DEPARTMENT</span>
-                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{employee.department}</span>
+                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("DEPARTMENT")}</span>
+                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{translateDepartment(employee.department)}</span>
               </div>
               <div>
-                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>DISBURSEMENT BANK</span>
-                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{activeSlip.bankName} (•••• {activeSlip.accountLast4})</span>
+                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("DISBURSEMENT BANK")}</span>
+                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{trData(activeSlip.bankName)} (•••• {trData(activeSlip.accountLast4)})</span>
               </div>
               <div>
-                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>PAYMENT DATE & MODE</span>
-                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{activeSlip.paymentDate} · {activeSlip.paymentMode}</span>
+                <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("PAYMENT DATE & MODE")}</span>
+                <span style={{ fontWeight: 600, color: nectarColors.ink }}>{activeSlip.paymentDate} · {trData(activeSlip.paymentMode)}</span>
               </div>
             </div>
 
@@ -578,18 +579,18 @@ export default function SalaryPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
               {/* Earnings Column */}
               <div style={sR10Border}>
-                <div style={sText12SemiboldInkBgPad}>EARNINGS</div>
+                <div style={sText12SemiboldInkBgPad}>{tr("EARNINGS")}</div>
                 <div style={{ padding: 12, fontSize: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: nectarColors.muted }}>Basic Pay</span>
+                    <span style={{ color: nectarColors.muted }}>{tr("Basic Pay")}</span>
                     <span style={{ fontWeight: 600 }}>{formatInrAmount(Math.round(activeSlip.amount * 0.62))}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: nectarColors.muted }}>House Rent Allowance (HRA)</span>
+                    <span style={{ color: nectarColors.muted }}>{tr("House Rent Allowance (HRA)")}</span>
                     <span style={{ fontWeight: 600 }}>{formatInrAmount(Math.round(activeSlip.amount * 0.23))}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: nectarColors.muted }}>Special & Site Allowance</span>
+                    <span style={{ color: nectarColors.muted }}>{tr("Special & Site Allowance")}</span>
                     <span style={{ fontWeight: 600 }}>
                       {formatInrAmount(
                         Math.round(
@@ -605,7 +606,7 @@ export default function SalaryPage() {
                     <div
                       style={{ display: "flex", justifyContent: "space-between", color: "#9A3412", fontWeight: 600 }}
                     >
-                      <span>Overtime Incentive (OT)</span>
+                      <span>{tr("Overtime Incentive (OT)")}</span>
                       <span>
                         {formatInrAmount(
                           activeSlip.remarks.includes("2400")
@@ -622,18 +623,18 @@ export default function SalaryPage() {
 
               {/* Deductions Column */}
               <div style={sR10Border}>
-                <div style={sText12SemiboldInkBgPad}>STATUTORY DEDUCTIONS</div>
+                <div style={sText12SemiboldInkBgPad}>{tr("STATUTORY DEDUCTIONS")}</div>
                 <div style={{ padding: 12, fontSize: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: nectarColors.muted }}>Provident Fund (EPF)</span>
+                    <span style={{ color: nectarColors.muted }}>{tr("Provident Fund (EPF)")}</span>
                     <span style={{ fontWeight: 600 }}>₹1,800</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: nectarColors.muted }}>Professional Tax (PT)</span>
+                    <span style={{ color: nectarColors.muted }}>{tr("Professional Tax (PT)")}</span>
                     <span style={{ fontWeight: 600 }}>₹200</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: nectarColors.muted }}>Income Tax / TDS</span>
+                    <span style={{ color: nectarColors.muted }}>{tr("Income Tax / TDS")}</span>
                     <span style={{ fontWeight: 600 }}>₹0</span>
                   </div>
                   <div
@@ -642,7 +643,7 @@ export default function SalaryPage() {
                       justifyContent: "space-between", color: nectarColors.muted,
                     }}
                   >
-                    <span>Total Statutory Deductions</span>
+                    <span>{tr("Total Statutory Deductions")}</span>
                     <span style={{ fontWeight: 600, color: nectarColors.ink }}>₹2,000</span>
                   </div>
                 </div>
@@ -664,7 +665,7 @@ export default function SalaryPage() {
                     color: "rgba(255, 255, 255, 0.7)",
                   }}
                 >
-                  NET AMOUNT TRANSFERRED
+                  {tr("NET AMOUNT TRANSFERRED")}
                 </span>
                 <div
                   style={{
@@ -682,9 +683,9 @@ export default function SalaryPage() {
                     color: "#86EFAC",
                   }}
                 >
-                  <CheckCircleFilled /> Direct Settlement Completed
+                  <CheckCircleFilled />{" "}{tr("Direct Settlement Completed")}
                 </span>
-                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)", marginTop: 2 }}>UTR Ref: UTR{activeSlip.paymentDate.replace(/-/g, "")}94821</div>
+                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)", marginTop: 2 }}>{tr("UTR Ref: {ref}", { ref: `UTR${activeSlip.paymentDate.replace(/-/g, "")}94821` })}</div>
               </div>
             </div>
 
@@ -695,14 +696,14 @@ export default function SalaryPage() {
                 onClick={() => window.print()}
                 style={{ borderRadius: 8, fontWeight: 500 }}
               >
-                Print Slip
+                {tr("Print Slip")}
               </Button>
               <Button
                 type="primary"
                 onClick={() => setActiveSlip(null)}
                 style={{ borderRadius: 8, fontWeight: 500, background: nectarColors.leaf }}
               >
-                Done
+                {tr("Done")}
               </Button>
             </div>
           </div>
@@ -724,7 +725,7 @@ function MetricCard({ label, badge, value, sub, valueStyle = sSerifText26BoldInk
   return (
     <div style={colBetweenWhitePadR14BorderShadow2}>
       <div style={rowCenterBetween2}>
-        <span style={sText11SemiboldUpperMuted}>{label}</span>
+        <span style={sText11SemiboldUpperMuted}>{trData(label)}</span>
         {badge}
       </div>
 

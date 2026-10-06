@@ -11,7 +11,7 @@ import {
   getSitesWithComputedReadiness,
 } from "@/lib/workforce-metrics";
 import { Section } from "@/components/quiet";
-import { useT } from "@/lib/i18n";
+import { useT, trData } from "@/lib/i18n";
 
 /**
  * One readiness score per running plant, lowest first. Plant names and locations come from the
@@ -66,8 +66,8 @@ export default function SiteReadiness({ sites = [] }: { sites?: Site[] }) {
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6, fontSize: 13 }}>
                     <span style={{ minWidth: 0 }}>
-                      <span style={{ color: token.colorText, fontWeight: 500 }}>{api?.name ?? site.name}</span>
-                      <span style={{ color: token.colorTextSecondary }}> · {api?.location ?? site.location}</span>
+                      <span style={{ color: token.colorText, fontWeight: 500 }}>{trData(api?.name ?? site.name)}</span>
+                      <span style={{ color: token.colorTextSecondary }}> · {trData(api?.location ?? site.location)}</span>
                     </span>
                     <span style={{ fontVariantNumeric: "tabular-nums", color: site.readiness < 70 ? token.colorError : token.colorText }}>
                       {site.readiness}%

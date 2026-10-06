@@ -15,7 +15,7 @@ import {
 } from "@/lib/training/store";
 import { useViewer } from "@/lib/training/hooks";
 import FlagTrainingNeedModal, { flaggableIds } from "./FlagTrainingNeedModal";
-import { translatePersonName, useT } from "@/lib/i18n";
+import { translatePersonName, useT, trData, trCell } from "@/lib/i18n";
 
 type Row = {
   id: string;
@@ -109,12 +109,12 @@ export default function TeamProgressTable() {
           <Link href={`/employees/${r.id}`} style={{ fontWeight: 600 }}>
             {translatePersonName(r.name)}
           </Link>
-          <div style={{ fontSize: 12, color: "#4A6375" }}>{r.designation}</div>
+          <div style={{ fontSize: 12, color: "#4A6375" }}>{trData(r.designation)}</div>
         </div>
       ),
     },
-    { title: t("common.site"), dataIndex: "site", sorter: (a, b) => a.site.localeCompare(b.site) },
-    { title: t("training.assigned"), dataIndex: "assigned", align: "center", sorter: (a, b) => a.assigned - b.assigned },
+    { title: t("common.site"), dataIndex: "site", render: trCell, sorter: (a, b) => a.site.localeCompare(b.site) },
+    { title: t("training.assigned"), dataIndex: "assigned", render: trCell, align: "center", sorter: (a, b) => a.assigned - b.assigned },
     {
       title: t("training.overdue"),
       dataIndex: "overdue",
@@ -129,7 +129,7 @@ export default function TeamProgressTable() {
       align: "center",
       render: (n: number) => (n ? <Tag color="purple">{n}</Tag> : 0),
     },
-    { title: t("training.inProgress"), dataIndex: "inProgress", align: "center" },
+    { title: t("training.inProgress"), dataIndex: "inProgress", render: trCell, align: "center" },
     {
       title: t("training.certified"),
       key: "certified",

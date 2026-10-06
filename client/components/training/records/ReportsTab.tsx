@@ -14,6 +14,7 @@ import {
   useTrainingData,
 } from "@/lib/training/store";
 import { useAsync } from "@/lib/training/hooks";
+import { tr, trCell, trData } from "@/lib/i18n";
 
 function downloadCsv(name: string, header: string[], rows: (string | number | undefined)[][]) {
   const esc = (v: string | number | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -48,7 +49,7 @@ export default function ReportsTab() {
       const certified = e.filter((x) => x.status === "CERTIFIED").length;
       return {
         key: sid || "none",
-        site: getSiteName(sid) ?? "No site",
+        site: getSiteName(sid) ?? tr("No site"),
         people: ids.size,
         enrolled: e.length,
         certified,
@@ -91,14 +92,14 @@ export default function ReportsTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Row gutter={[16, 16]}>
-        <Col xs={12} md={6}><Card loading={!ready}><Statistic title="Enrollments" value={totals.enrolled} /></Card></Col>
-        <Col xs={12} md={6}><Card loading={!ready}><Statistic title="Certified" value={totals.certified} /></Card></Col>
-        <Col xs={12} md={6}><Card loading={!ready}><Statistic title="People with overdue training" value={totals.overdue} /></Card></Col>
-        <Col xs={12} md={6}><Card loading={events.loading}><Statistic title="Events held" value={(events.data ?? []).filter((e) => e.status === "completed").length} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={!ready}><Statistic title={tr("Enrollments")} value={totals.enrolled} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={!ready}><Statistic title={tr("Certified")} value={totals.certified} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={!ready}><Statistic title={tr("People with overdue training")} value={totals.overdue} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={events.loading}><Statistic title={tr("Events held")} value={(events.data ?? []).filter((e) => e.status === "completed").length} /></Card></Col>
       </Row>
 
       <Card
-        title="Completion by site"
+        title={tr("Completion by site")}
         extra={<Button icon={<DownloadOutlined />} onClick={() => downloadCsv("completion-by-site.csv", ["Site", "People", "Enrollments", "Certified", "Completion %", "People overdue"], bySite.map((r) => [r.site, r.people, r.enrolled, r.certified, r.completion, r.overduePeople]))}>CSV</Button>}
       >
         <Table
@@ -108,18 +109,18 @@ export default function ReportsTab() {
           dataSource={bySite}
           scroll={{ x: 600 }}
           columns={[
-            { title: "Site", dataIndex: "site" },
-            { title: "People", dataIndex: "people", align: "center" },
-            { title: "Enrollments", dataIndex: "enrolled", align: "center" },
-            { title: "Certified", dataIndex: "certified", align: "center" },
-            { title: "Completion", dataIndex: "completion", align: "center", render: (n: number) => `${n}%` },
-            { title: "People overdue", dataIndex: "overduePeople", align: "center", render: (n: number) => (n ? <Tag color="red">{n}</Tag> : 0) },
+            { title: tr("Site"), dataIndex: "site", render: trCell },
+            { title: tr("People"), dataIndex: "people", render: trCell, align: "center" },
+            { title: tr("Enrollments"), dataIndex: "enrolled", render: trCell, align: "center" },
+            { title: tr("Certified"), dataIndex: "certified", render: trCell, align: "center" },
+            { title: tr("Completion"), dataIndex: "completion", align: "center", render: (n: number) => `${n}%` },
+            { title: tr("People overdue"), dataIndex: "overduePeople", align: "center", render: (n: number) => (n ? <Tag color="red">{n}</Tag> : 0) },
           ]}
         />
       </Card>
 
       <Card
-        title="By course"
+        title={tr("By course")}
         extra={<Button icon={<DownloadOutlined />} onClick={() => downloadCsv("by-course.csv", ["Course", "Enrolled", "In progress", "Certified"], byCourse.map((r) => [r.course, r.enrolled, r.inProgress, r.certified]))}>CSV</Button>}
       >
         <Table
@@ -129,21 +130,21 @@ export default function ReportsTab() {
           scroll={{ x: 600 }}
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
           columns={[
-            { title: "Course", dataIndex: "course" },
-            { title: "Enrolled", dataIndex: "enrolled", align: "center" },
-            { title: "In progress", dataIndex: "inProgress", align: "center" },
-            { title: "Certified", dataIndex: "certified", align: "center" },
+            { title: tr("Course"), dataIndex: "course", render: trCell },
+            { title: tr("Enrolled"), dataIndex: "enrolled", render: trCell, align: "center" },
+            { title: tr("In progress"), dataIndex: "inProgress", render: trCell, align: "center" },
+            { title: tr("Certified"), dataIndex: "certified", render: trCell, align: "center" },
           ]}
         />
       </Card>
 
       <Card
-        title="Certificates expiring"
+        title={tr("Certificates expiring")}
         extra={
           <Segmented
             value={days}
             onChange={(v) => setDays(v as 30 | 60 | 90)}
-            options={[{ value: 30, label: "30 days" }, { value: 60, label: "60 days" }, { value: 90, label: "90 days" }]}
+            options={[{ value: 30, label: tr("30 days") }, { value: 60, label: tr("60 days") }, { value: 90, label: tr("90 days") }]}
           />
         }
       >
@@ -154,22 +155,22 @@ export default function ReportsTab() {
           rowKey="id"
           scroll={{ x: 600 }}
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
-          locale={{ emptyText: `No certificates expire within ${days} days` }}
+          locale={{ emptyText: tr("No certificates expire within {days} days", { days }) }}
           columns={[
-            { title: "Employee", dataIndex: "employeeName" },
-            { title: "Site", dataIndex: "siteName" },
-            { title: "Certificate", dataIndex: "courseTitle" },
+            { title: tr("Employee"), dataIndex: "employeeName", render: trCell },
+            { title: tr("Site"), dataIndex: "siteName", render: trCell },
+            { title: tr("Certificate"), dataIndex: "courseTitle", render: trCell },
             {
-              title: "Expires",
+              title: tr("Expires"),
               dataIndex: "expiresOn",
-              render: (d: string, r) => <Tag color={r.status === "expired" ? "red" : "gold"}>{d}</Tag>,
+              render: (d: string, r) => <Tag color={r.status === "expired" ? "red" : "gold"}>{trData(d)}</Tag>,
             },
           ]}
         />
       </Card>
 
       <Card
-        title="Event attendance"
+        title={tr("Event attendance")}
         extra={
           <Button
             icon={<DownloadOutlined />}
@@ -193,13 +194,13 @@ export default function ReportsTab() {
           scroll={{ x: 800 }}
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
           columns={[
-            { title: "Event", dataIndex: "title", ellipsis: true },
-            { title: "Date", dataIndex: "startsAt", render: (d: string) => d.slice(0, 10) },
-            { title: "Host", dataIndex: "host" },
-            { title: "Going", dataIndex: "going", align: "center" },
-            { title: "Attended", dataIndex: "attended", align: "center" },
-            { title: "No-show", dataIndex: "noShow", align: "center" },
-            { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s}</Tag> },
+            { title: tr("Event"), dataIndex: "title", render: trCell, ellipsis: true },
+            { title: tr("Date"), dataIndex: "startsAt", render: (d: string) => d.slice(0, 10) },
+            { title: tr("Host"), dataIndex: "host", render: trCell },
+            { title: tr("Going"), dataIndex: "going", render: trCell, align: "center" },
+            { title: tr("Attended"), dataIndex: "attended", render: trCell, align: "center" },
+            { title: tr("No-show"), dataIndex: "noShow", render: trCell, align: "center" },
+            { title: tr("Status"), dataIndex: "status", render: (s: string) => <Tag>{trData(s)}</Tag> },
           ]}
         />
       </Card>

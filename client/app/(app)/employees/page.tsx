@@ -12,14 +12,7 @@ import { getSites } from "@/lib/api/sites";
 import type { Employee } from "@/lib/types/employee.types";
 import type { Site } from "@/lib/types/site.types";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
-import {
-  translateDepartment,
-  translateDesignation,
-  translatePersonName,
-  translateSiteName,
-  useI18n,
-  useT,
-} from "@/lib/i18n";
+import { translateDepartment, translateDesignation, translatePersonName, translateSiteName, useI18n, useT, trData } from "@/lib/i18n";
 
 type TrainingStatus = Employee["trainingStatus"];
 
@@ -74,7 +67,7 @@ export default function EmployeesPage() {
         setEmployees(emps);
         setSites(siteList);
       })
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => setError(trData(err.message)));
   }, [siteScope, hasRoster]);
 
   const siteName = useMemo(() => new Map(sites.map((s) => [s.id, s.name])), [sites]);
@@ -135,7 +128,7 @@ export default function EmployeesPage() {
               background: token.colorFillSecondary,
             }}
           >
-            {initials(name)}
+            {trData(initials(name))}
           </span>
           <div style={{ lineHeight: 1.35, minWidth: 0 }}>
             <div style={{ fontWeight: 500, color: token.colorText }}>{translatePersonName(name)}</div>
@@ -233,7 +226,7 @@ export default function EmployeesPage() {
       >
         <p style={{ margin: 0, fontSize: 14, maxWidth: 560, ...muted }}>
           {siteScope
-            ? t("employeesUi.plantRoster", { site: siteName.get(siteScope) ?? t("dash.yourPlant") })
+            ? t("employeesUi.plantRoster", { site: trData(siteName.get(siteScope)) || t("dash.yourPlant") })
             : t("employeesUi.allRoster")}{" "}
           {t("employeesUi.openRow")}
         </p>
@@ -262,7 +255,7 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {error ? <Alert type="error" showIcon message={t("employeesUi.loadError")} description={error} /> : null}
+      {error ? <Alert type="error" showIcon message={t("employeesUi.loadError")} description={trData(error)} /> : null}
 
       <div
         ref={tableRef}

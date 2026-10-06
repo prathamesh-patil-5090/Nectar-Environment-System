@@ -58,6 +58,7 @@ import {
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
 import { rowBetweenWrapGap12 } from "@/lib/styles";
+import { tr, trData, trCell, trEnum } from "@/lib/i18n";
 
 /** Statuses where the next step is someone's approval (verify, approve, finalize, confirm return). */
 const DECISION_STATUSES = new Set<LeaveRequest["status"]>([
@@ -139,22 +140,22 @@ export default function LeaveRequestsContent() {
 
   const columns: ColumnsType<LeaveRequest> = [
     {
-      title: "Employee",
+      title: tr("Employee"),
       dataIndex: "employeeName",
       render: (name, r) => (
-        <Link href={`/leave/requests/${r.id}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{name}</Link>
+        <Link href={`/leave/requests/${r.id}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{trData(name)}</Link>
       ),
     },
-    { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
+    { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
     {
-      title: "Mode",
+      title: tr("Mode"),
       dataIndex: "mode",
       render: (m: LeaveMode) => (
-        <Tag color={m === "emergency" ? nectarColors.alert : nectarColors.sky}>{m}</Tag>
+        <Tag color={m === "emergency" ? nectarColors.alert : nectarColors.sky}>{trEnum(m)}</Tag>
       ),
     },
     {
-      title: "Dates",
+      title: tr("Dates"),
       key: "dates",
       render: (_, r) => {
         const overlaps =
@@ -169,14 +170,14 @@ export default function LeaveRequestsContent() {
           <span>
             {r.startDate} → {r.endDate}
             {overlaps ? (
-              <Tag color={nectarColors.alert} style={{ marginLeft: 8, marginInlineEnd: 0 }}>plant overlap</Tag>
+              <Tag color={nectarColors.alert} style={{ marginLeft: 8, marginInlineEnd: 0 }}>{tr("plant overlap")}</Tag>
             ) : null}
             {hasConflict ? (
               <Tag
                 color="#D97706"
                 style={{ marginLeft: 8, marginInlineEnd: 0 }}
               >
-                conflict
+                {tr("conflict")}
               </Tag>
             ) : null}
           </span>
@@ -184,32 +185,32 @@ export default function LeaveRequestsContent() {
       },
     },
     {
-      title: "Entry",
+      title: tr("Entry"),
       dataIndex: "entrySource",
       render: (s, r) =>
         s === "supervisor_on_behalf" ? (
           <span style={{ fontSize: 12 }}>
-            Supervisor on behalf
+            {tr("Supervisor on behalf")}
             <br />
-            <span style={{ color: nectarColors.muted }}>{r.enteredByName}</span>
+            <span style={{ color: nectarColors.muted }}>{trData(r.enteredByName)}</span>
           </span>
         ) : (
-          "By employee"
+          tr("By employee")
         ),
     },
     {
-      title: "OT risk",
+      title: tr("OT risk"),
       dataIndex: "potentialOtHours",
       sorter: (a, b) => a.potentialOtHours - b.potentialOtHours,
       render: (h: number) =>
         h > 0 ? (
-          <span style={{ color: nectarColors.alert, fontWeight: 600 }}>+{h} hrs</span>
+          <span style={{ color: nectarColors.alert, fontWeight: 600 }}>{tr("+{h} hrs", { h })}</span>
         ) : (
-          "None"
+          tr("None")
         ),
     },
     {
-      title: "Status",
+      title: tr("Status"),
       dataIndex: "status",
       render: (s: LeaveRequest["status"], r) => (
         <span style={{ display: "inline-flex", flexDirection: "column", gap: 4 }}>
@@ -217,14 +218,14 @@ export default function LeaveRequestsContent() {
           {s === "CANCELLED" && r.cancellationReason ? (
             <span style={{ fontSize: 11, color: nectarColors.muted, maxWidth: 160 }}>
               {r.cancelledByName ? `${r.cancelledByName}: ` : ""}
-              {r.cancellationReason}
+              {trData(r.cancellationReason)}
             </span>
           ) : null}
         </span>
       ),
     },
     {
-      title: "Action",
+      title: tr("Action"),
       key: "action",
       render: (_, r) => {
         const actor = session?.name ?? "User";
@@ -234,16 +235,16 @@ export default function LeaveRequestsContent() {
             message.success(ok);
             setTick((t) => t + 1);
           } catch (err) {
-            message.error(err instanceof Error ? err.message : "Action failed");
+            message.error(err instanceof Error ? trData(err.message) : tr("Action failed"));
           }
         };
         const waiting = (text: string) => (
-          <span style={{ color: nectarColors.muted, fontSize: 12 }}>{text}</span>
+          <span style={{ color: nectarColors.muted, fontSize: 12 }}>{trData(text)}</span>
         );
 
         // Nobody approves their own leave or a senior's — only leave of people in their charge.
         if (DECISION_STATUSES.has(r.status) && !isInChargeOf(session, getEmployeeById(r.employeeId))) {
-          return waiting(session?.employeeId === r.employeeId ? "With your approver" : "With their approver");
+          return waiting(session?.employeeId === r.employeeId ? tr("With your approver") : tr("With their approver"));
         }
 
         if (r.status === "REQUESTED" || r.status === "ABSENT") {
@@ -254,10 +255,10 @@ export default function LeaveRequestsContent() {
                   size="small"
                   type="primary"
                   onClick={() =>
-                    act(() => supervisorVerify(r.id, actor), "Supervisor verified")
+                    act(() => supervisorVerify(r.id, actor), tr("Supervisor verified"))
                   }
                 >
-                  Verify
+                  {tr("Verify")}
                 </Button>
                 <Button
                   size="small"
@@ -267,12 +268,12 @@ export default function LeaveRequestsContent() {
                     setRejectRow(r);
                   }}
                 >
-                  Reject
+                  {tr("Reject")}
                 </Button>
               </span>
             );
           }
-          return waiting("Waiting for supervisor");
+          return waiting(tr("Waiting for supervisor"));
         }
 
         if (
@@ -290,7 +291,7 @@ export default function LeaveRequestsContent() {
                     setCoverLeave(r);
                   }}
                 >
-                  Choose replacement
+                  {tr("Choose replacement")}
                 </Button>
                 <Button
                   size="small"
@@ -300,12 +301,12 @@ export default function LeaveRequestsContent() {
                     setRejectRow(r);
                   }}
                 >
-                  Reject
+                  {tr("Reject")}
                 </Button>
               </span>
             );
           }
-          return waiting("Waiting for shift in-charge");
+          return waiting(tr("Waiting for shift in-charge"));
         }
 
         if (r.status === "SITE_APPROVED" || r.status === "SITE_VERIFIED") {
@@ -318,11 +319,11 @@ export default function LeaveRequestsContent() {
                   onClick={() =>
                     act(
                       () => managerDecideLeave(r.id, actor, "approved"),
-                      "Manager approved — sent to Director",
+                      tr("Manager approved — sent to Director"),
                     )
                   }
                 >
-                  Approve
+                  {tr("Approve")}
                 </Button>
                 <Button
                   size="small"
@@ -332,12 +333,12 @@ export default function LeaveRequestsContent() {
                     setRejectRow(r);
                   }}
                 >
-                  Reject
+                  {tr("Reject")}
                 </Button>
               </span>
             );
           }
-          return waiting("Waiting for manager");
+          return waiting(tr("Waiting for manager"));
         }
 
         if (r.status === "MANAGER_APPROVED") {
@@ -350,11 +351,11 @@ export default function LeaveRequestsContent() {
                   onClick={() =>
                     act(
                       () => adminFinalizeLeave(r.id, actor, "approved"),
-                      "Leave approved by Director",
+                      tr("Leave approved by Director"),
                     )
                   }
                 >
-                  Director approve
+                  {tr("Director approve")}
                 </Button>
                 <Button
                   size="small"
@@ -364,29 +365,29 @@ export default function LeaveRequestsContent() {
                     setRejectRow(r);
                   }}
                 >
-                  Reject
+                  {tr("Reject")}
                 </Button>
               </span>
             );
           }
-          return waiting("Waiting for Director");
+          return waiting(tr("Waiting for Director"));
         }
 
         if (r.status === "PENDING_EMPLOYEE_CONSENT") {
-          return waiting(`Waiting for ${r.employeeName}`);
+          return waiting(tr("Waiting for {employeeName}", { employeeName: trData(r.employeeName) }));
         }
 
         if (r.status === "APPROVED" || r.status === "EXTENSION_REQUIRED") {
           if (canConfirmLeaveReturn(session)) {
             return (
-              <Link href={`/leave/requests/${r.id}`}><Button size="small">Confirm return</Button></Link>
+              <Link href={`/leave/requests/${r.id}`}><Button size="small">{tr("Confirm return")}</Button></Link>
             );
           }
-          return waiting("Approved");
+          return waiting(tr("Approved"));
         }
 
         return (
-          <Link href={`/leave/requests/${r.id}`} style={{ fontSize: 12 }}>Open</Link>
+          <Link href={`/leave/requests/${r.id}`} style={{ fontSize: 12 }}>{tr("Open")}</Link>
         );
       },
     },
@@ -394,30 +395,30 @@ export default function LeaveRequestsContent() {
 
   const pendingColumns: ColumnsType<LeaveRequest> = [
     {
-      title: "Employee",
+      title: tr("Employee"),
       dataIndex: "employeeName",
       render: (n, r) => (
-        <Link href={`/leave/requests/${r.id}`} style={{ fontWeight: 600 }}>{n}</Link>
+        <Link href={`/leave/requests/${r.id}`} style={{ fontWeight: 600 }}>{trData(n)}</Link>
       ),
     },
-    { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
-    { title: "Absent since", dataIndex: "startDate" },
-    { title: "Days", dataIndex: "daysRequested" },
+    { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+    { title: tr("Absent since"), dataIndex: "startDate" },
+    { title: tr("Days"), dataIndex: "daysRequested", render: trCell },
     {
-      title: "Status",
+      title: tr("Status"),
       dataIndex: "status",
       render: (s: LeaveRequest["status"]) => (
         <Tag color={nectarColors.alert}>{LEAVE_STATUS_LABELS[s]}</Tag>
       ),
     },
-    { title: "Supervisor", dataIndex: "supervisorName" },
-    { title: "Site In-Charge", dataIndex: "siteInChargeName" },
-    { title: "Last communication", dataIndex: "lastCommunication", render: (v) => v ?? "—" },
+    { title: tr("Supervisor"), dataIndex: "supervisorName", render: trCell },
+    { title: tr("Site In-Charge"), dataIndex: "siteInChargeName", render: trCell },
+    { title: tr("Last communication"), dataIndex: "lastCommunication", render: (v) => trData(v) ?? "—" },
     {
       title: "",
       key: "follow",
       render: (_, r) => (
-        <Link href={`/leave/requests/${r.id}`}><Button size="small" type="primary">Follow up</Button></Link>
+        <Link href={`/leave/requests/${r.id}`}><Button size="small" type="primary">{tr("Follow up")}</Button></Link>
       ),
     },
   ];
@@ -520,7 +521,8 @@ export default function LeaveRequestsContent() {
           employeeId: created.employeeId,
           kind: "leave_consent",
           title: "Leave request needs your consent",
-          body: `${created.enteredByName} submitted leave on your behalf for ${created.startDate}–${created.endDate}. Approve or reject to continue.`,
+          body: "{enteredByName} submitted leave on your behalf for {startDate}–{endDate}. Approve or reject to continue.",
+          params: { enteredByName: created.enteredByName, startDate: created.startDate, endDate: created.endDate },
           href: `/leave/requests/${created.id}`,
           meta: { leaveId: created.id },
         });
@@ -530,17 +532,17 @@ export default function LeaveRequestsContent() {
         .length;
       message.success(
         created.status === "PENDING_EMPLOYEE_CONSENT"
-          ? "Leave submitted — awaiting employee consent."
+          ? tr("Leave submitted — awaiting employee consent.")
           : warnCount
-            ? `Leave recorded with ${warnCount} policy warning(s).`
-            : "Leave / absence recorded.",
+            ? tr("Leave recorded with {warnCount} policy warning(s).", { warnCount })
+            : tr("Leave / absence recorded."),
       );
       setOpen(false);
       setPolicyPreview(null);
       form.resetFields();
       setTick((t) => t + 1);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Could not create leave");
+      message.error(err instanceof Error ? trData(err.message) : tr("Could not create leave"));
     }
   };
 
@@ -558,8 +560,7 @@ export default function LeaveRequestsContent() {
   const pendingTable = (
     <>
       <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 13 }}>
-        Absences that need employee follow-up — verbal, incomplete, unexplained,
-        or overdue to close.
+        {tr("Absences that need employee follow-up — verbal, incomplete, unexplained, or overdue to close.")}
       </p>
       <Table
         rowKey="id"
@@ -577,10 +578,10 @@ export default function LeaveRequestsContent() {
       <div style={rowBetweenWrapGap12}>
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
           {personalOnly
-            ? "Your leave and absence requests."
-            : "Open a name for the full record. Action column: supervisor verifies → shift in-charge covers → manager approves → Director finalizes."}
+            ? tr("Your leave and absence requests.")
+            : tr("Open a name for the full record. Action column: supervisor verifies → shift in-charge covers → manager approves → Director finalizes.")}
         </p>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>{personalOnly ? "Request leave" : "Record leave / absence"}</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>{personalOnly ? tr("Request leave") : tr("Record leave / absence")}</Button>
       </div>
 
       {showPendingTab ? (
@@ -588,8 +589,8 @@ export default function LeaveRequestsContent() {
           activeKey={activeTab}
           onChange={setView}
           items={[
-            { key: "requests", label: `Requests (${rows.length})`, children: requestsTable },
-            { key: "pending", label: `Pending justifications (${pendingRows.length})`, children: pendingTable },
+            { key: "requests", label: tr("Requests ({rowCount})", { rowCount: rows.length }), children: requestsTable },
+            { key: "pending", label: tr("Pending justifications ({pendingRowCount})", { pendingRowCount: pendingRows.length }), children: pendingTable },
           ]}
         />
       ) : (
@@ -597,7 +598,7 @@ export default function LeaveRequestsContent() {
       )}
 
       <Drawer
-        title="Record leave or emergency absence"
+        title={tr("Record leave or emergency absence")}
         size={480}
         open={open}
         onClose={() => {
@@ -606,7 +607,7 @@ export default function LeaveRequestsContent() {
         }}
         destroyOnHidden
         extra={
-          <Button type="primary" onClick={onCreate} disabled={policyPreview?.verdict === "BLOCK"}>Save</Button>
+          <Button type="primary" onClick={onCreate} disabled={policyPreview?.verdict === "BLOCK"}>{tr("Save")}</Button>
         }
       >
         <Form
@@ -626,7 +627,7 @@ export default function LeaveRequestsContent() {
             }, 400);
           }}
         >
-          <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
+          <Form.Item name="employeeId" label={tr("Employee")} rules={[{ required: true }]}>
             <Select
               showSearch
               optionFilterProp="label"
@@ -637,34 +638,34 @@ export default function LeaveRequestsContent() {
                   // Yourself, or someone in your charge — never leave on behalf of a senior
                   return e.id === session?.employeeId || isInChargeOf(session, e);
                 })
-                .map((e) => ({ value: e.id, label: `${e.name} · ${e.role}` }))}
+                .map((e) => ({ value: e.id, label: `${trData(e.name)} · ${trData(e.role)}` }))}
             />
           </Form.Item>
           {canEnterOthers ? (
-            <Form.Item name="entrySource" label="Entry source">
+            <Form.Item name="entrySource" label={tr("Entry source")}>
               <Radio.Group>
-                <Radio value="employee">Employee self-request</Radio>
-                <Radio value="supervisor_on_behalf">Supervisor on behalf (needs employee consent)</Radio>
+                <Radio value="employee">{tr("Employee self-request")}</Radio>
+                <Radio value="supervisor_on_behalf">{tr("Supervisor on behalf (needs employee consent)")}</Radio>
               </Radio.Group>
             </Form.Item>
           ) : null}
-          <Form.Item name="mode" label="Mode" rules={[{ required: true }]}>
+          <Form.Item name="mode" label={tr("Mode")} rules={[{ required: true }]}>
             <Radio.Group>
-              <Radio value="planned">Planned</Radio>
-              <Radio value="emergency">Emergency</Radio>
+              <Radio value="planned">{tr("Planned")}</Radio>
+              <Radio value="emergency">{tr("Emergency")}</Radio>
             </Radio.Group>
           </Form.Item>
-          <Form.Item name="leaveType" label="Leave type" rules={[{ required: true }]}>
+          <Form.Item name="leaveType" label={tr("Leave type")} rules={[{ required: true }]}>
             <Select
               options={(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map(
                 (value) => ({ value, label: LEAVE_TYPE_LABELS[value] }),
               )}
             />
           </Form.Item>
-          <Form.Item name="isHalfDay" label="Duration">
+          <Form.Item name="isHalfDay" label={tr("Duration")}>
             <Radio.Group>
-              <Radio value={false}>Full day(s)</Radio>
-              <Radio value={true}>Half day</Radio>
+              <Radio value={false}>{tr("Full day(s)")}</Radio>
+              <Radio value={true}>{tr("Half day")}</Radio>
             </Radio.Group>
           </Form.Item>
           <Form.Item
@@ -677,12 +678,12 @@ export default function LeaveRequestsContent() {
               getFieldValue("isHalfDay") ? (
                 <Form.Item
                   name="halfDaySlot"
-                  label="Half-day slot"
-                  rules={[{ required: true, message: "Pick morning or afternoon" }]}
+                  label={tr("Half-day slot")}
+                  rules={[{ required: true, message: tr("Pick morning or afternoon") }]}
                 >
                   <Radio.Group>
-                    <Radio value="morning">Morning</Radio>
-                    <Radio value="afternoon">Afternoon</Radio>
+                    <Radio value="morning">{tr("Morning")}</Radio>
+                    <Radio value="afternoon">{tr("Afternoon")}</Radio>
                   </Radio.Group>
                 </Form.Item>
               ) : null
@@ -696,7 +697,7 @@ export default function LeaveRequestsContent() {
                   ? dayjs().startOf("day").subtract(7, "day")
                   : dayjs().startOf("day");
               return (
-                <Form.Item name="range" label="Dates" rules={[{ required: true }]}>
+                <Form.Item name="range" label={tr("Dates")} rules={[{ required: true }]}>
                   <DatePicker.RangePicker
                     style={{ width: "100%" }}
                     disabledDate={(current) =>
@@ -725,7 +726,7 @@ export default function LeaveRequestsContent() {
                   ? dayjs().startOf("day").subtract(7, "day")
                   : dayjs().startOf("day");
               return (
-                <Form.Item name="expectedReturn" label="Expected return" rules={[{ required: true }]}>
+                <Form.Item name="expectedReturn" label={tr("Expected return")} rules={[{ required: true }]}>
                   <DatePicker
                     style={{ width: "100%" }}
                     disabledDate={(current) =>
@@ -736,11 +737,11 @@ export default function LeaveRequestsContent() {
               );
             }}
           </Form.Item>
-          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}><Input.TextArea rows={3} /></Form.Item>
-          <Form.Item name="lastCommunication" label="Last communication"><Input placeholder="Optional note" /></Form.Item>
+          <Form.Item name="reason" label={tr("Reason")} rules={[{ required: true }]}><Input.TextArea rows={3} /></Form.Item>
+          <Form.Item name="lastCommunication" label={tr("Last communication")}><Input placeholder={tr("Optional note")} /></Form.Item>
 
           {policyChecking ? (
-            <p style={{ fontSize: 12, color: nectarColors.muted }}>Checking leave policy…</p>
+            <p style={{ fontSize: 12, color: nectarColors.muted }}>{tr("Checking leave policy…")}</p>
           ) : null}
           {policyPreview ? (
             <div
@@ -764,17 +765,17 @@ export default function LeaveRequestsContent() {
               }}
             >
               <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                Policy: {policyPreview.verdict}
+                {tr("Policy:")}{" "}{trData(policyPreview.verdict)}
                 {policyPreview.daysRequested
-                  ? ` · ${policyPreview.daysRequested} day(s)`
+                  ? tr(" · {daysRequested} day(s)", { daysRequested: policyPreview.daysRequested })
                   : ""}
               </div>
               {policyPreview.flags.length === 0 ? (
-                <div style={{ fontSize: 12, color: nectarColors.muted }}>No policy issues.</div>
+                <div style={{ fontSize: 12, color: nectarColors.muted }}>{tr("No policy issues.")}</div>
               ) : (
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
                   {policyPreview.flags.map((f) => (
-                    <li key={f.code + f.message}>{f.message}</li>
+                    <li key={f.code + f.message}>{trData(f.message)}</li>
                   ))}
                 </ul>
               )}
@@ -789,11 +790,11 @@ export default function LeaveRequestsContent() {
       <Modal
         title={
           coverLeave
-            ? `Who covers ${coverLeave.employeeName}?`
-            : "Choose replacement"
+            ? tr("Who covers {employeeName}?", { employeeName: trData(coverLeave.employeeName) })
+            : tr("Choose replacement")
         }
         open={Boolean(coverLeave)}
-        okText="Cover this shift"
+        okText={tr("Cover this shift")}
         okButtonProps={{ disabled: !coverChoice }}
         onCancel={() => {
           setCoverLeave(null);
@@ -811,18 +812,18 @@ export default function LeaveRequestsContent() {
             );
             message.success(
               coverChoice === "ot"
-                ? "Covered with overtime"
-                : "Replacement arranged",
+                ? tr("Covered with overtime")
+                : tr("Replacement arranged"),
             );
             setCoverLeave(null);
             setCoverChoice(undefined);
             setTick((t) => t + 1);
           } catch (err) {
-            message.error(err instanceof Error ? err.message : "Action failed");
+            message.error(err instanceof Error ? trData(err.message) : tr("Action failed"));
           }
         }}
       >
-        <p style={{ marginTop: 0, color: nectarColors.muted, fontSize: 13 }}>Same-plant employees, cluster employees, then pool — pick cover or OT.</p>
+        <p style={{ marginTop: 0, color: nectarColors.muted, fontSize: 13 }}>{tr("Same-plant employees, cluster employees, then pool — pick cover or OT.")}</p>
         <Radio.Group
           value={coverChoice}
           onChange={(e) => setCoverChoice(e.target.value)}
@@ -830,34 +831,34 @@ export default function LeaveRequestsContent() {
         >
           {coverOptions.local.map((person) => (
             <Radio key={person.relieverId} value={person.relieverId}>
-              {person.name} ·{" "}
-              {person.kind === "employee" ? "employee" : "pool"} · this site
+              {trData(person.name)} ·{" "}
+              {person.kind === "employee" ? tr("employee · this site") : tr("pool · this site")}
               {person.phone ? ` · ${person.phone}` : ""}
             </Radio>
           ))}
           {coverOptions.cluster.map((person) => (
             <Radio key={person.relieverId} value={person.relieverId}>
-              {person.name} ·{" "}
-              {person.kind === "employee" ? "employee" : "pool"} · cluster
+              {trData(person.name)} ·{" "}
+              {person.kind === "employee" ? tr("employee · cluster") : tr("pool · cluster")}
               {person.homeSiteId ? ` · ${getSiteName(person.homeSiteId)}` : ""}
               {person.phone ? ` · ${person.phone}` : ""}
             </Radio>
           ))}
-          <Radio value="ot">No one — accept overtime</Radio>
+          <Radio value="ot">{tr("No one — accept overtime")}</Radio>
         </Radio.Group>
       </Modal>
 
       <Modal
-        title="Reject leave"
+        title={tr("Reject leave")}
         open={Boolean(rejectRow)}
-        okText="Reject"
+        okText={tr("Reject")}
         okButtonProps={{ danger: true }}
         onCancel={() => setRejectRow(null)}
         onOk={() => {
           if (!rejectRow) return;
           const note = rejectNote.trim();
           if (!note) {
-            message.error("Add a remark before rejecting");
+            message.error(tr("Add a remark before rejecting"));
             return;
           }
           const role =
@@ -872,18 +873,18 @@ export default function LeaveRequestsContent() {
                   : "supervisor";
           try {
             rejectLeave(rejectRow.id, session?.name ?? "User", note, role);
-            message.success("Leave rejected");
+            message.success(tr("Leave rejected"));
             setRejectRow(null);
             setRejectNote("");
             setTick((t) => t + 1);
           } catch (err) {
-            message.error(err instanceof Error ? err.message : "Action failed");
+            message.error(err instanceof Error ? trData(err.message) : tr("Action failed"));
           }
         }}
       >
         <Input.TextArea
           rows={3}
-          placeholder="Remark — why this leave is rejected"
+          placeholder={tr("Remark — why this leave is rejected")}
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
         />

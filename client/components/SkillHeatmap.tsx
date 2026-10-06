@@ -3,7 +3,7 @@
 import { theme } from "antd";
 import { skillLabels, skillMatrix, type SkillKey } from "@/lib/mock-data";
 import { Section } from "@/components/quiet";
-import { useT } from "@/lib/i18n";
+import { useT, trData } from "@/lib/i18n";
 
 const skillKeys = Object.keys(skillLabels) as SkillKey[];
 
@@ -33,7 +33,7 @@ export default function SkillHeatmap() {
               <th style={{ textAlign: "left", fontWeight: 500, color: token.colorTextSecondary, padding: "8px" }}>{t("common.role")}</th>
               {skillKeys.map((key) => (
                 <th key={key} style={{ fontWeight: 500, color: token.colorTextSecondary, padding: "8px 6px", textAlign: "right" }}>
-                  {skillLabels[key]}
+                  {trData(skillLabels[key])}
                 </th>
               ))}
             </tr>
@@ -41,14 +41,14 @@ export default function SkillHeatmap() {
           <tbody>
             {skillMatrix.map((row) => (
               <tr key={row.role} style={{ borderTop: `1px solid ${token.colorSplit}` }}>
-                <td style={{ color: token.colorText, padding: "8px", whiteSpace: "nowrap" }}>{row.role}</td>
+                <td style={{ color: token.colorText, padding: "8px", whiteSpace: "nowrap" }}>{trData(row.role)}</td>
                 {skillKeys.map((key) => {
                   const score = row[key];
                   const c = cell(score);
                   return (
                     <td key={key} style={{ padding: "4px 6px", textAlign: "right" }}>
                       <span
-                        title={`${row.role} · ${skillLabels[key]}: ${score}`}
+                        title={`${trData(row.role)} · ${trData(skillLabels[key])}: ${score}`}
                         style={{
                           display: "inline-block",
                           minWidth: 34,

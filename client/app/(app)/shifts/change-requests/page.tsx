@@ -12,6 +12,7 @@ import {
 import { canApproveShiftChanges, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText22 } from "@/lib/styles";
+import { tr, trCell, trData } from "@/lib/i18n";
 
 export default function ShiftChangeRequestsPage() {
   const { message } = App.useApp();
@@ -27,10 +28,9 @@ export default function ShiftChangeRequestsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div style={sSerifText22}>Shift change requests</div>
+        <div style={sSerifText22}>{tr("Shift change requests")}</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Supervisor or employee requests a shift change. Shift In-Charge, Manager,
-          or Director approve it when the day is not on leave and rest rules hold.
+          {tr("Supervisor or employee requests a shift change. Shift In-Charge, Manager, or Director approve it when the day is not on leave and rest rules hold.")}
         </p>
       </div>
 
@@ -39,42 +39,42 @@ export default function ShiftChangeRequestsPage() {
         dataSource={rows}
         style={{ background: nectarColors.white }}
         columns={[
-          { title: "Employee", dataIndex: "employeeName" },
-          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
-          { title: "Date", dataIndex: "date" },
+          { title: tr("Employee"), dataIndex: "employeeName", render: trCell },
+          { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+          { title: tr("Date"), dataIndex: "date" },
           {
-            title: "Change",
+            title: tr("Change"),
             key: "chg",
             render: (_, r) =>
               `${getShiftMasterById(r.fromShiftId)?.code ?? "?"} → ${
                 getShiftMasterById(r.toShiftId)?.code ?? "?"
               }`,
           },
-          { title: "Reason", dataIndex: "reason" },
-          { title: "Requested by", dataIndex: "requestedBy" },
+          { title: tr("Reason"), dataIndex: "reason", render: trCell },
+          { title: tr("Requested by"), dataIndex: "requestedBy", render: trCell },
           {
-            title: "Manpower",
+            title: tr("Manpower"),
             dataIndex: "manpowerOk",
             render: (ok: boolean) =>
               ok ? (
-                <Tag color={nectarColors.mint}>No shortage</Tag>
+                <Tag color={nectarColors.mint}>{tr("No shortage")}</Tag>
               ) : (
-                <Tag color={nectarColors.alert}>Shortage</Tag>
+                <Tag color={nectarColors.alert}>{tr("Shortage")}</Tag>
               ),
           },
           {
-            title: "Potential OT",
+            title: tr("Potential OT"),
             dataIndex: "potentialOtHours",
             render: (h: number) =>
               h > 0 ? (
-                <span style={{ color: nectarColors.alert }}>+{h} hrs</span>
+                <span style={{ color: nectarColors.alert }}>{tr("+{h} hrs", { h })}</span>
               ) : (
-                "0 hrs"
+                tr("0 hrs")
               ),
           },
-          { title: "Status", dataIndex: "status", render: (s) => <Tag>{s}</Tag> },
+          { title: tr("Status"), dataIndex: "status", render: (s) => <Tag>{trData(s)}</Tag> },
           {
-            title: "Action",
+            title: tr("Action"),
             key: "act",
             render: (_, r) =>
               r.status === "PENDING" && canApprove ? (
@@ -86,33 +86,33 @@ export default function ShiftChangeRequestsPage() {
                     onClick={() => {
                       try {
                         decideChangeRequest(r.id, "APPROVED");
-                        message.success("Shift change approved");
+                        message.success(tr("Shift change approved"));
                         setTick((t) => t + 1);
                       } catch (err) {
                         message.error(
                           err instanceof Error
-                            ? err.message
-                            : "Could not approve this shift change",
+                            ? trData(err.message)
+                            : tr("Could not approve this shift change"),
                         );
                       }
                     }}
                   >
-                    Approve
+                    {tr("Approve")}
                   </Button>
                   <Button
                     size="small"
                     danger
                     onClick={() => {
                       decideChangeRequest(r.id, "REJECTED");
-                      message.info("Shift change rejected");
+                      message.info(tr("Shift change rejected"));
                       setTick((t) => t + 1);
                     }}
                   >
-                    Reject
+                    {tr("Reject")}
                   </Button>
                 </>
               ) : r.status === "PENDING" ? (
-                <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting shift in-charge / manager</span>
+                <span style={{ color: nectarColors.muted, fontSize: 12 }}>{tr("Awaiting shift in-charge / manager")}</span>
               ) : (
                 "—"
               ),

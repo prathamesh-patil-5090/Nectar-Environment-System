@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useIsMentor, useViewer } from "@/lib/training/hooks";
-import { useT } from "@/lib/i18n";
+import { useT, trData } from "@/lib/i18n";
 
 type Item = { href: string; label: string; match: (p: string) => boolean };
 
@@ -56,7 +56,7 @@ export default function TrainingSubNav() {
                 : "bg-white! border-slate-200 text-slate-600! hover:border-[#1C4463] hover:text-[#1C4463]!"
             }`}
           >
-            {it.label}
+            {trData(it.label)}
           </Link>
         );
       })}

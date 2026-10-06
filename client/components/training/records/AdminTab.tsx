@@ -7,8 +7,9 @@ import { createCommunity, getCommunities, getMentors, upsertMentor } from "@/lib
 import { getPeople, getSite, useTrainingData } from "@/lib/training/store";
 import { useAsync, useViewer } from "@/lib/training/hooks";
 import type { MentorProfileRecord } from "@/lib/training/types";
+import { tr, trTable, trData } from "@/lib/i18n";
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS = trTable([
   { value: "employee", label: "Plant Operators" },
   { value: "shift_incharge", label: "Shift In-Charges" },
   { value: "supervisor", label: "Site Managers" },
@@ -16,7 +17,7 @@ const ROLE_OPTIONS = [
   { value: "site_incharge", label: "Site In-Charges" },
   { value: "manager", label: "Plant Managers" },
   { value: "hr", label: "HR" },
-];
+]);
 
 /** HR / Director: who can mentor, and the communities (Meetup-style groups). */
 export default function AdminTab() {
@@ -34,7 +35,7 @@ export default function AdminTab() {
   const saveMentor = async (v: { employeeId: string; bio?: string; specialties?: string[] }) => {
     try {
       await upsertMentor(v.employeeId, { bio: v.bio, specialties: v.specialties ?? [], active: true });
-      message.success("Mentor saved");
+      message.success(tr("Mentor saved"));
       setMentorOpen(false);
       mentorForm.resetFields();
       void mentors.reload();
@@ -52,7 +53,7 @@ export default function AdminTab() {
         organizerEmployeeIds: v.organizerEmployeeIds ?? [],
         autoJoin: { roles: v.roles ?? [], plantTypes: v.plantTypes ?? [] },
       });
-      message.success("Community created");
+      message.success(tr("Community created"));
       setCommunityOpen(false);
       communityForm.resetFields();
       void communities.reload();
@@ -63,7 +64,7 @@ export default function AdminTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <Card title="Mentors" extra={<Button type="primary" onClick={() => setMentorOpen(true)}>Add mentor</Button>}>
+      <Card title={tr("Mentors")} extra={<Button type="primary" onClick={() => setMentorOpen(true)}>{tr("Add mentor")}</Button>}>
         <Table<MentorProfileRecord>
           rowKey="id"
           size="small"
@@ -72,10 +73,10 @@ export default function AdminTab() {
           pagination={false}
           scroll={{ x: 600 }}
           columns={[
-            { title: "Mentor", dataIndex: "name", render: (n: string, m) => <div><strong>{n}</strong><div style={{ fontSize: 12, color: "#4A6375" }}>{m.title}</div></div> },
-            { title: "Specialties", dataIndex: "specialties", render: (s: string[]) => s.map((x) => <Tag key={x}>{x}</Tag>) },
+            { title: tr("Mentor"), dataIndex: "name", render: (n: string, m) => <div><strong>{trData(n)}</strong><div style={{ fontSize: 12, color: "#4A6375" }}>{trData(m.title)}</div></div> },
+            { title: tr("Specialties"), dataIndex: "specialties", render: (s: string[]) => s.map((x) => <Tag key={x}>{trData(x)}</Tag>) },
             {
-              title: "Active",
+              title: tr("Active"),
               dataIndex: "active",
               render: (a: boolean, m) => (
                 <Switch
@@ -95,7 +96,7 @@ export default function AdminTab() {
         />
       </Card>
 
-      <Card title="Communities" extra={<Button type="primary" onClick={() => setCommunityOpen(true)}>New community</Button>}>
+      <Card title={tr("Communities")} extra={<Button type="primary" onClick={() => setCommunityOpen(true)}>{tr("New community")}</Button>}>
         <Table
           rowKey="id"
           size="small"
@@ -104,48 +105,48 @@ export default function AdminTab() {
           pagination={false}
           scroll={{ x: 600 }}
           columns={[
-            { title: "Community", dataIndex: "name", render: (n: string, c) => <Link href={`/training/communities/${c.slug}`}>{n}</Link> },
-            { title: "Members", dataIndex: "memberCount", align: "center" },
-            { title: "Organizers", dataIndex: "organizers", render: (o: { name: string }[]) => o.map((p) => p.name).join(", ") || "—" },
+            { title: tr("Community"), dataIndex: "name", render: (n: string, c) => <Link href={`/training/communities/${c.slug}`}>{trData(n)}</Link> },
+            { title: tr("Members"), dataIndex: "memberCount", align: "center" },
+            { title: tr("Organizers"), dataIndex: "organizers", render: (o: { name: string }[]) => o.map((p) => p.name).join(", ") || "—" },
           ]}
         />
       </Card>
 
-      <Modal open={mentorOpen} title="Add or update a mentor" onCancel={() => setMentorOpen(false)} onOk={() => mentorForm.submit()} destroyOnHidden>
+      <Modal open={mentorOpen} title={tr("Add or update a mentor")} onCancel={() => setMentorOpen(false)} onOk={() => mentorForm.submit()} destroyOnHidden>
         <Form form={mentorForm} layout="vertical" onFinish={saveMentor}>
-          <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="label" options={people.map((p) => ({ value: p.id, label: `${p.name} · ${p.designation ?? ""}` }))} />
+          <Form.Item name="employeeId" label={tr("Employee")} rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label" options={people.map((p) => ({ value: p.id, label: `${trData(p.name)} · ${trData(p.designation ?? "")}` }))} />
           </Form.Item>
-          <Form.Item name="specialties" label="Specialties">
-            <Select mode="tags" placeholder="Type and press Enter" />
+          <Form.Item name="specialties" label={tr("Specialties")}>
+            <Select mode="tags" placeholder={tr("Type and press Enter")} />
           </Form.Item>
-          <Form.Item name="bio" label="Short bio">
+          <Form.Item name="bio" label={tr("Short bio")}>
             <Input.TextArea rows={3} maxLength={400} showCount />
           </Form.Item>
         </Form>
       </Modal>
 
-      <Modal open={communityOpen} title="New community" onCancel={() => setCommunityOpen(false)} onOk={() => communityForm.submit()} destroyOnHidden>
+      <Modal open={communityOpen} title={tr("New community")} onCancel={() => setCommunityOpen(false)} onOk={() => communityForm.submit()} destroyOnHidden>
         <Form form={communityForm} layout="vertical" onFinish={saveCommunity}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true }]}>
-            <Input maxLength={60} placeholder="e.g. Lab & Quality Circle" />
+          <Form.Item name="name" label={tr("Name")} rules={[{ required: true, whitespace: true }]}>
+            <Input maxLength={60} placeholder={tr("e.g. Lab & Quality Circle")} />
           </Form.Item>
-          <Form.Item name="description" label="Description">
+          <Form.Item name="description" label={tr("Description")}>
             <Input.TextArea rows={2} maxLength={300} />
           </Form.Item>
-          <Form.Item name="domain" label="Domain / topic">
-            <Input maxLength={40} placeholder="e.g. Safety" />
+          <Form.Item name="domain" label={tr("Domain / topic")}>
+            <Input maxLength={40} placeholder={tr("e.g. Safety")} />
           </Form.Item>
-          <Form.Item name="organizerEmployeeIds" label="Organizers">
+          <Form.Item name="organizerEmployeeIds" label={tr("Organizers")}>
             <Select mode="multiple" showSearch optionFilterProp="label" options={people.map((p) => ({ value: p.id, label: p.name }))} />
           </Form.Item>
-          <Form.Item name="roles" label="Auto-join roles">
+          <Form.Item name="roles" label={tr("Auto-join roles")}>
             <Select mode="multiple" options={ROLE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="plantTypes" label="Auto-join plants">
+          <Form.Item name="plantTypes" label={tr("Auto-join plants")}>
             <Select
               mode="multiple"
-              options={[...new Set(people.map((p) => getSite(p.siteId)?.plantType).filter(Boolean))].map((t) => ({ value: t, label: `${t} plant` }))}
+              options={[...new Set(people.map((p) => getSite(p.siteId)?.plantType).filter(Boolean))].map((t) => ({ value: t, label: tr("{t} plant", { t: trData(t) }) }))}
             />
           </Form.Item>
         </Form>

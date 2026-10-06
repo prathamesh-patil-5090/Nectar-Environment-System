@@ -17,7 +17,7 @@ import { normalizeRole, roleLabel, scopedSiteId, selfEmployeeId } from "@/lib/rb
 import { getUrgentTrainingItems, useTrainingData } from "@/lib/training";
 import { READINESS_READY_THRESHOLD, countComplianceReadySites } from "@/lib/workforce-metrics";
 import { useDashboardMotion } from "@/lib/motion/use-dashboard-motion";
-import { translatePersonName, useT } from "@/lib/i18n";
+import { translatePersonName, useT, trData } from "@/lib/i18n";
 
 type Reporting = { manager?: Employee; sic?: Employee; supervisor?: Employee };
 
@@ -44,7 +44,7 @@ export default function DashboardPage() {
         setRoster(emps);
         setSites(siteList);
       })
-      .catch((err: Error) => alive && setError(err.message));
+      .catch((err: Error) => alive && setError(trData(err.message)));
     return () => {
       alive = false;
     };
@@ -61,7 +61,7 @@ export default function DashboardPage() {
         const [manager, sic, supervisor] = await Promise.all([get(e.managerId), get(e.shiftInChargeId), get(e.supervisorId)]);
         if (alive) setReporting({ manager, sic, supervisor });
       })
-      .catch((err: Error) => alive && setError(err.message));
+      .catch((err: Error) => alive && setError(trData(err.message)));
     return () => {
       alive = false;
     };
@@ -83,7 +83,7 @@ export default function DashboardPage() {
   const pageRef = useDashboardMotion(ready);
 
   const plantName = siteScope
-    ? (sites.find((s) => s.id === siteScope)?.name ?? t("dash.yourPlant"))
+    ? (trData(sites.find((s) => s.id === siteScope)?.name) || t("dash.yourPlant"))
     : null;
   const subtitle =
     role === "director" || !siteScope
@@ -91,7 +91,7 @@ export default function DashboardPage() {
       : `${plantName}.`;
 
   if (error && !roster && !me) {
-    return <Alert type="error" showIcon title={t("dash.loadError")} description={error} />;
+    return <Alert type="error" showIcon title={t("dash.loadError")} description={trData(error)} />;
   }
   if (!ready) {
     return <div style={{ padding: 48, textAlign: "center" }}><Spin /></div>;
@@ -108,7 +108,7 @@ export default function DashboardPage() {
   return (
     <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p data-anim="intro" style={{ margin: 0, fontSize: 14, color: token.colorTextSecondary }}>
-        {subtitle}{" "}
+        {trData(subtitle)}{" "}
         {t("dash.signedInAs", { role: roleLabel(session?.role) })}
         {me ? ` · ${translatePersonName(me.name)}` : ""}.
       </p>

@@ -18,6 +18,7 @@ import { useAsync, useViewer } from "@/lib/training/hooks";
 import { useTrainingData } from "@/lib/training/store";
 import type { Community, Person, TrainingEvent } from "@/lib/training/types";
 import { EventImageCard, communityCoverUrl } from "@/components/training/ui/EventCard";
+import { tr, trData } from "@/lib/i18n";
 
 const MEMBERS_PAGE_SIZE = 24;
 type TabKey = "about" | "events" | "members";
@@ -32,7 +33,7 @@ function Cover({ c }: { c: Community }) {
         <>
           {/* Blurred fill so the whole image stays visible */}
           <img src={src} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60" />
-          <img src={src} alt={c.name} className="relative w-full h-full object-contain" />
+          <img src={src} alt={trData(c.name)} className="relative w-full h-full object-contain" />
         </>
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-emerald-700 to-slate-800 text-white text-5xl font-extrabold flex items-center justify-center">
@@ -49,9 +50,9 @@ function PersonRow({ p, organizer }: { p: Person; organizer?: boolean }) {
       <Avatar size={40} src={p.photoUrl} className="bg-emerald-700 shrink-0">{p.name[0]}</Avatar>
       <div className="min-w-0">
         <div className="font-semibold text-slate-900 truncate">
-          {p.name} {organizer && <Tag color="purple" className="ml-1 text-[10px]">Organizer</Tag>}
+          {trData(p.name)} {organizer && <Tag color="purple" className="ml-1 text-[10px]">{tr("Organizer")}</Tag>}
         </div>
-        <div className="text-xs text-slate-500 truncate">{[p.designation, p.siteName].filter(Boolean).join(" · ")}</div>
+        <div className="text-xs text-slate-500 truncate">{[p.designation, p.siteName].filter(Boolean).map((x) => trData(String(x))).join(" · ")}</div>
       </div>
     </div>
   );
@@ -59,7 +60,7 @@ function PersonRow({ p, organizer }: { p: Person; organizer?: boolean }) {
 
 function EventGrid({ items, loading, empty }: { items?: TrainingEvent[]; loading: boolean; empty: string }) {
   if (loading && !items) return <Skeleton active />;
-  if (!items?.length) return <div className={card}><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={empty} /></div>;
+  if (!items?.length) return <div className={card}><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={trData(empty)} /></div>;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-5 gap-y-7">
       {items.map((e) => <EventImageCard key={e.id} event={e} />)}
@@ -71,11 +72,11 @@ function SectionHead({ title, count, onSeeAll }: { title: string; count?: number
   return (
     <div className="flex items-baseline justify-between">
       <h2 className="m-0 text-xl font-bold text-slate-900">
-        {title} {count !== undefined && <span className="font-normal text-slate-500 text-base ml-1">{count}</span>}
+        {trData(title)} {count !== undefined && <span className="font-normal text-slate-500 text-base ml-1">{count}</span>}
       </h2>
       {onSeeAll && (
         <button type="button" onClick={onSeeAll} className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 cursor-pointer">
-          See all
+          {tr("See all")}
         </button>
       )}
     </div>
@@ -126,14 +127,14 @@ export default function CommunityPage() {
   }, [members.data, memberQuery]);
 
   if (community.loading && !c) return <div className="max-w-7xl mx-auto p-6"><Skeleton active /></div>;
-  if (!c) return <Result status="404" title="Community not found" subTitle={community.error ?? undefined} extra={<Link href="/training/events">All events</Link>} />;
+  if (!c) return <Result status="404" title={tr("Community not found")} subTitle={community.error ?? undefined} extra={<Link href="/training/events">{tr("All events")}</Link>} />;
 
   const toggle = async () => {
     if (!viewer.personId) return;
     try {
       community.setData(await (c.isMember ? leaveCommunity : joinCommunity)(slug, viewer.personId));
       void members.reload();
-      message.success(c.isMember ? "You left the community" : "You joined. You'll hear about new events.");
+      message.success(c.isMember ? tr("You left the community") : tr("You joined. You'll hear about new events."));
     } catch (err) {
       message.error((err as Error).message);
     }
@@ -142,22 +143,22 @@ export default function CommunityPage() {
   const share = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      message.success("Community link copied");
+      message.success(tr("Community link copied"));
     } catch {
-      message.error("Couldn't copy the link");
+      message.error(tr("Couldn't copy the link"));
     }
   };
 
   const joinButton = c.everyone ? (
-    <span title="Everyone at Nectar Enviro is a member of this community" className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#1C4463] text-white font-semibold">
-      <CheckOutlined /> Everyone&apos;s a member
+    <span title={tr("Everyone at Nectar Enviro is a member of this community")} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#1C4463] text-white font-semibold">
+      <CheckOutlined />{" "}{tr("Everyone's a member")}
     </span>
   ) : c.isMember ? (
-    <Popconfirm title="Leave this community?" description="You'll stop hearing about its new events." okText="Leave" okButtonProps={{ danger: true }} onConfirm={toggle}>
-      <Button size="large" icon={<CheckOutlined />} className="rounded-xl! font-semibold">Joined</Button>
+    <Popconfirm title={tr("Leave this community?")} description={tr("You'll stop hearing about its new events.")} okText={tr("Leave")} okButtonProps={{ danger: true }} onConfirm={toggle}>
+      <Button size="large" icon={<CheckOutlined />} className="rounded-xl! font-semibold">{tr("Joined")}</Button>
     </Popconfirm>
   ) : (
-    <Button type="primary" size="large" onClick={toggle} className="rounded-xl! font-semibold">Join this community</Button>
+    <Button type="primary" size="large" onClick={toggle} className="rounded-xl! font-semibold">{tr("Join this community")}</Button>
   );
 
   const organizerIds = new Set(c.organizerEmployeeIds);
@@ -172,45 +173,45 @@ export default function CommunityPage() {
       {/* HERO: cover left, identity right */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <nav className="text-xs font-medium text-slate-500 mb-4">
-          <Link href="/training" className="hover:text-emerald-700">Training Hub</Link>
+          <Link href="/training" className="hover:text-emerald-700">{tr("Training Hub")}</Link>
           <span className="mx-2">/</span>
-          <Link href="/training/events" className="hover:text-emerald-700">Events</Link>
+          <Link href="/training/events" className="hover:text-emerald-700">{tr("Events")}</Link>
           <span className="mx-2">/</span>
-          <span className="text-slate-700">{c.name}</span>
+          <span className="text-slate-700">{trData(c.name)}</span>
         </nav>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-7"><Cover c={c} /></div>
           <div className="lg:col-span-5 flex flex-col gap-4">
-            <h1 className="m-0 text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">{c.name}</h1>
+            <h1 className="m-0 text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">{trData(c.name)}</h1>
             <ul className="m-0 p-0 list-none flex flex-col gap-2.5 text-slate-600">
               {sites.length > 0 && (
                 <li className="flex items-center gap-2.5">
                   <EnvironmentOutlined className="text-slate-400" />
-                  <span>{sites.length === 1 ? sites[0] : `${sites.slice(0, 2).join(", ")}${sites.length > 2 ? ` +${sites.length - 2} sites` : ""}`}</span>
+                  <span>{sites.length === 1 ? sites[0] : `${sites.slice(0, 2).join(", ")}${sites.length > 2 ? tr(" +{value} sites", { value: sites.length - 2 }) : ""}`}</span>
                 </li>
               )}
               <li className="flex items-center gap-2.5">
                 <TeamOutlined className="text-slate-400" />
                 <button type="button" onClick={() => goTo("members")} className="hover:underline cursor-pointer">
-                  {c.memberCount} members
+                  {tr("{memberCount} members", { memberCount: c.memberCount })}
                 </button>
                 <span>·</span>
-                <span>Internal community</span>
+                <span>{tr("Internal community")}</span>
               </li>
               {firstOrganizer && (
                 <li className="flex items-center gap-2.5">
                   <CrownOutlined className="text-slate-400" />
                   <span>
-                    Organized by <span className="font-semibold text-slate-900">{firstOrganizer.name}</span>
-                    {c.organizers.length > 1 && ` and ${c.organizers.length - 1} other${c.organizers.length > 2 ? "s" : ""}`}
+                    {tr("Organized by")}{" "}<span className="font-semibold text-slate-900">{trData(firstOrganizer.name)}</span>
+                    {c.organizers.length > 1 && (c.organizers.length > 2 ? tr(" and {count} others", { count: c.organizers.length - 1 }) : tr(" and 1 other"))}
                   </span>
                 </li>
               )}
             </ul>
-            {c.domain && <div><Tag color="green" className="rounded-full px-3">{c.domain}</Tag></div>}
+            {c.domain && <div><Tag color="green" className="rounded-full px-3">{trData(c.domain)}</Tag></div>}
             <div className="flex items-center gap-2 pt-1">
-              <span className="text-sm text-slate-500 mr-1">Share:</span>
-              <Button shape="circle" icon={<ShareAltOutlined />} onClick={share} aria-label="Copy community link" />
+              <span className="text-sm text-slate-500 mr-1">{tr("Share:")}</span>
+              <Button shape="circle" icon={<ShareAltOutlined />} onClick={share} aria-label={tr("Copy community link")} />
             </div>
           </div>
         </div>
@@ -221,9 +222,9 @@ export default function CommunityPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           <nav role="tablist" className="flex gap-6 overflow-x-auto">
             {([
-              ["about", "About"],
-              ["events", `Events`],
-              ["members", `Members`],
+              ["about", tr("About")],
+              ["events", tr("Events")],
+              ["members", tr("Members")],
             ] as [TabKey, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -235,7 +236,7 @@ export default function CommunityPage() {
                   tab === key ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-600 hover:text-slate-900"
                 }`}
               >
-                {label}
+                {trData(label)}
               </button>
             ))}
           </nav>
@@ -248,46 +249,46 @@ export default function CommunityPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <main className="lg:col-span-8 flex flex-col gap-10 min-w-0">
               <section className="flex flex-col gap-3">
-                <h2 className="m-0 text-xl font-bold text-slate-900">What we&apos;re about</h2>
+                <h2 className="m-0 text-xl font-bold text-slate-900">{tr("What we're about")}</h2>
                 <p className={`m-0 text-slate-700 leading-relaxed whitespace-pre-wrap ${aboutOpen ? "" : "line-clamp-5"}`}>
-                  {c.description || "No description yet."}
+                  {c.description || tr("No description yet.")}
                 </p>
                 {(c.description?.length ?? 0) > 300 && (
                   <button type="button" onClick={() => setAboutOpen((v) => !v)} className="self-start text-sm font-semibold text-emerald-700 cursor-pointer">
-                    {aboutOpen ? "Show less" : "Read more"}
+                    {aboutOpen ? tr("Show less") : tr("Read more")}
                   </button>
                 )}
               </section>
 
               <section className="flex flex-col gap-4">
-                <SectionHead title="Upcoming events" count={upcoming.data?.length} onSeeAll={(upcoming.data?.length ?? 0) > 3 ? () => { setEventsView("upcoming"); goTo("events"); } : undefined} />
-                <EventGrid items={upcoming.data?.slice(0, 3)} loading={upcoming.loading} empty="No upcoming events" />
+                <SectionHead title={tr("Upcoming events")} count={upcoming.data?.length} onSeeAll={(upcoming.data?.length ?? 0) > 3 ? () => { setEventsView("upcoming"); goTo("events"); } : undefined} />
+                <EventGrid items={upcoming.data?.slice(0, 3)} loading={upcoming.loading} empty={tr("No upcoming events")} />
               </section>
 
               {(past.data?.length ?? 0) > 0 && (
                 <section className="flex flex-col gap-4">
-                  <SectionHead title="Past events" count={past.data?.length} onSeeAll={(past.data?.length ?? 0) > 3 ? () => { setEventsView("past"); goTo("events"); } : undefined} />
-                  <EventGrid items={past.data?.slice(0, 3)} loading={past.loading} empty="No past events" />
+                  <SectionHead title={tr("Past events")} count={past.data?.length} onSeeAll={(past.data?.length ?? 0) > 3 ? () => { setEventsView("past"); goTo("events"); } : undefined} />
+                  <EventGrid items={past.data?.slice(0, 3)} loading={past.loading} empty={tr("No past events")} />
                 </section>
               )}
             </main>
 
             <aside className="lg:col-span-4 flex flex-col gap-4 lg:sticky lg:top-20">
               <div className={card}>
-                <SectionHead title="Organizers" />
+                <SectionHead title={tr("Organizers")} />
                 <div className="flex flex-col gap-3 mt-3">
-                  {c.organizers.length ? c.organizers.map((o) => <PersonRow key={o.id} p={o} />) : <span className="text-sm text-slate-500">No organizers listed</span>}
+                  {c.organizers.length ? c.organizers.map((o) => <PersonRow key={o.id} p={o} />) : <span className="text-sm text-slate-500">{tr("No organizers listed")}</span>}
                 </div>
               </div>
 
               <div className={card}>
-                <SectionHead title="Members" count={c.memberCount} onSeeAll={() => goTo("members")} />
+                <SectionHead title={tr("Members")} count={c.memberCount} onSeeAll={() => goTo("members")} />
                 {members.loading && !members.data ? (
                   <Skeleton active avatar className="mt-3" />
                 ) : (
                   <div className="grid grid-cols-5 gap-3 mt-4">
                     {(members.data ?? []).slice(0, 10).map((m) => (
-                      <span key={m.id} title={m.name} className="flex justify-center"><Avatar size={44} src={m.photoUrl} className="bg-emerald-700">{m.name[0]}</Avatar></span>
+                      <span key={m.id} title={trData(m.name)} className="flex justify-center"><Avatar size={44} src={m.photoUrl} className="bg-emerald-700">{m.name[0]}</Avatar></span>
                     ))}
                   </div>
                 )}
@@ -295,11 +296,11 @@ export default function CommunityPage() {
 
               {topics.length > 0 && (
                 <div className={card}>
-                  <SectionHead title="Related topics" />
+                  <SectionHead title={tr("Related topics")} />
                   <div className="flex flex-wrap gap-2 mt-3">
                     {topics.map((t) => (
                       <Link key={t} href={`/training/events?topic=${encodeURIComponent(t)}`} className="px-3 py-1 rounded-full border border-slate-200 text-sm text-slate-700 hover:border-emerald-600 hover:text-emerald-700">
-                        {t}
+                        {trData(t)}
                       </Link>
                     ))}
                   </div>
@@ -315,15 +316,15 @@ export default function CommunityPage() {
               value={eventsView}
               onChange={(v) => setEventsView(v as "upcoming" | "past")}
               options={[
-                { value: "upcoming", label: `Upcoming (${upcoming.data?.length ?? 0})` },
-                { value: "past", label: `Past (${past.data?.length ?? 0})` },
+                { value: "upcoming", label: tr("Upcoming ({dataCount})", { dataCount: upcoming.data?.length ?? 0 }) },
+                { value: "past", label: tr("Past ({dataCount})", { dataCount: past.data?.length ?? 0 }) },
               ]}
               className="self-start"
             />
             {eventsView === "upcoming" ? (
-              <EventGrid items={upcoming.data} loading={upcoming.loading} empty="No upcoming events" />
+              <EventGrid items={upcoming.data} loading={upcoming.loading} empty={tr("No upcoming events")} />
             ) : (
-              <EventGrid items={past.data} loading={past.loading} empty="No past events" />
+              <EventGrid items={past.data} loading={past.loading} empty={tr("No past events")} />
             )}
           </div>
         )}
@@ -332,12 +333,12 @@ export default function CommunityPage() {
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <h2 className="m-0 text-xl font-bold text-slate-900">
-                Members <span className="font-normal text-slate-500 text-base ml-1">{c.memberCount}</span>
+                {tr("Members")}{" "}<span className="font-normal text-slate-500 text-base ml-1">{c.memberCount}</span>
               </h2>
               <Input
                 allowClear
                 prefix={<SearchOutlined className="text-slate-400" />}
-                placeholder="Search by name, role or site"
+                placeholder={tr("Search by name, role or site")}
                 value={memberQuery}
                 onChange={(e) => { setMemberQuery(e.target.value); setMemberPage(1); }}
                 className="max-w-xs rounded-xl!"
@@ -346,7 +347,7 @@ export default function CommunityPage() {
             {members.loading && !members.data ? (
               <Skeleton active />
             ) : filteredMembers.length === 0 ? (
-              <div className={card}><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={memberQuery ? "No members match" : "No members yet"} /></div>
+              <div className={card}><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={memberQuery ? tr("No members match") : tr("No members yet")} /></div>
             ) : (
               <>
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -371,7 +372,7 @@ export default function CommunityPage() {
 
         {tab !== "about" && (
           <button type="button" onClick={() => setTab("about")} className="mt-8 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 cursor-pointer">
-            Back to About <RightOutlined className="text-xs" />
+            {tr("Back to About")}{" "}<RightOutlined className="text-xs" />
           </button>
         )}
       </div>

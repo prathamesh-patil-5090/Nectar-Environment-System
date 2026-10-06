@@ -1,14 +1,15 @@
 import { t } from "./translate";
+import { trData } from "./phrases";
 
 /**
  * Translate seeded / API English data labels for UI display.
- * Falls back to the original string when no translation exists.
+ * Falls back to the phrase catalogue, then the original string.
  */
 function dataLabel(prefix: string, value: string | undefined | null): string {
   if (!value) return "";
   const key = `${prefix}.${value}`;
   const translated = t(key);
-  return translated === key ? value : translated;
+  return translated === key ? (trData(value) as string) : translated;
 }
 
 export function translateDesignation(value?: string | null): string {

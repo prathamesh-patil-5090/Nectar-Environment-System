@@ -47,8 +47,9 @@ import EventHostCard from "@/components/training/events/EventHostCard";
 import EventChatSection from "@/components/training/events/EventChatSection";
 import EventLogisticsCard from "@/components/training/events/EventLogisticsCard";
 import EventStickyBottomBar from "@/components/training/events/EventStickyBottomBar";
+import { tr, trTable, intlLocale, trData } from "@/lib/i18n";
 
-const ROLE_LABEL: Record<string, string> = {
+const ROLE_LABEL: Record<string, string> = trTable({
   employee: "Plant Operators",
   shift_incharge: "Shift In-Charges",
   supervisor: "Site Managers",
@@ -56,7 +57,7 @@ const ROLE_LABEL: Record<string, string> = {
   site_incharge: "Site In-Charges",
   manager: "Plant Managers",
   hr: "HR & Training Lead",
-};
+});
 
 type Phase = "draft" | "cancelled" | "ended" | "live" | "closed" | "notOpen" | "open";
 
@@ -131,12 +132,12 @@ export default function EventPage() {
       <div className="py-16">
         <Result
           status="404"
-          title="Event Not Found"
-          subTitle={ev.error ?? "The requested event or masterclass could not be located."}
+          title={tr("Event Not Found")}
+          subTitle={ev.error ?? tr("The requested event or masterclass could not be located.")}
           extra={
             <Link href="/training/events">
               <Button type="primary" className="rounded-xl font-bold bg-emerald-600">
-                Browse All Events
+                {tr("Browse All Events")}
               </Button>
             </Link>
           }
@@ -151,8 +152,8 @@ export default function EventPage() {
   const canPost = event.isHost || going;
   const venue =
     event.format === "online"
-      ? "Online · Google Meet"
-      : [getSiteName(event.venue?.siteId) ?? "Plant Site", event.venue?.room].filter(Boolean).join(" · ");
+      ? tr("Online · Google Meet")
+      : [getSiteName(event.venue?.siteId) ?? tr("Plant Site"), event.venue?.room].filter(Boolean).map((x) => trData(String(x))).join(" · ");
 
   const outsideAudience =
     (event.audience.roles?.length ?? 0) > 0 && !event.audience.roles!.includes(viewer.role);
@@ -165,8 +166,8 @@ export default function EventPage() {
       ev.setData(updated);
       message.success(
         updated.myRsvp?.status === "waitlist"
-          ? `You're on the waitlist (#${updated.myRsvp.waitlistPosition}).`
-          : "You're going! Session invitation reserved."
+          ? tr("You're on the waitlist (#{waitlistPosition}).", { waitlistPosition: updated.myRsvp.waitlistPosition })
+          : tr("You're going! Session invitation reserved.")
       );
       setAnswerOpen(false);
       void attendees.reload();
@@ -181,7 +182,7 @@ export default function EventPage() {
     setBusy(true);
     try {
       ev.setData(await cancelRsvp(event.id, me));
-      message.success("Your RSVP was cancelled.");
+      message.success(tr("Your RSVP was cancelled."));
       void attendees.reload();
     } catch (err) {
       message.error((err as Error).message);
@@ -197,8 +198,8 @@ export default function EventPage() {
     posts.setData(updatedPosts);
     message.success(
       kind === "announcement"
-        ? "Announcement broadcasted to everyone registered"
-        : "Message posted to discussion"
+        ? tr("Announcement broadcasted to everyone registered")
+        : tr("Message posted to discussion")
     );
   };
 
@@ -206,7 +207,7 @@ export default function EventPage() {
     try {
       const updatedPosts = await pinEventPost(event.id, postId, !currentPinned, me);
       posts.setData(updatedPosts);
-      message.success(!currentPinned ? "Post pinned to top" : "Post unpinned");
+      message.success(!currentPinned ? tr("Post pinned to top") : tr("Post unpinned"));
     } catch (err) {
       message.error((err as Error).message);
     }
@@ -222,25 +223,25 @@ export default function EventPage() {
         className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
         onClick={() => router.push(`/training/mentor/events/${event.id}`)}
       >
-        Manage Event & Attendees
+        {tr("Manage Event & Attendees")}
       </Button>
     );
   } else if (phase === "cancelled") {
     primaryAction = (
       <Button size="large" disabled className="font-bold">
-        Event Cancelled
+        {tr("Event Cancelled")}
       </Button>
     );
   } else if (phase === "draft") {
     primaryAction = (
       <Button size="large" disabled className="font-bold">
-        Draft Preview Only
+        {tr("Draft Preview Only")}
       </Button>
     );
   } else if (phase === "ended") {
     primaryAction = (
       <Button size="large" disabled className="font-bold">
-        Event Concluded
+        {tr("Event Concluded")}
       </Button>
     );
   } else if (phase === "live") {
@@ -254,15 +255,15 @@ export default function EventPage() {
           icon={<VideoCameraOutlined />}
           className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-md animate-pulse"
         >
-          Join Google Meet Now
+          {tr("Join Google Meet Now")}
         </Button>
       ) : going ? (
         <Button size="large" disabled className="font-bold bg-slate-100 text-slate-700">
-          Happening Now · {venue}
+          {tr("Happening Now · {venue}", { venue: trData(venue) })}
         </Button>
       ) : (
         <Button size="large" disabled className="font-bold">
-          Registration Closed
+          {tr("Registration Closed")}
         </Button>
       );
   } else if (rsvp === "going") {
@@ -275,7 +276,7 @@ export default function EventPage() {
               ? [
                   {
                     key: "answer",
-                    label: "Edit my registration answer",
+                    label: tr("Edit my registration answer"),
                     onClick: () => {
                       setAnswer(event.myRsvp?.answer ?? "");
                       setAnswerOpen(true);
@@ -286,14 +287,14 @@ export default function EventPage() {
             {
               key: "cancel",
               danger: true,
-              label: "Cancel my seat (Free up spot)",
+              label: tr("Cancel my seat (Free up spot)"),
               onClick: () =>
                 modal.confirm({
-                  title: "Cancel your RSVP?",
-                  content: "Your reserved seat will be assigned to the next engineer on the waitlist.",
-                  okText: "Release Seat",
+                  title: tr("Cancel your RSVP?"),
+                  content: tr("Your reserved seat will be assigned to the next engineer on the waitlist."),
+                  okText: tr("Release Seat"),
                   okButtonProps: { danger: true },
-                  cancelText: "Keep My Seat",
+                  cancelText: tr("Keep My Seat"),
                   onOk: doCancel,
                 }),
             },
@@ -306,7 +307,7 @@ export default function EventPage() {
           loading={busy}
           className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-sm"
         >
-          <span>You&apos;re Going ✓</span>
+          <span>{tr("You're Going ✓")}</span>
           <DownOutlined className="text-xs" />
         </Button>
       </Dropdown>
@@ -314,28 +315,28 @@ export default function EventPage() {
   } else if (rsvp === "waitlist") {
     primaryAction = (
       <Popconfirm
-        title="Leave the waitlist?"
-        description="You will lose your position on the queue."
+        title={tr("Leave the waitlist?")}
+        description={tr("You will lose your position on the queue.")}
         onConfirm={doCancel}
-        okText="Leave"
-        cancelText="Stay on Queue"
+        okText={tr("Leave")}
+        cancelText={tr("Stay on Queue")}
       >
         <Button size="large" loading={busy} className="font-bold border-amber-300 text-amber-900 bg-amber-50">
-          On Waitlist (#{event.myRsvp?.waitlistPosition}) · Leave Queue
+          {tr("On Waitlist (#{waitlistPosition}) · Leave Queue", { waitlistPosition: event.myRsvp?.waitlistPosition })}
         </Button>
       </Popconfirm>
     );
   } else if (phase === "closed") {
     primaryAction = (
       <Button size="large" disabled className="font-bold">
-        Registration Closed
+        {tr("Registration Closed")}
       </Button>
     );
   } else if (phase === "notOpen") {
     primaryAction = (
       <Button size="large" disabled className="font-bold text-xs">
-        Opens{" "}
-        {new Date(event.rsvpOpensAt!).toLocaleDateString("en-IN", {
+        {tr("Opens")}{" "}
+        {new Date(event.rsvpOpensAt!).toLocaleDateString(intlLocale(), {
           timeZone: "Asia/Kolkata",
           month: "short",
           day: "numeric",
@@ -351,11 +352,11 @@ export default function EventPage() {
         onClick={attend}
         className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
       >
-        Join Waitlist
+        {tr("Join Waitlist")}
       </Button>
     ) : (
       <Button size="large" disabled className="font-bold">
-        Session Full
+        {tr("Session Full")}
       </Button>
     );
   } else {
@@ -367,7 +368,7 @@ export default function EventPage() {
         onClick={attend}
         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-98"
       >
-        Attend Masterclass
+        {tr("Attend Masterclass")}
       </Button>
     );
   }
@@ -380,8 +381,8 @@ export default function EventPage() {
           <Alert
             type="error"
             showIcon
-            message="This event was cancelled"
-            description={event.cancelReason || "The session host has cancelled this masterclass."}
+            message={tr("This event was cancelled")}
+            description={event.cancelReason || tr("The session host has cancelled this masterclass.")}
             className="rounded-2xl border-red-200"
           />
         )}
@@ -412,13 +413,13 @@ export default function EventPage() {
             {/* Event Details Card */}
             <section className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col gap-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h2 className="text-xl font-bold text-slate-900 m-0">Details</h2>
-                <span className="text-xs text-slate-400 font-medium">Session Overview</span>
+                <h2 className="text-xl font-bold text-slate-900 m-0">{tr("Details")}</h2>
+                <span className="text-xs text-slate-400 font-medium">{tr("Session Overview")}</span>
               </div>
 
               {/* Rich text description */}
               <div className="text-sm sm:text-base text-slate-700 leading-relaxed whitespace-pre-wrap font-normal">
-                {event.description || "No session description provided."}
+                {event.description || tr("No session description provided.")}
               </div>
 
               {/* Agenda Stepper Timeline */}
@@ -434,7 +435,7 @@ export default function EventPage() {
                   <SafetyCertificateOutlined className="text-emerald-700 text-lg mt-0.5" />
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Target Audience & Roles
+                      {tr("Target Audience & Roles")}
                     </div>
                     <div className="text-xs text-slate-600 mt-1 flex flex-wrap gap-1.5 items-center">
                       {(event.audience.roles ?? []).map((role) => (
@@ -444,7 +445,7 @@ export default function EventPage() {
                       ))}
                       {(event.audience.plantTypes ?? []).map((plant) => (
                         <Tag key={plant} color="cyan" className="text-xs font-semibold m-0">
-                          {plant} Plant
+                          {tr("{plant} Plant", { plant: trData(plant) })}
                         </Tag>
                       ))}
                     </div>
@@ -457,10 +458,10 @@ export default function EventPage() {
                   type="info"
                   showIcon
                   icon={<ExclamationCircleOutlined className="text-blue-600" />}
-                  message="Cross-Disciplinary Learning"
-                  description={`This masterclass is primarily tailored for ${(event.audience.roles ?? [])
+                  message={tr("Cross-Disciplinary Learning")}
+                  description={tr("This masterclass is primarily tailored for {join}. However, you are welcome to attend and cross-train.", { join: (event.audience.roles ?? [])
                     .map((r) => ROLE_LABEL[r] ?? r)
-                    .join(", ")}. However, you are welcome to attend and cross-train.`}
+                    .join(", ") })}
                   className="rounded-xl border-blue-200 text-xs"
                 />
               )}
@@ -471,13 +472,13 @@ export default function EventPage() {
               <section className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <TagOutlined className="text-emerald-600" />
-                  <h2 className="text-base font-bold text-slate-900 m-0">Related Topics & Skills</h2>
+                  <h2 className="text-base font-bold text-slate-900 m-0">{tr("Related Topics & Skills")}</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {event.topics.map((topic) => (
                     <Link key={topic} href={`/training/explore?skill=${encodeURIComponent(topic)}`}>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-slate-200 text-slate-700 transition-colors cursor-pointer">
-                        #{topic}
+                        #{trData(topic)}
                       </span>
                     </Link>
                   ))}
@@ -515,12 +516,12 @@ export default function EventPage() {
               <section className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <BookOutlined className="text-emerald-600" />
-                  <h2 className="text-base font-bold text-slate-900 m-0">Post-Session Resources</h2>
+                  <h2 className="text-base font-bold text-slate-900 m-0">{tr("Post-Session Resources")}</h2>
                 </div>
                 {event.recordingUrl ? (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
                     <span className="text-xs font-semibold text-emerald-950">
-                      Recording and session slide deck are available
+                      {tr("Recording and session slide deck are available")}
                     </span>
                     <a
                       href={event.recordingUrl}
@@ -528,12 +529,12 @@ export default function EventPage() {
                       rel="noreferrer"
                       className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700"
                     >
-                      Watch Recording
+                      {tr("Watch Recording")}
                     </a>
                   </div>
                 ) : (
                   <p className="text-xs text-slate-500 m-0">
-                    No recording was published for this session. Feel free to leave questions in the discussion above.
+                    {tr("No recording was published for this session. Feel free to leave questions in the discussion above.")}
                   </p>
                 )}
               </section>
@@ -546,16 +547,16 @@ export default function EventPage() {
           <section className="flex flex-col gap-4 pt-6 border-t border-slate-200/80">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 m-0">You May Also Like</h2>
+                <h2 className="text-xl font-bold text-slate-900 m-0">{tr("You May Also Like")}</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Similar engineering workshops and plant masterclasses
+                  {tr("Similar engineering workshops and plant masterclasses")}
                 </p>
               </div>
               <Link
                 href="/training/events"
                 className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
               >
-                See all events →
+                {tr("See all events →")}
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
@@ -581,10 +582,10 @@ export default function EventPage() {
         title={
           <div className="flex items-center gap-2">
             <SafetyCertificateOutlined className="text-emerald-600" />
-            <span>{event.rsvpQuestion || "RSVP Question"}</span>
+            <span>{event.rsvpQuestion || tr("RSVP Question")}</span>
           </div>
         }
-        okText={rsvp === "going" ? "Update Answer" : "Confirm Seat"}
+        okText={rsvp === "going" ? tr("Update Answer") : tr("Confirm Seat")}
         confirmLoading={busy}
         onOk={() => doRsvp(answer)}
         onCancel={() => setAnswerOpen(false)}
@@ -595,7 +596,7 @@ export default function EventPage() {
         className="rounded-2xl"
       >
         <p className="text-xs text-slate-500 mt-1 mb-3">
-          The facilitator asks this to prepare relevant operational examples. Only session hosts can see your answer.
+          {tr("The facilitator asks this to prepare relevant operational examples. Only session hosts can see your answer.")}
         </p>
         <Input.TextArea
           rows={3}
@@ -603,7 +604,7 @@ export default function EventPage() {
           showCount
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          placeholder="E.g., Dealing with stage 2 evaporator vacuum drop during night shifts..."
+          placeholder={tr("E.g., Dealing with stage 2 evaporator vacuum drop during night shifts...")}
           className="rounded-xl text-sm"
         />
       </Modal>

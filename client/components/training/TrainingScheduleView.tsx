@@ -15,6 +15,7 @@ import { getTrainingSessions, createTrainingSession, getAllCourses, getPeople, g
 import { useViewer } from "@/lib/training/hooks";
 import { nectarColors } from "@/lib/theme";
 import { sWhiteR14BorderShadow } from "@/lib/styles";
+import { tr, intlLocale, trData } from "@/lib/i18n";
 
 interface TrainingScheduleViewProps {
   /** Show only this employee's sessions (learner view). Omit for the manager / Director view. */
@@ -58,7 +59,7 @@ export default function TrainingScheduleView({ employeeId }: TrainingScheduleVie
       });
       setModalOpen(false);
       form.resetFields();
-      message.success("Assessment scheduled. The candidates have been notified.");
+      message.success(tr("Assessment scheduled. The candidates have been notified."));
     } catch (err) {
       message.error((err as Error).message);
     } finally {
@@ -68,18 +69,18 @@ export default function TrainingScheduleView({ employeeId }: TrainingScheduleVie
 
   const columns: ColumnsType<TrainingSession> = [
     {
-      title: "Session Title & Assessment",
+      title: tr("Session Title & Assessment"),
       dataIndex: "title",
       key: "title",
       render: (t: string, r) => (
         <div>
-          <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 13 }}>{t}</div>
-          <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Conducted by: {r.scheduledByName}</div>
+          <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 13 }}>{trData(t)}</div>
+          <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{tr("Conducted by: {scheduledByName}", { scheduledByName: trData(r.scheduledByName) })}</div>
         </div>
       ),
     },
     {
-      title: "Type",
+      title: tr("Type"),
       dataIndex: "type",
       key: "type",
       render: (type: TrainingSession["type"]) => {
@@ -90,45 +91,45 @@ export default function TrainingScheduleView({ employeeId }: TrainingScheduleVie
       },
     },
     {
-      title: "Scheduled Date & Time",
+      title: tr("Scheduled Date & Time"),
       dataIndex: "scheduledAt",
       key: "scheduledAt",
       render: (dt: string) => (
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
           <CalendarOutlined style={{ color: nectarColors.leaf }} />
           <span style={{ fontWeight: 500, color: nectarColors.ink }}>
-            {isNaN(Date.parse(dt)) ? dt : new Date(dt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
+            {isNaN(Date.parse(dt)) ? dt : new Date(dt).toLocaleString(intlLocale(), { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
           </span>
         </div>
       ),
     },
     {
-      title: "Venue / Station",
+      title: tr("Venue / Station"),
       dataIndex: "venueOrLink",
       key: "venueOrLink",
       render: (v: string) => (
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: nectarColors.muted }}>
           <EnvironmentOutlined />
-          <span>{v}</span>
+          <span>{trData(v)}</span>
         </div>
       ),
     },
     {
-      title: "Assigned Candidates",
+      title: tr("Assigned Candidates"),
       dataIndex: "employeeIds",
       key: "employeeIds",
       render: (ids: string[]) => {
         const names = ids.map((id) => getPersonName(id) ?? id).join(", ");
-        return <span style={{ fontSize: 12, fontWeight: 500 }}>{names}</span>;
+        return <span style={{ fontSize: 12, fontWeight: 500 }}>{trData(names)}</span>;
       },
     },
     {
-      title: "Status",
+      title: tr("Status"),
       dataIndex: "status",
       key: "status",
       align: "center",
       render: (s: string) => (
-        <Tag color="cyan" style={{ borderRadius: 12, fontSize: 11, textTransform: "capitalize" }}>{s}</Tag>
+        <Tag color="cyan" style={{ borderRadius: 12, fontSize: 11, textTransform: "capitalize" }}>{trData(s)}</Tag>
       ),
     },
   ];
@@ -142,8 +143,8 @@ export default function TrainingScheduleView({ employeeId }: TrainingScheduleVie
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: nectarColors.ink }}>{isManager ? "Plant Evaluation & Training Calendar" : "My Scheduled Assessment Sessions"}</h3>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>Hands-on plant floor observations and technical viva interview appointments.</p>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: nectarColors.ink }}>{isManager ? tr("Plant Evaluation & Training Calendar") : tr("My Scheduled Assessment Sessions")}</h3>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: nectarColors.muted }}>{tr("Hands-on plant floor observations and technical viva interview appointments.")}</p>
         </div>
 
         {isManager && (
@@ -153,60 +154,60 @@ export default function TrainingScheduleView({ employeeId }: TrainingScheduleVie
             onClick={() => setModalOpen(true)}
             style={{ borderRadius: 8, background: nectarColors.leaf }}
           >
-            Schedule Assessment Slot
+            {tr("Schedule Assessment Slot")}
           </Button>
         )}
       </div>
 
-      <Table rowKey="id" columns={columns} dataSource={sessions} pagination={false} loading={!ready} scroll={{ x: 800 }} locale={{ emptyText: "No assessments scheduled" }} />
+      <Table rowKey="id" columns={columns} dataSource={sessions} pagination={false} loading={!ready} scroll={{ x: 800 }} locale={{ emptyText: tr("No assessments scheduled") }} />
 
       {/* Schedule Modal */}
       <Modal
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
-        title="Schedule Practical / Oral Assessment"
+        title={tr("Schedule Practical / Oral Assessment")}
         centered
       >
         <Form form={form} layout="vertical" onFinish={handleCreate} style={{ marginTop: 16 }}>
-          <Form.Item name="title" label="Session Title" rules={[{ required: true, message: "Please enter title" }]}><Input placeholder="e.g. Practical Observation: PAC Dosing & SVI Settleability" /></Form.Item>
+          <Form.Item name="title" label={tr("Session Title")} rules={[{ required: true, message: tr("Please enter title") }]}><Input placeholder={tr("e.g. Practical Observation: PAC Dosing & SVI Settleability")} /></Form.Item>
 
-          <Form.Item name="type" label="Assessment Type" initialValue="PRACTICAL">
+          <Form.Item name="type" label={tr("Assessment Type")} initialValue="PRACTICAL">
             <Select
               options={[
-                { value: "PRACTICAL", label: "Practical Field Observation (1–7 Scale)" },
-                { value: "ORAL", label: "Oral Viva Interview (1–7 Scale)" },
-                { value: "ONLINE_VIDEO", label: "Group Technical Lecture" },
+                { value: "PRACTICAL", label: tr("Practical Field Observation (1–7 Scale)") },
+                { value: "ORAL", label: tr("Oral Viva Interview (1–7 Scale)") },
+                { value: "ONLINE_VIDEO", label: tr("Group Technical Lecture") },
               ]}
             />
           </Form.Item>
 
-          <Form.Item name="courseId" label="Associated Course" rules={[{ required: true, message: "Select course" }]}><Select options={allCourses.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` }))} /></Form.Item>
+          <Form.Item name="courseId" label={tr("Associated Course")} rules={[{ required: true, message: tr("Select course") }]}><Select options={allCourses.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` }))} /></Form.Item>
 
           <Form.Item
             name="employeeIds"
-            label="Candidate Employees"
-            rules={[{ required: true, message: "Select candidates" }]}
+            label={tr("Candidate Employees")}
+            rules={[{ required: true, message: tr("Select candidates") }]}
           >
             <Select
               mode="multiple"
-              options={candidates.map((e) => ({ value: e.id, label: `${e.name} (${e.designation ?? ""})` }))}
+              options={candidates.map((e) => ({ value: e.id, label: `${trData(e.name)} (${trData(e.designation ?? "")})` }))}
             />
           </Form.Item>
 
-          <Form.Item name="scheduledAt" label="Date & Time" rules={[{ required: true, message: "Select date & time" }]}><DatePicker showTime style={{ width: "100%" }} /></Form.Item>
+          <Form.Item name="scheduledAt" label={tr("Date & Time")} rules={[{ required: true, message: tr("Select date & time") }]}><DatePicker showTime style={{ width: "100%" }} /></Form.Item>
 
           <Form.Item
             name="venueOrLink"
-            label="Plant Venue or Video Link"
-            rules={[{ required: true, message: "Enter venue" }]}
+            label={tr("Plant Venue or Video Link")}
+            rules={[{ required: true, message: tr("Enter venue") }]}
           >
-            <Input placeholder="e.g. Pune ETP Facility — Secondary Clarifier Platform" />
+            <Input placeholder={tr("e.g. Pune ETP Facility — Secondary Clarifier Platform")} />
           </Form.Item>
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={saving} style={{ background: nectarColors.leaf }}>Confirm Schedule</Button>
+            <Button onClick={() => setModalOpen(false)}>{tr("Cancel")}</Button>
+            <Button type="primary" htmlType="submit" loading={saving} style={{ background: nectarColors.leaf }}>{tr("Confirm Schedule")}</Button>
           </div>
         </Form>
       </Modal>

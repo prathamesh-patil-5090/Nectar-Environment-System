@@ -2,6 +2,7 @@
 
 import { Fragment, type ReactNode } from "react";
 import { theme } from "antd";
+import { trData } from "@/lib/i18n";
 
 /**
  * Quiet building blocks for list and detail pages (Safety, Dashboard): bordered panels and sections,
@@ -72,7 +73,7 @@ export function Section({
             borderBottom: `1px solid ${token.colorSplit}`,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: token.colorText }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: token.colorText }}>{trData(title)}</h3>
           {extra ? <span style={{ fontSize: 12, color: token.colorTextSecondary, textAlign: "right" }}>{extra}</span> : null}
         </div>
         <div style={flush ? undefined : { padding: 16 }}>{children}</div>
@@ -94,8 +95,8 @@ export function Quiet({ children }: { children: ReactNode }) {
 /** Free text from the reporter / investigator; keeps their line breaks. */
 export function Prose({ text, empty }: { text?: string; empty: string }) {
   const { token } = theme.useToken();
-  if (!text?.trim()) return <Quiet>{empty}</Quiet>;
-  return <p style={{ margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.6, color: token.colorText, wordBreak: "break-word" }}>{text}</p>;
+  if (!text?.trim()) return <Quiet>{trData(empty)}</Quiet>;
+  return <p style={{ margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.6, color: token.colorText, wordBreak: "break-word" }}>{trData(text)}</p>;
 }
 
 /** Grey initials circle + name (+ optional second line). */
@@ -118,11 +119,11 @@ export function Person({ name, sub }: { name: string; sub?: string }) {
           background: token.colorFillSecondary,
         }}
       >
-        {initials(name)}
+        {trData(initials(name))}
       </span>
       <div style={{ minWidth: 0, lineHeight: 1.3 }}>
-        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-        {sub ? <div style={{ fontSize: 12, color: token.colorTextSecondary }}>{sub}</div> : null}
+        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trData(name)}</div>
+        {sub ? <div style={{ fontSize: 12, color: token.colorTextSecondary }}>{trData(sub)}</div> : null}
       </div>
     </div>
   );
@@ -135,7 +136,7 @@ export function Facts({ rows }: { rows: [string, ReactNode][] }) {
     <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "96px minmax(0, 1fr)", rowGap: 12, columnGap: 12, fontSize: 13 }}>
       {rows.map(([label, value]) => (
         <Fragment key={label}>
-          <dt style={{ color: token.colorTextSecondary }}>{label}</dt>
+          <dt style={{ color: token.colorTextSecondary }}>{trData(label)}</dt>
           <dd style={{ margin: 0, color: token.colorText, wordBreak: "break-word" }}>{value}</dd>
         </Fragment>
       ))}
@@ -160,7 +161,7 @@ export function NumberRow({ items }: { items: { label: string; value: ReactNode;
               marginBottom: -1,
             }}
           >
-            <div style={{ fontSize: 12, color: token.colorTextSecondary, lineHeight: 1.3 }}>{it.label}</div>
+            <div style={{ fontSize: 12, color: token.colorTextSecondary, lineHeight: 1.3 }}>{trData(it.label)}</div>
             <div
               style={{
                 marginTop: 4,
@@ -174,7 +175,7 @@ export function NumberRow({ items }: { items: { label: string; value: ReactNode;
               <span data-count={typeof it.value === "number" ? it.value : undefined}>{it.value}</span>
             </div>
             {it.hint ? (
-              <div style={{ marginTop: 2, fontSize: 12, color: it.alert ? token.colorError : token.colorTextTertiary }}>{it.hint}</div>
+              <div style={{ marginTop: 2, fontSize: 12, color: it.alert ? token.colorError : token.colorTextTertiary }}>{trData(it.hint)}</div>
             ) : null}
           </div>
         ))}

@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { Button } from "antd";
 import { TODAY } from "@/lib/shift";
 import { sWhitePadR12BorderShadow } from "@/lib/styles";
+import { tr, trTable, trData } from "@/lib/i18n";
 
-const SHIFT_TABS = [
+const SHIFT_TABS = trTable([
   { key: "/shifts", label: "Dashboard", href: "/shifts" },
   { key: "/shifts/master", label: "Shift Master", href: "/shifts/master" },
   { key: "/shifts/schedule", label: "Schedule", href: "/shifts/schedule" },
@@ -31,7 +32,7 @@ const SHIFT_TABS = [
     label: "Deviations",
     href: "/shifts/deviations",
   },
-];
+]);
 
 export default function ShiftsLayout({
   children,
@@ -49,11 +50,10 @@ export default function ShiftsLayout({
             fontFamily: "var(--font-dm-sans), system-ui, sans-serif", fontSize: 22, fontWeight: 700, color: "#1C4463",
           }}
         >
-          Shift rotation
+          {tr("Shift rotation")}
         </div>
         <p style={{ margin: "6px 0 14px", color: "#4A6375", fontSize: 13.5, maxWidth: 760 }}>
-          Plan shifts forward — forecast gaps, allocate relievers, and avoid OT
-          before the day starts. Current date: <strong>{TODAY}</strong>
+          {tr("Plan shifts forward — forecast gaps, allocate relievers, and avoid OT before the day starts. Current date:")}{" "}<strong>{TODAY}</strong>
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {SHIFT_TABS.map((tab) => {
@@ -71,7 +71,7 @@ export default function ShiftsLayout({
                     color: isActive ? "#FFFFFF" : undefined,
                   }}
                 >
-                  {tab.label}
+                  {trData(tab.label)}
                 </Button>
               </Link>
             );

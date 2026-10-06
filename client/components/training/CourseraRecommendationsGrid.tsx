@@ -7,6 +7,7 @@ import { Row, Col } from "antd";
 import { StarFilled, ClockCircleOutlined, ArrowRightOutlined, SafetyCertificateOutlined, UserOutlined } from "@ant-design/icons";
 import { mockSpecializationTracks } from "@/lib/training/data";
 import type { PlantSection } from "@/lib/training/types";
+import { tr, trData } from "@/lib/i18n";
 
 interface CourseraRecommendationsGridProps {
   currentTrackId?: string;
@@ -49,12 +50,12 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
               background: "#EBF3FA", padding: "4px 10px", borderRadius: 6,
             }}
           >
-            CONTINUE YOUR CAREER PROGRESSION
+            {tr("CONTINUE YOUR CAREER PROGRESSION")}
           </span>
-          <span style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>• Coursera-Aligned Learning Path</span>
+          <span style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>{tr("• Coursera-Aligned Learning Path")}</span>
         </div>
-        <h2 style={{ margin: "0 0 8px 0", fontSize: 26, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{title}</h2>
-        <p style={{ margin: 0, fontSize: 14.5, color: "#64748B", maxWidth: 720, lineHeight: 1.55 }}>{subtitle}</p>
+        <h2 style={{ margin: "0 0 8px 0", fontSize: 26, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{trData(title)}</h2>
+        <p style={{ margin: 0, fontSize: 14.5, color: "#64748B", maxWidth: 720, lineHeight: 1.55 }}>{trData(subtitle)}</p>
       </div>
 
       <Row gutter={[24, 24]}>
@@ -92,7 +93,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                   <div style={{ height: 168, position: "relative", overflow: "hidden", background: "#0B1A24" }}>
                     <Image
                       src={track.bannerImage}
-                      alt={track.title}
+                      alt={trData(track.title)}
                       fill
                       sizes="(max-width: 768px) 100vw, 33vw"
                       style={{ objectFit: "cover", transition: "transform 0.4s ease" }}
@@ -115,7 +116,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                           padding: "3px 8px", borderRadius: 6, border: "1px solid rgba(255, 255, 255, 0.2)",
                         }}
                       >
-                        SPECIALIZATION
+                        {tr("SPECIALIZATION")}
                       </span>
                     </div>
 
@@ -128,7 +129,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                           border: "1px solid rgba(255, 255, 255, 0.15)",
                         }}
                       >
-                        {track.courseIds.length} Courses
+                        {tr("{count} Courses", { count: track.courseIds.length })}
                       </span>
                     </div>
 
@@ -145,7 +146,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                           letterSpacing: "0.04em",
                         }}
                       >
-                        {track.category}
+                        {trData(track.category)}
                       </span>
                     </div>
                   </div>
@@ -163,7 +164,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                       >
                         NE
                       </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: "#475569" }}>{track.provider}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: "#475569" }}>{trData(track.provider)}</span>
                     </div>
 
                     {/* Title */}
@@ -174,7 +175,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                         transition: "color 0.2s ease", minHeight: 44,
                       }}
                     >
-                      {track.title}
+                      {trData(track.title)}
                     </h3>
 
                     {/* Subtitle / summary */}
@@ -184,7 +185,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                         display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
                       }}
                     >
-                      {track.subtitle}
+                      {trData(track.subtitle)}
                     </p>
 
                     {/* Rating & Learners */}
@@ -202,7 +203,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                       <span style={{ color: "#CBD5E1" }}>•</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <UserOutlined style={{ fontSize: 11, color: "#64748B" }} />
-                        <span style={{ fontWeight: 600, color: "#475569" }}>{track.enrolledCount.toLocaleString()} enrolled</span>
+                        <span style={{ fontWeight: 600, color: "#475569" }}>{tr("{enrolledCount} enrolled", { enrolledCount: track.enrolledCount.toLocaleString() })}</span>
                       </div>
                     </div>
 
@@ -216,11 +217,11 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                             fontWeight: 500,
                           }}
                         >
-                          {skill}
+                          {trData(skill)}
                         </span>
                       ))}
                       {track.skillsGained.length > 3 && (
-                        <span style={{ fontSize: 11, color: "#64748B", padding: "3px 4px" }}>+{track.skillsGained.length - 3} more</span>
+                        <span style={{ fontSize: 11, color: "#64748B", padding: "3px 4px" }}>{tr("+{count} more", { count: track.skillsGained.length - 3 })}</span>
                       )}
                     </div>
                   </div>
@@ -236,7 +237,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <ClockCircleOutlined style={{ fontSize: 11 }} />
-                      {track.durationWeeks} weeks ({track.hoursPerWeek}h/wk)
+                      {tr("{weeks} weeks ({hours}h/wk)", { weeks: track.durationWeeks, hours: track.hoursPerWeek })}
                     </span>
                     <span
                       style={{
@@ -249,7 +250,7 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                         fontWeight: 600,
                       }}
                     >
-                      {track.level}
+                      {trData(track.level)}
                     </span>
                   </div>
 
@@ -261,10 +262,10 @@ export const CourseraRecommendationsGrid: React.FC<CourseraRecommendationsGridPr
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       <SafetyCertificateOutlined style={{ color: "#16A34A" }} />
-                      Career Certificate
+                      {tr("Career Certificate")}
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12.5 }}>
-                      Explore Track
+                      {tr("Explore Track")}
                       <ArrowRightOutlined style={{ fontSize: 11 }} />
                     </span>
                   </div>

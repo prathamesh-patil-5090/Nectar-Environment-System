@@ -49,6 +49,7 @@ import { CourseraRecommendationsGrid } from "@/components/training/CourseraRecom
 import { nectarColors } from "@/lib/theme";
 import type { SpecializationTrack, Course, TrainingEvent } from "@/lib/training/types";
 import type { CSSProperties } from "react";
+import { tr, trNode, trData } from "@/lib/i18n";
 
 const sText11BoldUpperColorBgPadR4: CSSProperties = {
   fontSize: 11,
@@ -123,9 +124,9 @@ export default function SpecializationTrackPage() {
   if (!track) {
     return (
       <div style={{ padding: "64px 24px", textAlign: "center", minHeight: "60vh" }}>
-        <h2 style={{ fontSize: 22, color: "#1F2937", marginBottom: 16 }}>Specialization Not Found</h2>
-        <p style={{ color: "#64748B", marginBottom: 24 }}>The requested specialization track could not be resolved.</p>
-        <Link href="/training"><Button type="primary" icon={<ArrowLeftOutlined />}>Back to Training Catalog</Button></Link>
+        <h2 style={{ fontSize: 22, color: "#1F2937", marginBottom: 16 }}>{tr("Specialization Not Found")}</h2>
+        <p style={{ color: "#64748B", marginBottom: 24 }}>{tr("The requested specialization track could not be resolved.")}</p>
+        <Link href="/training"><Button type="primary" icon={<ArrowLeftOutlined />}>{tr("Back to Training Catalog")}</Button></Link>
       </div>
     );
   }
@@ -137,13 +138,13 @@ export default function SpecializationTrackPage() {
       return;
     }
     if (!courses.length || !employeeId) {
-      message.warning("This specialization has no courses in the catalog yet.");
+      message.warning(tr("This specialization has no courses in the catalog yet."));
       return;
     }
     setEnrolling(true);
     try {
       await enrollInCourse(employeeId, courses[0].id);
-      message.success(`Enrolled. Start with ${courses[0].code}.`);
+      message.success(tr("Enrolled. Start with {code}.", { code: courses[0].code }));
       router.push(`/training/learn/${courses[0].id}`);
     } catch (err) {
       message.error((err as Error).message);
@@ -179,12 +180,12 @@ export default function SpecializationTrackPage() {
               }}
             >
               <ArrowLeftOutlined style={{ fontSize: 11 }} />
-              Training Portal
+              {tr("Training Portal")}
             </Link>
             <span style={{ color: "#CBD5E1" }}>/</span>
-            <span style={{ color: "#64748B", fontSize: 13 }}>Specializations</span>
+            <span style={{ color: "#64748B", fontSize: 13 }}>{tr("Specializations")}</span>
             <span style={{ color: "#CBD5E1" }}>/</span>
-            <span style={{ color: "#1C4463", fontSize: 13, fontWeight: 600 }}>{track.category}</span>
+            <span style={{ color: "#1C4463", fontSize: 13, fontWeight: 600 }}>{trData(track.category)}</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -194,12 +195,12 @@ export default function SpecializationTrackPage() {
               onClick={() => {
                 if (typeof window !== "undefined") {
                   navigator.clipboard.writeText(window.location.href);
-                  message.success("Specialization track link copied to clipboard!");
+                  message.success(tr("Specialization track link copied to clipboard!"));
                 }
               }}
               style={{ background: "#F8FAFC", borderColor: "#CBD5E1", color: "#334155", fontSize: 12, fontWeight: 500 }}
             >
-              Share Track
+              {tr("Share Track")}
             </Button>
           </div>
         </div>
@@ -245,9 +246,9 @@ export default function SpecializationTrackPage() {
                 >
                   NE
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "#E0F2FE" }}>{track.provider}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "#E0F2FE" }}>{trData(track.provider)}</span>
                 <span style={{ color: "rgba(255, 255, 255, 0.3)" }}>•</span>
-                <span style={{ fontSize: 11.5, color: "#93C5FD", fontWeight: 600 }}>SPECIALIZATION</span>
+                <span style={{ fontSize: 11.5, color: "#93C5FD", fontWeight: 600 }}>{tr("SPECIALIZATION")}</span>
               </div>
 
               {/* Title */}
@@ -257,11 +258,11 @@ export default function SpecializationTrackPage() {
                   color: "#FFFFFF",
                 }}
               >
-                {track.title}
+                {trData(track.title)}
               </h1>
 
               {/* Subtitle */}
-              <p style={{ fontSize: 16.5, lineHeight: 1.55, color: "#CBD5E1", margin: "0 0 24px 0", maxWidth: 680 }}>{track.subtitle}</p>
+              <p style={{ fontSize: 16.5, lineHeight: 1.55, color: "#CBD5E1", margin: "0 0 24px 0", maxWidth: 680 }}>{trData(track.subtitle)}</p>
 
               {/* Ratings, Learners, and Credential strip */}
               <div
@@ -274,17 +275,17 @@ export default function SpecializationTrackPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <StarFilled style={{ color: "#FACC15", fontSize: 14 }} />
                   <span style={{ fontWeight: 800, fontSize: 14 }}>{track.rating.toFixed(1)}</span>
-                  <span style={{ color: "#94A3B8", fontSize: 12 }}>({track.reviewCount} reviews)</span>
+                  <span style={{ color: "#94A3B8", fontSize: 12 }}>{tr("({reviewCount} reviews)", { reviewCount: track.reviewCount })}</span>
                 </div>
                 <span style={{ color: "rgba(255, 255, 255, 0.2)" }}>|</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <UserOutlined style={{ color: "#38BDF8" }} />
-                  <span style={{ fontWeight: 600 }}>{track.enrolledCount.toLocaleString()} industrial learners</span>
+                  <span style={{ fontWeight: 600 }}>{tr("{enrolledCount} industrial learners", { enrolledCount: track.enrolledCount.toLocaleString() })}</span>
                 </div>
                 <span style={{ color: "rgba(255, 255, 255, 0.2)" }}>|</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <SafetyCertificateOutlined style={{ color: "#38BDF8" }} />
-                  <span style={{ fontWeight: 600 }}>{track.heroBadge}</span>
+                  <span style={{ fontWeight: 600 }}>{trData(track.heroBadge)}</span>
                 </div>
               </div>
 
@@ -308,7 +309,7 @@ export default function SpecializationTrackPage() {
                     boxShadow: "0 10px 24px rgba(14, 165, 233, 0.35)",
                   }}
                 >
-                  {isEnrolled ? "✓ Enrolled · Continue" : "Enroll in Specialization"}
+                  {isEnrolled ? tr("✓ Enrolled · Continue") : tr("Enroll in Specialization")}
                 </Button>
 
                 {courses.length > 0 && (
@@ -321,7 +322,7 @@ export default function SpecializationTrackPage() {
                         color: "#FFFFFF",
                       }}
                     >
-                      Start Course 1: {courses[0].code} →
+                      {tr("Start Course 1: {code} →", { code: courses[0].code })}
                     </Button>
                   </Link>
                 )}
@@ -343,39 +344,39 @@ export default function SpecializationTrackPage() {
                     color: "#93C5FD", marginBottom: 16,
                   }}
                 >
-                  Specialization At A Glance
+                  {tr("Specialization At A Glance")}
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <BookOutlined style={{ fontSize: 18, color: "#38BDF8", marginTop: 2 }} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{track.courseIds.length} Sequential Courses</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8" }}>Progressive ladder from fundamentals to plant commissioning</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{tr("{courseIdCount} Sequential Courses", { courseIdCount: track.courseIds.length })}</div>
+                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{tr("Progressive ladder from fundamentals to plant commissioning")}</div>
                     </div>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <ClockCircleOutlined style={{ fontSize: 18, color: "#38BDF8", marginTop: 2 }} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>Approx. {track.durationWeeks} Weeks</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{track.hoursPerWeek} hours / week of flexible self-paced study</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{tr("Approx. {durationWeeks} Weeks", { durationWeeks: track.durationWeeks })}</div>
+                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{tr("{hoursPerWeek} hours / week of flexible self-paced study", { hoursPerWeek: track.hoursPerWeek })}</div>
                     </div>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <ApartmentOutlined style={{ fontSize: 18, color: "#38BDF8", marginTop: 2 }} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{track.level} Skill Level</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8" }}>Industrial shift experience or baseline chemical knowledge recommended</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{tr("{level} Skill Level", { level: trData(track.level) })}</div>
+                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{tr("Industrial shift experience or baseline chemical knowledge recommended")}</div>
                     </div>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <SafetyCertificateOutlined style={{ fontSize: 18, color: "#38BDF8", marginTop: 2 }} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>Verifiable Plant Credential</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8" }}>Shareable on LinkedIn and registered in NEIPL HR promotion records</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{tr("Verifiable Plant Credential")}</div>
+                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{tr("Shareable on LinkedIn and registered in NEIPL HR promotion records")}</div>
                     </div>
                   </div>
                 </div>
@@ -399,13 +400,13 @@ export default function SpecializationTrackPage() {
           }}
         >
           {[
-            { id: "about", label: "About" },
-            { id: "outcomes", label: "What You'll Learn" },
-            { id: "courses", label: `Courses (${track.courseIds.length})` },
-            { id: "project", label: "Applied Project" },
-            { id: "mentors", label: "Upcoming events" },
-            { id: "certificate", label: "Certificate" },
-            { id: "recommendations-section", label: "Recommended Programs" },
+            { id: "about", label: tr("About") },
+            { id: "outcomes", label: tr("What You'll Learn") },
+            { id: "courses", label: tr("Courses ({courseIdCount})", { courseIdCount: track.courseIds.length }) },
+            { id: "project", label: tr("Applied Project") },
+            { id: "mentors", label: tr("Upcoming events") },
+            { id: "certificate", label: tr("Certificate") },
+            { id: "recommendations-section", label: tr("Recommended Programs") },
           ].map((item) => (
             <a
               key={item.id}
@@ -430,7 +431,7 @@ export default function SpecializationTrackPage() {
                 transition: "all 0.2s",
               }}
             >
-              {item.label}
+              {trData(item.label)}
             </a>
           ))}
         </div>
@@ -440,13 +441,9 @@ export default function SpecializationTrackPage() {
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 24px 0 24px" }}>
         {/* SECTION: ABOUT */}
         <section id="about" style={{ marginBottom: 48, scrollMarginTop: 80 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0F172A", marginBottom: 14, letterSpacing: "-0.015em" }}>About this Specialization</h2>
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0F172A", marginBottom: 14, letterSpacing: "-0.015em" }}>{tr("About this Specialization")}</h2>
           <p style={{ fontSize: 15, lineHeight: 1.7, color: "#334155", maxWidth: 880 }}>
-            The <strong>{track.title}</strong> is a dedicated engineering track developed by Nectar
-            Enviro to train industrial plant operators, shift engineers, and technicians in
-            high-volume process water and wastewater management. Learners proceed sequentially
-            through chemical stoichiometry, hydraulic retention, advanced membrane filtration,
-            SCADA telemetry, and statutory environmental compliance.
+            {trNode("The {track} is a dedicated engineering track developed by Nectar Enviro to train industrial plant operators, shift engineers, and technicians in high-volume process water and wastewater management. Learners proceed sequentially through chemical stoichiometry, hydraulic retention, advanced membrane filtration, SCADA telemetry, and statutory environmental compliance.", { track: <strong>{trData(track.title)}</strong> })}
           </p>
         </section>
 
@@ -461,7 +458,7 @@ export default function SpecializationTrackPage() {
             <h2
               style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", marginBottom: 24, letterSpacing: "-0.015em" }}
             >
-              What You&apos;ll Learn
+              {tr("What You'll Learn")}
             </h2>
 
             <Row gutter={[28, 24]}>
@@ -470,8 +467,8 @@ export default function SpecializationTrackPage() {
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <CheckCircleFilled style={{ color: "#16A34A", fontSize: 18, marginTop: 3 }} />
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>{item.title}</div>
-                      <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#64748B" }}>{item.description}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>{trData(item.title)}</div>
+                      <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#64748B" }}>{trData(item.description)}</div>
                     </div>
                   </div>
                 </Col>
@@ -486,7 +483,7 @@ export default function SpecializationTrackPage() {
                   marginBottom: 12,
                 }}
               >
-                Skills You Will Gain
+                {tr("Skills You Will Gain")}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {track.skillsGained.map((skill) => (
@@ -497,7 +494,7 @@ export default function SpecializationTrackPage() {
                       padding: "4px 12px", borderRadius: 20, fontWeight: 500,
                     }}
                   >
-                    {skill}
+                    {trData(skill)}
                   </Tag>
                 ))}
               </div>
@@ -508,11 +505,10 @@ export default function SpecializationTrackPage() {
         {/* SECTION: COURSES IN THIS SPECIALIZATION */}
         <section id="courses" style={{ marginBottom: 56, scrollMarginTop: 80 }}>
           <div style={{ marginBottom: 20 }}>
-            <span style={sText11BoldUpperColorBgPadR4}>SEQUENTIAL CURRICULUM</span>
-            <h2 style={sText24Color}>Courses in this Specialization ({courses.length})</h2>
+            <span style={sText11BoldUpperColorBgPadR4}>{tr("SEQUENTIAL CURRICULUM")}</span>
+            <h2 style={sText24Color}>{tr("Courses in this Specialization ({courseCount})", { courseCount: courses.length })}</h2>
             <p style={{ fontSize: 14, color: "#64748B", margin: 0 }}>
-              Complete all courses in sequence to master operational parameters and earn your
-              Specialization Certificate.
+              {tr("Complete all courses in sequence to master operational parameters and earn your Specialization Certificate.")}
             </p>
           </div>
 
@@ -537,7 +533,7 @@ export default function SpecializationTrackPage() {
                       >
                         <Image
                           src={course.thumbnailUrl}
-                          alt={course.title}
+                          alt={trData(course.title)}
                           fill
                           sizes="(max-width: 768px) 100vw, 25vw"
                           style={{ objectFit: "cover" }}
@@ -561,7 +557,7 @@ export default function SpecializationTrackPage() {
                           letterSpacing: "0.04em", marginBottom: 4,
                         }}
                       >
-                        Course {idx + 1} of {courses.length}
+                        {tr("Course {n} of {total}", { n: idx + 1, total: courses.length })}
                       </div>
 
                       <h3
@@ -569,23 +565,23 @@ export default function SpecializationTrackPage() {
                           fontSize: 18, fontWeight: 700, color: "#0F172A", margin: "0 0 8px 0", lineHeight: 1.35,
                         }}
                       >
-                        {course.title}
+                        {trData(course.title)}
                       </h3>
 
-                      <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5, margin: "0 0 12px 0" }}>{course.description}</p>
+                      <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5, margin: "0 0 12px 0" }}>{trData(course.description)}</p>
 
                       <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#64748B" }}>
                         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                           <ClockCircleOutlined />
-                          {course.estimatedHours} hours
+                          {tr("{hours} hours", { hours: course.estimatedHours })}
                         </span>
                         <span>•</span>
                         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                           <BookOutlined />
-                          {course.abilities.length} Core Modules
+                          {tr("{count} Core Modules", { count: course.abilities.length })}
                         </span>
                         <span>•</span>
-                        <span>Pass threshold: {course.passThreshold}%</span>
+                        <span>{tr("Pass threshold: {passThreshold}%", { passThreshold: course.passThreshold })}</span>
                       </div>
                     </Col>
 
@@ -600,7 +596,7 @@ export default function SpecializationTrackPage() {
                             fontWeight: 700, borderRadius: 8, width: "100%",
                           }}
                         >
-                          Start Course →
+                          {tr("Start Course →")}
                         </Button>
                       </Link>
                     </Col>
@@ -608,7 +604,7 @@ export default function SpecializationTrackPage() {
 
                   {/* Modules Accordion */}
                   <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #F1F5F9" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>Syllabus Modules:</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>{tr("Syllabus Modules:")}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {course.abilities.map((ability) => (
                         <div
@@ -620,9 +616,9 @@ export default function SpecializationTrackPage() {
                         >
                           <span style={{ color: "#334155", fontWeight: 500 }}>
                             <strong style={{ color: "#1C4463", marginRight: 8 }}>{ability.code}</strong>
-                            {ability.title}
+                            {trData(ability.title)}
                           </span>
-                          <span style={{ color: "#94A3B8", fontSize: 11.5 }}>{ability.videoDurationMinutes}m video + quiz</span>
+                          <span style={{ color: "#94A3B8", fontSize: 11.5 }}>{tr("{minutes}m video + quiz", { minutes: ability.videoDurationMinutes })}</span>
                         </div>
                       ))}
                     </div>
@@ -650,7 +646,7 @@ export default function SpecializationTrackPage() {
                 }}
               >
                 <ProjectOutlined />
-                COURSERA-STYLE APPLIED LEARNING PROJECT
+                {tr("COURSERA-STYLE APPLIED LEARNING PROJECT")}
               </div>
 
               <h2
@@ -658,15 +654,15 @@ export default function SpecializationTrackPage() {
                   fontSize: 24, fontWeight: 800, color: "#FFFFFF", margin: "0 0 10px 0", letterSpacing: "-0.015em",
                 }}
               >
-                {track.appliedLearningProject.title}
+                {trData(track.appliedLearningProject.title)}
               </h2>
 
               <div style={{ fontSize: 13, color: "#93C5FD", marginBottom: 16 }}>
-                Facility Case Setting:{" "}
-                <strong>{track.appliedLearningProject.facilityType}</strong>
+                {tr("Facility Case Setting:")}{" "}
+                <strong>{trData(track.appliedLearningProject.facilityType)}</strong>
               </div>
 
-              <p style={{ fontSize: 14.5, lineHeight: 1.65, color: "#CBD5E1", margin: "0 0 24px 0" }}>{track.appliedLearningProject.description}</p>
+              <p style={{ fontSize: 14.5, lineHeight: 1.65, color: "#CBD5E1", margin: "0 0 24px 0" }}>{trData(track.appliedLearningProject.description)}</p>
 
               <div
                 style={{
@@ -680,7 +676,7 @@ export default function SpecializationTrackPage() {
                     color: "#93C5FD", marginBottom: 12,
                   }}
                 >
-                  Key Engineering Deliverables Required:
+                  {tr("Key Engineering Deliverables Required:")}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
                   {track.appliedLearningProject.keyDeliverables.map((deliv, i) => (
@@ -689,7 +685,7 @@ export default function SpecializationTrackPage() {
                       style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#E2E8F0" }}
                     >
                       <CheckOutlined style={{ color: "#38BDF8", fontSize: 12 }} />
-                      <span>{deliv}</span>
+                      <span>{trData(deliv)}</span>
                     </div>
                   ))}
                 </div>
@@ -701,14 +697,14 @@ export default function SpecializationTrackPage() {
         {/* SECTION: SENIOR PROCESS MENTOR & DROP-IN CLINICS */}
         <section id="mentors" style={{ marginBottom: 56, scrollMarginTop: 80 }}>
           <div style={{ marginBottom: 20 }}>
-            <span style={sText11BoldUpperColorBgPadR4}>LIVE</span>
-            <h2 style={sText24Color}>Upcoming events with our mentors</h2>
-            <p style={{ color: "#64748B", margin: 0 }}>Masterclasses and plant seminars you can join while doing this specialization.</p>
+            <span style={sText11BoldUpperColorBgPadR4}>{tr("LIVE")}</span>
+            <h2 style={sText24Color}>{tr("Upcoming events with our mentors")}</h2>
+            <p style={{ color: "#64748B", margin: 0 }}>{tr("Masterclasses and plant seminars you can join while doing this specialization.")}</p>
           </div>
           {events.length ? (
             <div className={uiStyles.grid}>{events.map((e) => <EventCard key={e.id} event={e} />)}</div>
           ) : (
-            <p style={{ color: "#64748B" }}>No upcoming events right now. <Link href="/training/events">See all events</Link></p>
+            <p style={{ color: "#64748B" }}>{tr("No upcoming events right now.")}{" "}<Link href="/training/events">{tr("See all events")}</Link></p>
           )}
         </section>
 
@@ -722,24 +718,21 @@ export default function SpecializationTrackPage() {
                     color: "#16A34A", marginBottom: 8,
                   }}
                 >
-                  ACCREDITED INDUSTRIAL CREDENTIAL
+                  {tr("ACCREDITED INDUSTRIAL CREDENTIAL")}
                 </div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", margin: "0 0 12px 0" }}>Earn Your Verifiable Plant Operations Certificate</h2>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", margin: "0 0 12px 0" }}>{tr("Earn Your Verifiable Plant Operations Certificate")}</h2>
                 <p style={{ fontSize: 14, color: "#64748B", lineHeight: 1.6, margin: "0 0 16px 0" }}>
-                  Upon successful completion of all {courses.length} courses and the capstone
-                  applied project, you will be awarded the official{" "}
-                  <strong>{track.heroBadge}</strong> signed by Nectar Enviro plant operations
-                  directors and certified for CPCB/ISO 14001 compliance records.
+                  {trNode("Upon successful completion of all {count} courses and the capstone applied project, you will be awarded the official {badge} signed by Nectar Enviro plant operations directors and certified for CPCB/ISO 14001 compliance records.", { count: courses.length, badge: <strong>{trData(track.heroBadge)}</strong> })}
                 </p>
                 <div style={{ display: "flex", gap: 10 }}>
                   <Button
                     type="default"
                     icon={<FileTextOutlined />}
                     onClick={() => {
-                      message.info("Certificate syllabus criteria: 100% video completion, 70% quiz pass rate, oral evaluation.");
+                      message.info(tr("Certificate syllabus criteria: 100% video completion, 70% quiz pass rate, oral evaluation."));
                     }}
                   >
-                    View Credential Criteria
+                    {tr("View Credential Criteria")}
                   </Button>
                 </div>
               </Col>
@@ -752,16 +745,16 @@ export default function SpecializationTrackPage() {
                     position: "relative",
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#1C4463", letterSpacing: "0.06em" }}>NECTAR ENVIRO OPERATIONS ACADEMY</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", marginTop: 6, marginBottom: 8 }}>Certificate of Specialization Mastery</div>
-                  <div style={{ fontSize: 11, color: "#64748B", marginBottom: 12 }}>Awarded to: <strong>{session?.name ?? "—"}</strong></div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#1C4463", letterSpacing: "0.06em" }}>{tr("NECTAR ENVIRO OPERATIONS ACADEMY")}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", marginTop: 6, marginBottom: 8 }}>{tr("Certificate of Specialization Mastery")}</div>
+                  <div style={{ fontSize: 11, color: "#64748B", marginBottom: 12 }}>{tr("Awarded to:")}{" "}<strong>{session?.name ?? "—"}</strong></div>
                   <div
                     style={{
                       display: "inline-block", border: "1px dashed #0284C7", padding: "4px 10px", borderRadius: 4,
                       fontSize: 10.5, fontWeight: 700, color: "#0284C7",
                     }}
                   >
-                    VERIFIED CPCB / ISO 14001 COMPLIANT
+                    {tr("VERIFIED CPCB / ISO 14001 COMPLIANT")}
                   </div>
                 </div>
               </Col>
@@ -773,8 +766,8 @@ export default function SpecializationTrackPage() {
         <CourseraRecommendationsGrid
           currentTrackId={track.id}
           category={track.category}
-          title="Recommended Specializations & Related Programs"
-          subtitle="Engineers who pursued this track also enrolled in these companion specializations to expand operational coverage."
+          title={tr("Recommended Specializations & Related Programs")}
+          subtitle={tr("Engineers who pursued this track also enrolled in these companion specializations to expand operational coverage.")}
         />
       </div>
     </div>

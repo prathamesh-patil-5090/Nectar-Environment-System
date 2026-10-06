@@ -31,6 +31,7 @@ import {
 } from "@/lib/rbac";
 import { TODAY } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
+import { tr, trData, trEnum } from "@/lib/i18n";
 
 export default function OtDecisionsClient() {
   const { message, modal } = App.useApp();
@@ -71,29 +72,29 @@ export default function OtDecisionsClient() {
 
   const onApprove = (row: OtDecision) => {
     if (!canResolve) {
-      message.error("Only Manager or Director can approve OT decisions.");
+      message.error(tr("Only Manager or Director can approve OT decisions."));
       return;
     }
     let remark = "";
     let employeeId = row.proposedAssignees[0]?.employeeId;
     modal.confirm({
-      title: `Approve OT — ${row.title}`,
+      title: tr("Approve OT — {title}", { title: trData(row.title) }),
       width: 480,
       content: (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <p style={{ margin: 0, fontSize: 13, color: nectarColors.muted }}>
             {row.hours}h · ₹{row.cost}
             {row.flags.length
-              ? ` · Flags: ${row.flags.join(", ")}`
+              ? tr(" · Flags: {flags}", { flags: row.flags.join(", ") })
               : ""}
           </p>
           {row.proposedAssignees.length ? (
             <Select
-              placeholder="Assignee (optional)"
+              placeholder={tr("Assignee (optional)")}
               defaultValue={employeeId}
               options={row.proposedAssignees.map((a) => ({
                 value: a.employeeId,
-                label: `${a.name} (${a.currentOtHoursOnDate}h today)`,
+                label: tr("{name} ({currentOtHoursOnDate}h today)", { name: trData(a.name), currentOtHoursOnDate: a.currentOtHoursOnDate }),
               }))}
               onChange={(v) => {
                 employeeId = v;
@@ -102,17 +103,17 @@ export default function OtDecisionsClient() {
           ) : null}
           <Input.TextArea
             rows={3}
-            placeholder="Remark (required)"
+            placeholder={tr("Remark (required)")}
             onChange={(e) => {
               remark = e.target.value;
             }}
           />
         </div>
       ),
-      okText: "Approve OT",
+      okText: tr("Approve OT"),
       onOk: () => {
         if (!remark.trim()) {
-          message.error("Remark is required");
+          message.error(tr("Remark is required"));
           return Promise.reject();
         }
         try {
@@ -137,10 +138,10 @@ export default function OtDecisionsClient() {
               /* assignment optional if employee invalid */
             }
           }
-          message.success("OT decision approved.");
+          message.success(tr("OT decision approved."));
           refresh();
         } catch (e) {
-          message.error(e instanceof Error ? e.message : "Approve failed");
+          message.error(e instanceof Error ? trData(e.message) : tr("Approve failed"));
           return Promise.reject();
         }
       },
@@ -149,26 +150,26 @@ export default function OtDecisionsClient() {
 
   const onBlock = (row: OtDecision) => {
     if (!canResolve) {
-      message.error("Only Manager or Director can block OT decisions.");
+      message.error(tr("Only Manager or Director can block OT decisions."));
       return;
     }
     let remark = "";
     modal.confirm({
-      title: `Block OT — ${row.title}`,
+      title: tr("Block OT — {title}", { title: trData(row.title) }),
       content: (
         <Input.TextArea
           rows={3}
-          placeholder="Remark (required)"
+          placeholder={tr("Remark (required)")}
           onChange={(e) => {
             remark = e.target.value;
           }}
         />
       ),
-      okText: "Block",
+      okText: tr("Block"),
       okButtonProps: { danger: true },
       onOk: () => {
         if (!remark.trim()) {
-          message.error("Remark is required");
+          message.error(tr("Remark is required"));
           return Promise.reject();
         }
         try {
@@ -177,10 +178,10 @@ export default function OtDecisionsClient() {
             actor: session?.name ?? "Manager",
             remark,
           });
-          message.success("OT blocked — arrange cover instead.");
+          message.success(tr("OT blocked — arrange cover instead."));
           refresh();
         } catch (e) {
-          message.error(e instanceof Error ? e.message : "Block failed");
+          message.error(e instanceof Error ? trData(e.message) : tr("Block failed"));
           return Promise.reject();
         }
       },
@@ -189,46 +190,46 @@ export default function OtDecisionsClient() {
 
   const columns: ColumnsType<OtDecision> = [
     {
-      title: "Case",
+      title: tr("Case"),
       key: "title",
       render: (_, row) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{row.title}</div>
+          <div style={{ fontWeight: 600 }}>{trData(row.title)}</div>
           <div style={{ fontSize: 12, color: nectarColors.muted }}>
-            {row.message}
+            {trData(row.message)}
           </div>
         </div>
       ),
     },
     {
-      title: "Site",
+      title: tr("Site"),
       dataIndex: "siteId",
-      render: (id) => getSiteName(id),
+      render: (id) => trData(getSiteName(id)),
       width: 120,
     },
-    { title: "Date", dataIndex: "date", width: 110 },
+    { title: tr("Date"), dataIndex: "date", width: 110 },
     {
-      title: "Hours / cost",
+      title: tr("Hours / cost"),
       key: "hc",
       width: 120,
       render: (_, row) => `${row.hours}h · ₹${row.cost}`,
     },
     {
-      title: "Flags",
+      title: tr("Flags"),
       dataIndex: "flags",
       render: (flags: OtDecision["flags"]) =>
         flags.length ? (
           flags.map((f) => (
             <Tag key={f} color={nectarColors.alert} style={{ marginBottom: 2 }}>
-              {f.replaceAll("_", " ")}
+              {trEnum(f)}
             </Tag>
           ))
         ) : (
-          <Tag color={nectarColors.mint}>clear</Tag>
+          <Tag color={nectarColors.mint}>{tr("clear")}</Tag>
         ),
     },
     {
-      title: "Status",
+      title: tr("Status"),
       dataIndex: "status",
       width: 110,
       render: (s: OtDecision["status"]) => (
@@ -248,39 +249,39 @@ export default function OtDecisionsClient() {
       ),
     },
     {
-      title: "Links",
+      title: tr("Links"),
       key: "links",
       width: 140,
       render: (_, row) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {row.leaveId ? (
-            <Link href={`/leave/requests/${row.leaveId}`}>Leave</Link>
+            <Link href={`/leave/requests/${row.leaveId}`}>{tr("Leave")}</Link>
           ) : null}
-          <Link href="/overtime/assign">Assign</Link>
+          <Link href="/overtime/assign">{tr("Assign")}</Link>
         </div>
       ),
     },
     {
-      title: "Action",
+      title: tr("Action"),
       key: "action",
       width: 160,
       render: (_, row) =>
         row.status !== "pending" ? (
           <span style={{ fontSize: 12, color: nectarColors.muted }}>
-            {row.actor ? `${row.status} by ${row.actor}` : "—"}
+            {row.actor ? tr("{status} by {actor}", { status: trData(row.status), actor: trData(row.actor) }) : "—"}
           </span>
         ) : canResolve ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Button type="primary" size="small" onClick={() => onApprove(row)}>
-              Approve
+              {tr("Approve")}
             </Button>
             <Button danger size="small" onClick={() => onBlock(row)}>
-              Block
+              {tr("Block")}
             </Button>
           </div>
         ) : (
           <span style={{ fontSize: 12, color: nectarColors.muted }}>
-            Manager decision
+            {tr("Manager decision")}
           </span>
         ),
     },
@@ -289,7 +290,7 @@ export default function OtDecisionsClient() {
   if (!canView) {
     return (
       <div style={{ padding: 24, color: nectarColors.muted }}>
-        You do not have access to OT decisions.
+        {tr("You do not have access to OT decisions.")}
       </div>
     );
   }
@@ -303,12 +304,10 @@ export default function OtDecisionsClient() {
             fontSize: 22,
           }}
         >
-          OT Decisions
+          {tr("OT Decisions")}
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted, maxWidth: 720 }}>
-          Last-resort overtime for uncovered shifts. Soft block when cover still
-          exists or thresholds are hit — Manager Approves with remark (and
-          optional assignee) or Blocks.
+          {tr("Last-resort overtime for uncovered shifts. Soft block when cover still exists or thresholds are hit — Manager Approves with remark (and optional assignee) or Blocks.")}
         </p>
       </div>
 
@@ -316,7 +315,7 @@ export default function OtDecisionsClient() {
         <Select
           allowClear={!locked}
           disabled={!!locked}
-          placeholder="All sites"
+          placeholder={tr("All sites")}
           style={{ minWidth: 180 }}
           value={siteId}
           options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -326,10 +325,10 @@ export default function OtDecisionsClient() {
           style={{ minWidth: 140 }}
           value={status}
           options={[
-            { value: "pending", label: "Pending" },
-            { value: "approved", label: "Approved" },
-            { value: "blocked", label: "Blocked" },
-            { value: "all", label: "All" },
+            { value: "pending", label: tr("Pending") },
+            { value: "approved", label: tr("Approved") },
+            { value: "blocked", label: tr("Blocked") },
+            { value: "all", label: tr("All") },
           ]}
           onChange={setStatus}
         />
@@ -342,8 +341,8 @@ export default function OtDecisionsClient() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        <KpiStat label="Pending" value={String(pendingCount)} tone="alert" />
-        <KpiStat label="In view" value={String(rows.length)} />
+        <KpiStat label={tr("Pending")} value={String(pendingCount)} tone="alert" />
+        <KpiStat label={tr("In view")} value={String(rows.length)} />
       </div>
 
       <Table

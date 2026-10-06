@@ -161,7 +161,8 @@ export function assignOt(input: {
     employeeId: emp.id,
     kind: "ot_assign",
     title: "OT assignment",
-    body: `${input.assignedBy} assigned you ${input.hours}h OT on ${input.date}: ${input.reason}`,
+    body: "{assignedBy} assigned you {hours}h OT on {date}: {reason}",
+    params: { assignedBy: input.assignedBy, hours: input.hours, date: input.date, reason: input.reason },
     href: "/notifications",
     meta: { assignmentId: row.id },
   });

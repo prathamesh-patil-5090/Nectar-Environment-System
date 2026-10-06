@@ -14,17 +14,18 @@ import { getOtAssignments } from "@/lib/overtime";
 import { formatInrAmount, getSalaryHistory, salaryMonthLabel } from "@/lib/salary";
 import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS, type LeaveRequest, type LeaveStatus, type LeaveType } from "@/lib/leave/types";
 import { Dot, Panel, Person, Quiet, Section } from "@/components/quiet";
+import { tr, trTable, intlLocale, trData } from "@/lib/i18n";
 
-const SHIFT_LABEL: Record<string, string> = {
+const SHIFT_LABEL: Record<string, string> = trTable({
   "sh-morning": "Morning shift",
   "sh-evening": "Evening shift",
   "sh-night": "Night shift",
   "sh-general": "General shift",
-};
+});
 
-const TRAINING_LABEL = { overdue: "Overdue", "due-soon": "Due soon", scheduled: "In progress", completed: "Completed" } as const;
+const TRAINING_LABEL = trTable({ overdue: "Overdue", "due-soon": "Due soon", scheduled: "In progress", completed: "Completed" } as const);
 
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { dateStyle: "medium" });
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(), { dateStyle: "medium" });
 
 /** A plain employee's own dashboard. Everything here is theirs and comes from the database unless noted. */
 export default function EmployeeDashboardView({
@@ -41,7 +42,7 @@ export default function EmployeeDashboardView({
 
   const [greeting] = useState(() => {
     const hour = new Date().getHours();
-    return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    return hour < 12 ? tr("Good morning") : hour < 17 ? tr("Good afternoon") : tr("Good evening");
   });
 
   // Leave balances, recent leave and notifications: database
@@ -90,13 +91,13 @@ export default function EmployeeDashboardView({
       <header data-anim="intro" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: token.colorText }}>
-            {greeting}, {employee.name.split(" ")[0]}
+            {trData(greeting)}, {trData(employee.name).split(" ")[0]}
           </h2>
           <div style={{ marginTop: 4, fontSize: 14, ...muted }}>
-            {[employee.designation, site?.name, employee.id.toUpperCase()].filter(Boolean).join(" · ")}
+            {[employee.designation, site?.name, employee.id.toUpperCase()].filter(Boolean).map((x) => trData(String(x))).join(" · ")}
           </div>
         </div>
-        <div style={{ fontSize: 14, ...muted }}>{SHIFT_LABEL[employee.shiftId] ?? "Shift not set"}</div>
+        <div style={{ fontSize: 14, ...muted }}>{SHIFT_LABEL[employee.shiftId] ?? tr("Shift not set")}</div>
       </header>
 
       {ot.length ? (
@@ -107,78 +108,78 @@ export default function EmployeeDashboardView({
                 <WarningOutlined style={{ color: token.colorWarning, marginTop: 3 }} />
                 <div style={{ lineHeight: 1.4 }}>
                   <div style={{ fontWeight: 500 }}>
-                    Overtime assigned · {ot[0].hours} h on {ot[0].date}
-                    {ot.length > 1 ? ` (+${ot.length - 1} more)` : ""}
+                    {tr("Overtime assigned · {hours} h on {date}", { hours: ot[0].hours, date: ot[0].date })}
+                    {ot.length > 1 ? tr(" (+{count} more)", { count: ot.length - 1 }) : ""}
                   </div>
                   <div style={{ fontSize: 13, ...muted }}>
-                    {ot[0].reason}
-                    {ot[0].notes ? ` · ${ot[0].notes}` : ""}
+                    {trData(ot[0].reason)}
+                    {ot[0].notes ? ` · ${trData(ot[0].notes)}` : ""}
                   </div>
                 </div>
               </div>
-              <Link href="/notifications"><Button size="small">Acknowledge</Button></Link>
+              <Link href="/notifications"><Button size="small">{tr("Acknowledge")}</Button></Link>
             </div>
           </Panel>
         </div>
       ) : null}
 
       <div className="nectar-employee-grid">
-        <Section title="Your team">
+        <Section title={tr("Your team")}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {(
               [
-                ["Site Manager", reporting.supervisor],
-                ["Shift In-Charge", reporting.sic],
-                ["Plant Manager", reporting.manager],
+                [tr("Site Manager"), reporting.supervisor],
+                [tr("Shift In-Charge"), reporting.sic],
+                [tr("Plant Manager"), reporting.manager],
               ] as const
             ).map(([role, person]) =>
               person ? (
                 <Link key={role} href={`/employees/${person.id}`} style={{ color: "inherit" }}>
-                  <Person name={person.name} sub={role} />
+                  <Person name={person.name} sub={trData(role)} />
                 </Link>
               ) : (
                 <div key={role} style={{ fontSize: 13, ...muted }}>
-                  {role}: not assigned
+                  {tr("{role}: not assigned", { role: trData(role) })}
                 </div>
               ),
             )}
           </div>
         </Section>
 
-        <Section title="Leave" extra={<Link href="/leave/requests?mine=1">My requests</Link>}>
+        <Section title={tr("Leave")} extra={<Link href="/leave/requests?mine=1">{tr("My requests")}</Link>}>
           {balances === null ? (
-            <Quiet>Loading…</Quiet>
+            <Quiet>{tr("Loading…")}</Quiet>
           ) : balanceRows.length ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 12 }}>
               {balanceRows.map(([type, days]) => (
                 <div key={type}>
                   <div data-count={days} style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>{days}</div>
-                  <div style={{ fontSize: 12, ...muted }}>{LEAVE_TYPE_LABELS[type] ?? type} left</div>
+                  <div style={{ fontSize: 12, ...muted }}>{tr("{type} left", { type: LEAVE_TYPE_LABELS[type] ?? type })}</div>
                 </div>
               ))}
             </div>
           ) : (
-            <Quiet>No leave balance on record.</Quiet>
+            <Quiet>{tr("No leave balance on record.")}</Quiet>
           )}
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${token.colorSplit}`, fontSize: 13 }}>
             {recentLeave ? (
               <Link href={`/leave/requests/${recentLeave.id}`} style={{ color: "inherit" }}>
-                <span style={muted}>Latest: </span>
+                <span style={muted}>{tr("Latest:")}</span>
                 {LEAVE_TYPE_LABELS[recentLeave.leaveType as LeaveType] ?? recentLeave.leaveType} · {recentLeave.startDate} → {recentLeave.endDate}
                 <span style={muted}> · {LEAVE_STATUS_LABELS[recentLeave.status as LeaveStatus] ?? recentLeave.status}</span>
               </Link>
             ) : (
-              <Quiet>{leaves === null ? "Loading…" : "No leave requests yet."}</Quiet>
+              <Quiet>{leaves === null ? tr("Loading…") : tr("No leave requests yet.")}</Quiet>
             )}
           </div>
           <Link href="/leave/requests?mine=1" style={{ display: "inline-block", marginTop: 12 }}>
-            <Button icon={<PlusOutlined />}>Apply for leave</Button>
+            <Button icon={<PlusOutlined />}>{tr("Apply for leave")}</Button>
           </Link>
         </Section>
 
-        <Section title="Training" extra={<Link href="/training">Training</Link>}>
+        <Section title={tr("Training")} extra={<Link href="/training">{tr("Training")}</Link>}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
-            <span style={muted}>Skill score</span>
+            <span style={muted}>{tr("Skill score")}</span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>{employee.skillScore}%</span>
           </div>
           <div style={{ height: 4, borderRadius: 2, background: token.colorFillSecondary, marginBottom: 14 }}>
@@ -197,19 +198,19 @@ export default function EmployeeDashboardView({
               {trainings.slice(0, 3).map((t, i) => (
                 <li key={t.id} style={{ padding: "8px 0", borderTop: i ? `1px solid ${token.colorSplit}` : undefined, fontSize: 13 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ minWidth: 0, color: token.colorText }}>{t.course}</span>
+                    <span style={{ minWidth: 0, color: token.colorText }}>{trData(t.course)}</span>
                     <Dot color={trainingColor(t.status)} label={TRAINING_LABEL[t.status]} />
                   </div>
-                  {t.dueDate ? <div style={{ fontSize: 12, color: token.colorTextTertiary }}>Due {t.dueDate}</div> : null}
+                  {t.dueDate ? <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{tr("Due {dueDate}", { dueDate: t.dueDate })}</div> : null}
                 </li>
               ))}
             </ul>
           ) : (
-            <Quiet>{trainingReady ? "No open training. You're up to date." : "Loading…"}</Quiet>
+            <Quiet>{trainingReady ? tr("No open training. You're up to date.") : tr("Loading…")}</Quiet>
           )}
         </Section>
 
-        <Section title="Certificates" extra={<Link href="/certifications?mine=1">All</Link>}>
+        <Section title={tr("Certificates")} extra={<Link href="/certifications?mine=1">{tr("All")}</Link>}>
           {certs.length ? (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {certs.slice(0, 4).map((c, i) => (
@@ -224,27 +225,27 @@ export default function EmployeeDashboardView({
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ minWidth: 0 }}>{c.name}</span>
-                  <span style={{ flexShrink: 0, ...muted }}>{c.expiresOn ? `Expires ${c.expiresOn}` : "No expiry"}</span>
+                  <span style={{ minWidth: 0 }}>{trData(c.name)}</span>
+                  <span style={{ flexShrink: 0, ...muted }}>{c.expiresOn ? tr("Expires {expiresOn}", { expiresOn: trData(c.expiresOn) }) : tr("No expiry")}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <Quiet>{trainingReady ? "No certificates yet." : "Loading…"}</Quiet>
+            <Quiet>{trainingReady ? tr("No certificates yet.") : tr("Loading…")}</Quiet>
           )}
         </Section>
 
-        <Section title="Notifications" extra={<Link href="/notifications">{unread ? `${unread} unread` : "All"}</Link>}>
+        <Section title={tr("Notifications")} extra={<Link href="/notifications">{unread ? tr("{unread} unread", { unread }) : tr("All")}</Link>}>
           {notes === null ? (
-            <Quiet>Loading…</Quiet>
+            <Quiet>{tr("Loading…")}</Quiet>
           ) : notes.length ? (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {notes.slice(0, 4).map((n, i) => (
                 <li key={n.id} style={{ padding: "8px 0", borderTop: i ? `1px solid ${token.colorSplit}` : undefined, fontSize: 13 }}>
                   <Link href={n.href ?? "/notifications"} style={{ color: "inherit", display: "block" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                      {!n.read ? <span aria-label="Unread" style={{ width: 6, height: 6, borderRadius: "50%", background: token.colorPrimary, flex: "none", transform: "translateY(-1px)" }} /> : null}
-                      <span style={{ fontWeight: n.read ? 400 : 500 }}>{n.title}</span>
+                      {!n.read ? <span aria-label={tr("Unread")} style={{ width: 6, height: 6, borderRadius: "50%", background: token.colorPrimary, flex: "none", transform: "translateY(-1px)" }} /> : null}
+                      <span style={{ fontWeight: n.read ? 400 : 500 }}>{trData(n.title)}</span>
                     </div>
                     <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{fmtDate(n.createdAt)}</div>
                   </Link>
@@ -252,23 +253,23 @@ export default function EmployeeDashboardView({
               ))}
             </ul>
           ) : (
-            <Quiet>No notifications.</Quiet>
+            <Quiet>{tr("No notifications.")}</Quiet>
           )}
         </Section>
 
-        <Section title="Latest salary" extra={<Link href="/salary">Payslips</Link>}>
+        <Section title={tr("Latest salary")} extra={<Link href="/salary">{tr("Payslips")}</Link>}>
           {salary ? (
             <>
               <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>{formatInrAmount(salary.amount)}</div>
               <div style={{ fontSize: 13, marginTop: 2, ...muted }}>
-                {salaryMonthLabel(salary.salaryMonth)} · {salary.paymentMode} on {salary.paymentDate}
+                {tr("{salaryMonthLabel} · {paymentMode} on {paymentDate}", { salaryMonthLabel: salaryMonthLabel(salary.salaryMonth), paymentMode: trData(salary.paymentMode), paymentDate: salary.paymentDate })}
               </div>
               <div style={{ fontSize: 13, marginTop: 10, ...muted }}>
-                {salary.bankName} ••••{salary.accountLast4}
+                {trData(salary.bankName)} ••••{trData(salary.accountLast4)}
               </div>
             </>
           ) : (
-            <Quiet>No salary records.</Quiet>
+            <Quiet>{tr("No salary records.")}</Quiet>
           )}
         </Section>
       </div>

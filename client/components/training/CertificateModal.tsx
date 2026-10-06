@@ -1,5 +1,6 @@
 "use client";
 
+// i18n-ignore-file: the certificate is an official document and always stays in English.
 import React from "react";
 import { Modal, Button, Tag, Divider } from "antd";
 import {

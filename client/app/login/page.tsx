@@ -11,7 +11,7 @@ import {
   login,
   ROLE_LABELS,
 } from "@/lib/auth";
-import { LanguageSwitcher, useI18n } from "@/lib/i18n";
+import { LanguageSwitcher, useI18n, trData } from "@/lib/i18n";
 
 import InteractiveEnvironmentalCanvas, {
   type ThemeMode,
@@ -122,7 +122,7 @@ export default function LoginPage() {
           {error ? (
             <Alert
               type="error"
-              title={error}
+              title={trData(error)}
               showIcon
               style={{ marginBottom: 18, borderRadius: 10, border: "1px solid rgba(196, 92, 38, 0.2)", fontSize: 13 }}
             />

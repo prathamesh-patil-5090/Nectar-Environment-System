@@ -6,6 +6,7 @@ import { CheckCircleFilled, EnvironmentOutlined, TeamOutlined, VideoCameraOutlin
 import type { TrainingEvent } from "@/lib/training/types";
 import { EVENT_TYPE_LABEL, eventCoverUrl } from "@/components/training/ui/EventCard";
 import Cover from "@/components/training/ui/Cover";
+import { tr, trData } from "@/lib/i18n";
 
 interface EventHeroBannerProps {
   event: TrainingEvent;
@@ -17,13 +18,13 @@ export default function EventHeroBanner({ event }: EventHeroBannerProps) {
   return (
     <div className="w-full flex flex-col gap-5">
       {/* 1. Breadcrumbs & Category Pill */}
-      <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs font-medium text-slate-500 flex-wrap">
+      <nav aria-label={tr("Breadcrumbs")} className="flex items-center gap-2 text-xs font-medium text-slate-500 flex-wrap">
         <Link href="/training" className="hover:text-emerald-700 transition-colors">
-          Training Hub
+          {tr("Training Hub")}
         </Link>
         <span>/</span>
         <Link href="/training/events" className="hover:text-emerald-700 transition-colors">
-          Events & Masterclasses
+          {tr("Events & Masterclasses")}
         </Link>
         {event.community && (
           <>
@@ -32,7 +33,7 @@ export default function EventHeroBanner({ event }: EventHeroBannerProps) {
               href={`/training/communities/${event.community.slug}`}
               className="text-emerald-700 hover:text-emerald-800 font-semibold transition-colors"
             >
-              {event.community.name}
+              {trData(event.community.name)}
             </Link>
           </>
         )}
@@ -43,22 +44,22 @@ export default function EventHeroBanner({ event }: EventHeroBannerProps) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
             {event.format === "online" ? <VideoCameraOutlined /> : <EnvironmentOutlined />}
-            {EVENT_TYPE_LABEL[event.type] || "Masterclass"}
+            {EVENT_TYPE_LABEL[event.type] || tr("Masterclass")}
           </span>
           {event.community && (
             <Link href={`/training/communities/${event.community.slug}`}>
               <Tag className="rounded-full px-2.5 py-0.5 border-slate-200 text-slate-700 hover:border-emerald-600 transition-colors cursor-pointer">
                 <TeamOutlined className="mr-1 text-slate-500" />
-                {event.community.name}
+                {trData(event.community.name)}
               </Tag>
             </Link>
           )}
-          {event.status === "draft" && <Tag color="default">Draft Preview</Tag>}
-          {event.status === "cancelled" && <Tag color="error">Cancelled</Tag>}
+          {event.status === "draft" && <Tag color="default">{tr("Draft Preview")}</Tag>}
+          {event.status === "cancelled" && <Tag color="error">{tr("Cancelled")}</Tag>}
         </div>
 
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
-          {event.title}
+          {trData(event.title)}
         </h1>
 
         {/* Host & Community Attribution Bar */}
@@ -73,12 +74,12 @@ export default function EventHeroBanner({ event }: EventHeroBannerProps) {
                 {host.name[0]}
               </Avatar>
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 text-xs">Hosted by</span>
-                <span className="font-semibold text-slate-900">{host.name}</span>
-                <CheckCircleFilled className="text-emerald-600 text-xs" title="Certified Mentor" />
+                <span className="text-slate-500 text-xs">{tr("Hosted by")}</span>
+                <span className="font-semibold text-slate-900">{trData(host.name)}</span>
+                <CheckCircleFilled className="text-emerald-600 text-xs" title={tr("Certified Mentor")} />
                 {host.designation && (
                   <span className="text-xs text-slate-500 hidden sm:inline">
-                    · {host.designation}
+                    · {trData(host.designation)}
                   </span>
                 )}
               </div>
@@ -87,18 +88,18 @@ export default function EventHeroBanner({ event }: EventHeroBannerProps) {
 
           {event.assignedBy && (
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#1C4463] text-white">
-              Assigned by {event.assignedBy.name}
+              {tr("Assigned by {name}", { name: trData(event.assignedBy.name) })}
             </span>
           )}
 
           {event.community && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              <span>organized for</span>
+              <span>{tr("organized for")}</span>
               <Link
                 href={`/training/communities/${event.community.slug}`}
                 className="font-medium text-emerald-700 hover:underline"
               >
-                {event.community.name}
+                {trData(event.community.name)}
               </Link>
             </div>
           )}
@@ -115,7 +116,7 @@ export function EventCoverImage({ event }: EventHeroBannerProps) {
     return (
       <div className="bg-white rounded-3xl p-2 border border-slate-200/90 shadow-md">
         <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden">
-          <Cover label={event.title} />
+          <Cover label={trData(event.title)} />
         </div>
       </div>
     );
@@ -131,7 +132,7 @@ export function EventCoverImage({ event }: EventHeroBannerProps) {
           aria-hidden
           className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60"
         />
-        <img src={coverUrl} alt={event.title} className="relative w-full h-full object-contain object-center" />
+        <img src={coverUrl} alt={trData(event.title)} className="relative w-full h-full object-contain object-center" />
       </div>
     </div>
   );

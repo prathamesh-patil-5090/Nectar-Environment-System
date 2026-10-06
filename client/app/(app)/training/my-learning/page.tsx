@@ -14,6 +14,7 @@ import SuggestionCard from "@/components/training/ui/SuggestionCard";
 import { EventImageCard } from "@/components/training/ui/EventCard";
 import { CARD_GRID } from "@/components/training/ui/Shelf";
 import TrainingScheduleView from "@/components/training/TrainingScheduleView";
+import { tr, trData } from "@/lib/i18n";
 
 const pctOf = (e: CourseEnrollment, c: Course) =>
   c.abilities.length ? Math.round((c.abilities.filter((a) => e.abilityProgress[a.id]?.completedAt).length / c.abilities.length) * 100) : 0;
@@ -50,12 +51,12 @@ export default function MyLearningPage() {
   const events = myEvents.data ?? [];
 
   const tabs: { key: string; label: string; count?: number }[] = [
-    { key: "progress", label: "In progress", count: inProgress.length },
-    { key: "assigned", label: "Assigned", count: assigned.length },
-    { key: "flags", label: "Suggested by manager", count: suggested.length },
-    { key: "completed", label: "Completed", count: completed.length },
-    { key: "events", label: "My events", count: events.length },
-    { key: "schedule", label: "Assessment schedule" },
+    { key: "progress", label: tr("In progress"), count: inProgress.length },
+    { key: "assigned", label: tr("Assigned"), count: assigned.length },
+    { key: "flags", label: tr("Suggested by manager"), count: suggested.length },
+    { key: "completed", label: tr("Completed"), count: completed.length },
+    { key: "events", label: tr("My events"), count: events.length },
+    { key: "schedule", label: tr("Assessment schedule") },
   ];
 
   const grid = (nodes: ReactNode[], empty: string, loading?: boolean) =>
@@ -65,7 +66,7 @@ export default function MyLearningPage() {
       <div className={CARD_GRID}>{nodes}</div>
     ) : (
       <div className="bg-white border border-slate-200 rounded-2xl py-8">
-        <Empty description={empty} />
+        <Empty description={trData(empty)} />
       </div>
     );
 
@@ -79,12 +80,12 @@ export default function MyLearningPage() {
           <CourseCard
             key={a.id}
             course={toCard(c)}
-            reason={`${a.assignedByName}: ${a.reason}`}
-            badge={overdue ? { text: "Overdue", color: "red" } : { text: a.dueDate ? `Due ${a.dueDate.slice(0, 10)}` : "Assigned", color: "gold" }}
+            reason={`${trData(a.assignedByName)}: ${trData(a.reason)}`}
+            badge={overdue ? { text: tr("Overdue"), color: "red" } : { text: a.dueDate ? tr("Due {dueDate}", { dueDate: a.dueDate.slice(0, 10) }) : tr("Assigned"), color: "gold" }}
           />
         );
       }),
-      "Nothing assigned",
+      tr("Nothing assigned"),
       assignments.loading,
     );
   } else if (tab === "flags") {
@@ -93,7 +94,7 @@ export default function MyLearningPage() {
         const c = a.courseId ? getCourseById(a.courseId) : undefined;
         return <SuggestionCard key={a.id} assignment={a} course={c ? toCard(c) : undefined} matches={[]} />;
       }),
-      "No weak areas flagged",
+      tr("No weak areas flagged"),
       assignments.loading,
     );
   } else if (tab === "completed") {
@@ -104,15 +105,15 @@ export default function MyLearningPage() {
           <CourseCard
             key={e.id}
             course={toCard(c)}
-            badge={{ text: "Certified", color: "green" }}
-            reason={cert?.expiresAt ? `Valid until ${cert.expiresAt.slice(0, 10)}` : undefined}
+            badge={{ text: tr("Certified"), color: "green" }}
+            reason={cert?.expiresAt ? tr("Valid until {expiresAt}", { expiresAt: cert.expiresAt.slice(0, 10) }) : undefined}
           />
         );
       }),
-      "No completed courses yet",
+      tr("No completed courses yet"),
     );
   } else if (tab === "events") {
-    body = grid(events.map((e) => <EventImageCard key={e.id} event={e} />), "You haven't registered for any events", myEvents.loading);
+    body = grid(events.map((e) => <EventImageCard key={e.id} event={e} />), tr("You haven't registered for any events"), myEvents.loading);
   } else if (tab === "schedule") {
     body = (
       <div className="bg-white border border-slate-200 rounded-3xl p-5">
@@ -126,10 +127,10 @@ export default function MyLearningPage() {
           key={e.id}
           course={toCard(c)}
           progressPct={pctOf(e, c)}
-          badge={e.status === "IN_PROGRESS" ? undefined : { text: "Assessment stage", color: "blue" }}
+          badge={e.status === "IN_PROGRESS" ? undefined : { text: tr("Assessment stage"), color: "blue" }}
         />
       )),
-      "You haven't started a course yet",
+      tr("You haven't started a course yet"),
     );
   }
 
@@ -137,10 +138,10 @@ export default function MyLearningPage() {
   const avgPct = inProgress.length ? Math.round(inProgress.reduce((s, { e, c }) => s + pctOf(e, c), 0) / inProgress.length) : 0;
   const overdueCount = assigned.filter((a) => a.dueDate && a.dueDate.slice(0, 10) < today()).length;
   const stats: [string, string | number][] = [
-    ["In progress", inProgress.length],
-    ["Average progress", `${avgPct}%`],
-    ["Certified", certifiedCount],
-    ["Overdue", overdueCount],
+    [tr("In progress"), inProgress.length],
+    [tr("Average progress"), `${avgPct}%`],
+    [tr("Certified"), certifiedCount],
+    [tr("Overdue"), overdueCount],
   ];
 
   return (
@@ -149,20 +150,20 @@ export default function MyLearningPage() {
 
       <header className="rounded-3xl bg-gradient-to-br from-[#1C4463] to-[#0B1A24] p-6 sm:p-8 flex flex-col gap-5">
         <div>
-          <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">My Learning</h1>
-          <p className="m-0 mt-1 text-white/70">Your courses, assignments, certificates and registered events in one place.</p>
+          <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{tr("My Learning")}</h1>
+          <p className="m-0 mt-1 text-white/70">{tr("Your courses, assignments, certificates and registered events in one place.")}</p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {stats.map(([label, value]) => (
             <div key={label} className="rounded-2xl bg-white/10 border border-white/15 px-4 py-2.5">
               <div className="text-2xl font-extrabold text-white">{value}</div>
-              <div className="text-xs text-white/70">{label}</div>
+              <div className="text-xs text-white/70">{trData(label)}</div>
             </div>
           ))}
         </div>
       </header>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 border-b border-slate-200" role="tablist" aria-label="My Learning">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 border-b border-slate-200" role="tablist" aria-label={tr("My Learning")}>
         {tabs.map((t) => {
           const active = tab === t.key;
           return (
@@ -176,7 +177,7 @@ export default function MyLearningPage() {
                 active ? "border-[#1C4463] text-[#1C4463]" : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
-              {t.label}
+              {trData(t.label)}
               {typeof t.count === "number" && (
                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] ${active ? "bg-[#1C4463] text-white" : "bg-slate-100 text-slate-500"}`}>{t.count}</span>
               )}

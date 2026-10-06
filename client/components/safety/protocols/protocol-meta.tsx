@@ -9,18 +9,19 @@ import {
   ThunderboltOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
+import { trTable } from "@/lib/i18n";
 
 type CategoryMeta = { label: string; color: string; icon: ReactNode };
 
 /** Known protocol categories (all in the theme colour — the icon tells them apart). Any other category (free text from the editor) falls back to a generic look. */
-const KNOWN: Record<string, CategoryMeta> = {
+const KNOWN: Record<string, CategoryMeta> = trTable({
   fire: { label: "Fire", color: nectarColors.leaf, icon: <FireOutlined /> },
   chemical: { label: "Chemical", color: nectarColors.leaf, icon: <ExperimentOutlined /> },
   gas: { label: "Gas leak", color: nectarColors.leaf, icon: <CloudOutlined /> },
   electrical: { label: "Electrical", color: nectarColors.leaf, icon: <ThunderboltOutlined /> },
   fall: { label: "Falls & openings", color: nectarColors.leaf, icon: <WarningOutlined /> },
   first_aid: { label: "First aid", color: nectarColors.leaf, icon: <MedicineBoxOutlined /> },
-};
+});
 
 export const KNOWN_PROTOCOL_CATEGORIES = Object.keys(KNOWN);
 

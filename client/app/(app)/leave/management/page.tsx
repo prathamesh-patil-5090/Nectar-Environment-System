@@ -15,6 +15,7 @@ import {
 import { canViewLeaveManagement, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { rowWrapGap1BgR8, sSerifText18Mb12, sSerifText22Ink, sWhitePadR10 } from "@/lib/styles";
+import { tr, trNode, intlLocale, trCell, trData } from "@/lib/i18n";
 
 export default function LeaveManagementPage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function LeaveManagementPage() {
   }, [allowed, router]);
 
   if (!allowed) {
-    return <Empty description="Not available for your role" />;
+    return <Empty description={tr("Not available for your role")} />;
   }
 
   const kpis = getLeaveKpis(siteScope);
@@ -64,47 +65,47 @@ export default function LeaveManagementPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div>
-        <div style={sSerifText22Ink}>Management leave visibility</div>
+        <div style={sSerifText22Ink}>{tr("Management leave visibility")}</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Exceptions and workforce impact — not routine approvals. Drill from
-          site → leave → OT impact. Active returns and cover issues:{" "}
-          <Link href="/leave/lifecycle">Lifecycle / Coverage</Link>.
-          {siteScope ? ` Scoped to ${getSiteName(siteScope)}.` : ""}
+          {trNode("Exceptions and workforce impact — not routine approvals. Drill from site → leave → OT impact. Active returns and cover issues: {link}.", {
+            link: <Link href="/leave/lifecycle">{tr("Lifecycle / Coverage")}</Link>,
+          })}
+          {siteScope ? tr(" Scoped to {siteName}.", { siteName: trData(getSiteName(siteScope)) }) : ""}
         </p>
       </div>
 
       <div style={rowWrapGap1BgR8}>
-        <KpiStat label="Total employees" value={kpis.totalEmployees} />
-        <KpiStat label="Currently on leave" value={kpis.currentlyOnLeave} tone="info" />
-        <KpiStat label="Unexplained absence" value={kpis.leaveWithoutInformation} tone="alert" />
-        <KpiStat label="Critical site shortages" value={kpis.criticalSiteShortages} tone="alert" />
-        <KpiStat label="Leave → OT risk" value={kpis.leaveOtRisk} tone="alert" />
-        <KpiStat label="Long leave cases" value={kpis.longLeaveCases} tone="info" />
+        <KpiStat label={tr("Total employees")} value={kpis.totalEmployees} />
+        <KpiStat label={tr("Currently on leave")} value={kpis.currentlyOnLeave} tone="info" />
+        <KpiStat label={tr("Unexplained absence")} value={kpis.leaveWithoutInformation} tone="alert" />
+        <KpiStat label={tr("Critical site shortages")} value={kpis.criticalSiteShortages} tone="alert" />
+        <KpiStat label={tr("Leave → OT risk")} value={kpis.leaveOtRisk} tone="alert" />
+        <KpiStat label={tr("Long leave cases")} value={kpis.longLeaveCases} tone="info" />
       </div>
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>Site → leave impact</div>
+        <div style={sSerifText18Mb12}>{tr("Site → leave impact")}</div>
         <Table
           rowKey="siteId"
           pagination={false}
           dataSource={bySite}
           columns={[
             {
-              title: "Site",
+              title: tr("Site"),
               dataIndex: "siteName",
               render: (n, r) => (
-                <Link href={`/overtime/sites/${r.siteId}`}>{n}</Link>
+                <Link href={`/overtime/sites/${r.siteId}`}>{trData(n)}</Link>
               ),
             },
-            { title: "Approved on leave", dataIndex: "onLeave" },
+            { title: tr("Approved on leave"), dataIndex: "onLeave", render: trCell },
             {
-              title: "OT risk leaves",
+              title: tr("OT risk leaves"),
               dataIndex: "otRisk",
               render: (n: number) =>
                 n > 0 ? <Tag color={nectarColors.alert}>{n}</Tag> : n,
             },
             {
-              title: "Unexplained / pending",
+              title: tr("Unexplained / pending"),
               dataIndex: "unexplained",
               render: (n: number) =>
                 n > 0 ? <Tag color="#D97706">{n}</Tag> : n,
@@ -114,35 +115,35 @@ export default function LeaveManagementPage() {
       </div>
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>Exception drill-down</div>
+        <div style={sSerifText18Mb12}>{tr("Exception drill-down")}</div>
         <Table
           rowKey="id"
           dataSource={riskRows}
           pagination={{ pageSize: 8 }}
           columns={[
             {
-              title: "Employee",
+              title: tr("Employee"),
               dataIndex: "employeeName",
               render: (n, r) => (
-                <Link href={`/leave/requests/${r.id}`}>{n}</Link>
+                <Link href={`/leave/requests/${r.id}`}>{trData(n)}</Link>
               ),
             },
-            { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
-            { title: "Supervisor", dataIndex: "supervisorName" },
+            { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+            { title: tr("Supervisor"), dataIndex: "supervisorName", render: trCell },
             {
-              title: "Status",
+              title: tr("Status"),
               dataIndex: "status",
               render: (s: keyof typeof LEAVE_STATUS_LABELS) =>
                 LEAVE_STATUS_LABELS[s],
             },
             {
-              title: "OT impact",
+              title: tr("OT impact"),
               dataIndex: "potentialOtHours",
               render: (h: number, r) =>
                 h > 0 ? (
-                  <span style={{ color: nectarColors.alert, fontWeight: 600 }}>+{h} hrs · ₹{r.potentialOtCost.toLocaleString("en-IN")}</span>
+                  <span style={{ color: nectarColors.alert, fontWeight: 600 }}>{tr("+{h} hrs · ₹{potentialOtCost}", { h, potentialOtCost: r.potentialOtCost.toLocaleString(intlLocale()) })}</span>
                 ) : (
-                  "None"
+                  tr("None")
                 ),
             },
           ]}

@@ -9,6 +9,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import dayjs from "dayjs";
+import "dayjs/locale/hi";
+import "dayjs/locale/mr";
 import type { Locale } from "./types";
 import { LOCALE_META } from "./types";
 import {
@@ -19,6 +22,14 @@ import {
   t as translate,
   type TranslateParams,
 } from "./translate";
+import { loadPhraseCatalog } from "./phrases";
+
+/** Make the catalogue + dayjs ready for `next` before any component renders in it. */
+async function prepareLocale(next: Locale) {
+  if (next !== "en") await loadPhraseCatalog();
+  setLocaleGlobal(next);
+  dayjs.locale(next);
+}
 
 type I18nContextValue = {
   locale: Locale;
@@ -31,18 +42,21 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const stored = readStoredLocale();
-    setLocaleGlobal(stored);
-    setLocaleState(stored);
-    setReady(true);
+    prepareLocale(stored).then(() => {
+      if (cancelled) return;
+      setLocaleState(stored);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const setLocale = useCallback((next: Locale) => {
-    setLocaleGlobal(next);
-    setLocaleState(next);
+    prepareLocale(next).then(() => setLocaleState(next));
   }, []);
 
   const t = useCallback(
@@ -60,13 +74,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale, setLocale, t, titleOf],
   );
 
-  useEffect(() => {
-    if (ready) setLocaleGlobal(locale);
-  }, [locale, ready]);
-
   return (
     <I18nContext.Provider value={value}>
+      {/* keyed on locale: a switch remounts the app so every tr() re-evaluates */}
       <div
+        key={locale}
         lang={LOCALE_META[locale].htmlLang}
         data-locale={locale}
         style={{ display: "contents" }}

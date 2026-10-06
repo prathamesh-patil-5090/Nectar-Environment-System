@@ -66,7 +66,7 @@ import { hydrateAllStoresFromApi } from "@/lib/sync";
 import { ackSafetyEmergency, getActiveEmergencies } from "@/lib/api/safety";
 import type { SafetyEvent } from "@/lib/safety/types";
 import { safetyActorOf } from "@/lib/rbac";
-import { LanguageSwitcher, translatePersonName, useI18n } from "@/lib/i18n";
+import { LanguageSwitcher, translatePersonName, useI18n, tr, trData, intlLocale } from "@/lib/i18n";
 
 const { Header, Sider, Content } = Layout;
 
@@ -133,7 +133,7 @@ function GsapFlyoutCard({
 
   return (
     <div ref={cardRef} className="nectar-sider-flyout-card">
-      <div className="nectar-sider-flyout-title">{title}</div>
+      <div className="nectar-sider-flyout-title">{trData(title)}</div>
       {children}
     </div>
   );
@@ -277,7 +277,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       await ackSafetyEmergency(id, actor);
       setEmergencies((rows) => rows.filter((e) => e.id !== id));
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Could not acknowledge");
+      message.error(err instanceof Error ? trData(err.message) : tr("Could not acknowledge"));
     }
   };
 
@@ -603,12 +603,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/overtime/employees/")) {
       const id = pathname.split("/")[3];
       const name = getEmployeeById(id)?.name;
-      return name ? `OT · ${name}` : t("pages./overtime/employees");
+      return name ? tr("OT · {name}", { name: trData(name) }) : t("pages./overtime/employees");
     }
     if (pathname.startsWith("/overtime/sites/")) {
       const id = pathname.split("/")[3];
       const name = getSiteById(id)?.name;
-      return name ? `OT · ${name}` : t("pages./overtime/sites");
+      return name ? tr("OT · {name}", { name: trData(name) }) : t("pages./overtime/sites");
     }
     return pageTitle(selectedKey);
   }, [pathname, selectedKey, t, pageTitle]);
@@ -800,8 +800,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             ref={toggleBtnRef}
             type="button"
             className="nectar-sider-toggle"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? tr("Expand sidebar") : tr("Collapse sidebar")}
+            title={collapsed ? tr("Expand sidebar") : tr("Collapse sidebar")}
             onClick={handleToggleCollapse}
           >
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -837,7 +837,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 t("app.menu"),
               );
             return (
-              <GsapFlyoutCard title={title}>{node as ReactElement}</GsapFlyoutCard>
+              <GsapFlyoutCard title={trData(title)}>{node as ReactElement}</GsapFlyoutCard>
             );
           }}
           onClick={({ key }) => {
@@ -852,11 +852,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               return;
             }
             if (key === "/meetings") {
-              message.info("Meetings — coming soon. This feature is under development.");
+              message.info(tr("Meetings — coming soon. This feature is under development."));
               return;
             }
             if (key === "/medical-records") {
-              message.info("Medical records — coming soon. This feature is under development.");
+              message.info(tr("Medical records — coming soon. This feature is under development."));
               return;
             }
             router.push(key);
@@ -879,7 +879,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               level={4}
               style={{ margin: 0, fontFamily: "var(--font-fraunces), Georgia, serif", color: nectarColors.ink }}
             >
-              {headerTitle}
+              {trData(headerTitle)}
             </Typography.Title>
           </div>
 
@@ -929,8 +929,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
                 <WarningOutlined style={{ fontSize: 20 }} />
                 <div style={{ minWidth: 0 }}>
-                  <strong>EMERGENCY: {e.title}</strong>
-                  <div style={{ fontSize: 12 }}>{e.location ? `${e.location} · ` : ""}reported by {e.reportedBy.name} · {new Date(e.reportedAt).toLocaleTimeString("en-IN", { timeStyle: "short" })}</div>
+                  <strong>{tr("EMERGENCY: {title}", { title: trData(e.title) })}</strong>
+                  <div style={{ fontSize: 12 }}>{e.location ? `${trData(e.location)} · ` : ""}{tr("reported by {name}", { name: translatePersonName(e.reportedBy.name) })} · {new Date(e.reportedAt).toLocaleTimeString(intlLocale(), { timeStyle: "short" })}</div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>

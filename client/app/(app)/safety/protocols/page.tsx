@@ -26,6 +26,7 @@ import { categoryMeta } from "@/components/safety/protocols/protocol-meta";
 import styles from "@/components/safety/protocols/protocols.module.css";
 import { nectarColors } from "@/lib/theme";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
+import { tr, intlLocale, trData } from "@/lib/i18n";
 
 type Contact = { label: string; phone: string };
 type ProtocolInput = Omit<SafetyProtocol, "id" | "version" | "updatedBy" | "updatedAtIso">;
@@ -91,7 +92,7 @@ function ProtocolsView() {
         setRows(r);
         setError(null);
       })
-      .catch((err) => alive && setError(err instanceof Error ? err.message : "Could not load protocols"));
+      .catch((err) => alive && setError(err instanceof Error ? trData(err.message) : tr("Could not load protocols")));
     return () => {
       alive = false;
     };
@@ -142,14 +143,14 @@ function ProtocolsView() {
         editing && editing !== "new"
           ? await updateSafetyProtocol(editing.id, actor, values)
           : await createSafetyProtocol(actor, values);
-      message.success(editing === "new" ? "Protocol published" : `Saved — version ${saved.version}`);
+      message.success(editing === "new" ? tr("Protocol published") : tr("Saved — version {version}", { version: saved.version }));
       setReloadKey((k) => k + 1);
       setQ("");
       setCat("all");
       open(saved.id);
       return true;
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Save failed");
+      message.error(err instanceof Error ? trData(err.message) : tr("Save failed"));
       return false;
     } finally {
       setSaving(false);
@@ -160,9 +161,9 @@ function ProtocolsView() {
     const actor = safetyActorOf(user ?? null);
     if (!actor) return;
     modal.confirm({
-      title: `Delete protocol “${p.title}”?`,
-      content: "Sites will no longer see these steps. The record is kept for history.",
-      okText: "Delete",
+      title: tr("Delete protocol “{title}”?", { title: trData(p.title) }),
+      content: tr("Sites will no longer see these steps. The record is kept for history."),
+      okText: tr("Delete"),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
@@ -177,9 +178,9 @@ function ProtocolsView() {
             setView("list");
           }
           setReloadKey((k) => k + 1);
-          message.success("Protocol deleted");
+          message.success(tr("Protocol deleted"));
         } catch (err) {
-          message.error(err instanceof Error ? err.message : "Delete failed");
+          message.error(err instanceof Error ? trData(err.message) : tr("Delete failed"));
           throw err;
         }
       },
@@ -189,13 +190,13 @@ function ProtocolsView() {
   const copyLink = async (id: string) => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/safety/protocols?p=${encodeURIComponent(id)}`);
-      message.success("Link copied");
+      message.success(tr("Link copied"));
     } catch {
-      message.error("Could not copy the link");
+      message.error(tr("Could not copy the link"));
     }
   };
 
-  const siteLabel = (p: SafetyProtocol) => (p.siteIds.length ? p.siteIds.map(dir.siteName).join(", ") : "All sites");
+  const siteLabel = (p: SafetyProtocol) => (p.siteIds.length ? p.siteIds.map(dir.siteName).join(", ") : tr("All sites"));
   const clearFilters = () => {
     setQ("");
     setCat("all");
@@ -205,10 +206,10 @@ function ProtocolsView() {
   return (
     <div ref={pageRef} className={styles.page}>
       {/* Call first */}
-      <section className={styles.callStrip} aria-label="Emergency numbers" data-anim="intro">
+      <section className={styles.callStrip} aria-label={tr("Emergency numbers")} data-anim="intro">
         <div className={styles.callIntro}>
-          <h2 className={styles.callTitle}>In an emergency, call first.</h2>
-          <p className={styles.callHint}>Then follow the protocol and report it so everyone at the site is alerted.</p>
+          <h2 className={styles.callTitle}>{tr("In an emergency, call first.")}</h2>
+          <p className={styles.callHint}>{tr("Then follow the protocol and report it so everyone at the site is alerted.")}</p>
         </div>
         {callNumbers.length ? (
           <div className={styles.callButtons}>
@@ -217,14 +218,14 @@ function ProtocolsView() {
                 <span className={styles.callIcon} aria-hidden><PhoneFilled /></span>
                 <span>
                   <span className={styles.callNumber}>{c.phone}</span>
-                  <span className={styles.callLabel}>{c.label}</span>
+                  <span className={styles.callLabel}>{trData(c.label)}</span>
                 </span>
               </a>
             ))}
           </div>
         ) : null}
         <Link href="/safety/report?type=incident" className={styles.reportBtn}>
-          <Button danger icon={<AlertOutlined />}>Report emergency</Button>
+          <Button danger icon={<AlertOutlined />}>{tr("Report emergency")}</Button>
         </Link>
       </section>
 
@@ -234,46 +235,46 @@ function ProtocolsView() {
           className={styles.search}
           allowClear
           prefix={<SearchOutlined style={{ color: nectarColors.muted }} />}
-          placeholder="Search protocols and steps — e.g. chlorine, shock, burn"
+          placeholder={tr("Search protocols and steps — e.g. chlorine, shock, burn")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          aria-label="Search protocols"
+          aria-label={tr("Search protocols")}
         />
         {orgWide ? (
           <Select
             allowClear
-            placeholder="All sites"
+            placeholder={tr("All sites")}
             style={{ minWidth: 170 }}
             value={site}
             onChange={setSite}
             options={dir.sites.map((s) => ({ value: s.id, label: s.name }))}
-            aria-label="Filter by site"
+            aria-label={tr("Filter by site")}
           />
         ) : null}
         {canEdit ? (
           <div className={styles.toolbarEnd}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing("new")}>New protocol</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing("new")}>{tr("New protocol")}</Button>
           </div>
         ) : null}
       </div>
 
       {categories.length > 1 ? (
-        <div className={styles.chips} role="toolbar" aria-label="Filter by category">
+        <div className={styles.chips} role="toolbar" aria-label={tr("Filter by category")}>
           <button type="button" className={`${styles.chip} ${cat === "all" ? styles.chipActive : ""}`} aria-pressed={cat === "all"} onClick={() => setCat("all")}>
-            All <span className={styles.chipCount}>{bySite.length}</span>
+            {tr("All")}{" "}<span className={styles.chipCount}>{bySite.length}</span>
           </button>
           {categories.map(([key, count]) => {
             const m = categoryMeta(key);
             return (
               <button key={key} type="button" className={`${styles.chip} ${cat === key ? styles.chipActive : ""}`} aria-pressed={cat === key} onClick={() => setCat(key)}>
-                {m.icon} {m.label} <span className={styles.chipCount}>{count}</span>
+                {m.icon} {trData(m.label)} <span className={styles.chipCount}>{count}</span>
               </button>
             );
           })}
         </div>
       ) : null}
 
-      {error ? <Alert type="error" showIcon title="Could not load protocols" description={error} /> : null}
+      {error ? <Alert type="error" showIcon title={tr("Could not load protocols")} description={trData(error)} /> : null}
 
       {rows === null && !error ? (
         <div className={styles.layout} data-view="list">
@@ -284,23 +285,23 @@ function ProtocolsView() {
 
       {rows && !rows.length ? (
         <div className={styles.empty}>
-          <h3 style={{ margin: 0 }}>No protocols yet</h3>
-          <p style={{ color: nectarColors.muted }}>{canEdit ? "Publish the first one so every site knows what to do." : "Your Safety In-charge will publish them here."}</p>
-          {canEdit ? <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing("new")}>New protocol</Button> : null}
+          <h3 style={{ margin: 0 }}>{tr("No protocols yet")}</h3>
+          <p style={{ color: nectarColors.muted }}>{canEdit ? tr("Publish the first one so every site knows what to do.") : tr("Your Safety In-charge will publish them here.")}</p>
+          {canEdit ? <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing("new")}>{tr("New protocol")}</Button> : null}
         </div>
       ) : null}
 
       {rows && rows.length > 0 && !filtered.length ? (
         <div className={styles.empty}>
-          <h3 style={{ margin: 0 }}>Nothing matches {q.trim() ? `“${q.trim()}”` : "these filters"}</h3>
-          <p style={{ color: nectarColors.muted }}>Try another word, or clear the filters.</p>
-          <Button onClick={clearFilters}>Clear filters</Button>
+          <h3 style={{ margin: 0 }}>{q.trim() ? tr("Nothing matches “{query}”", { query: trData(q.trim()) }) : tr("Nothing matches these filters")}</h3>
+          <p style={{ color: nectarColors.muted }}>{tr("Try another word, or clear the filters.")}</p>
+          <Button onClick={clearFilters}>{tr("Clear filters")}</Button>
         </div>
       ) : null}
 
       {selected ? (
         <div className={styles.layout} data-view={view} data-anim="intro">
-          <nav className={styles.index} aria-label="Protocols">
+          <nav className={styles.index} aria-label={tr("Protocols")}>
             {filtered.map((p) => {
               const m = categoryMeta(p.category);
               const term = q.trim();
@@ -317,13 +318,13 @@ function ProtocolsView() {
                 >
                   <span className={styles.tile} aria-hidden>{m.icon}</span>
                   <span className={styles.itemBody}>
-                    <span className={styles.itemTitle} style={{ display: "block" }}>{highlight(p.title, term)}</span>
-                    {p.summary ? <span className={styles.itemSummary}>{p.summary}</span> : null}
+                    <span className={styles.itemTitle} style={{ display: "block" }}>{highlight(trData(p.title), term)}</span>
+                    {p.summary ? <span className={styles.itemSummary}>{trData(p.summary)}</span> : null}
                     <span className={styles.itemMeta}>
-                      <span>{m.label}</span>
-                      <span>{p.steps.length} steps</span>
-                      {p.siteIds.length ? <span><EnvironmentOutlined /> {siteLabel(p)}</span> : null}
-                      {stepHits ? <span style={{ color: nectarColors.alert, fontWeight: 600 }}>{stepHits} step{stepHits > 1 ? "s" : ""} match</span> : null}
+                      <span>{trData(m.label)}</span>
+                      <span>{tr("{stepCount} steps", { stepCount: p.steps.length })}</span>
+                      {p.siteIds.length ? <span><EnvironmentOutlined /> {trData(siteLabel(p))}</span> : null}
+                      {stepHits ? <span style={{ color: nectarColors.alert, fontWeight: 600 }}>{stepHits > 1 ? tr("{count} steps match", { count: stepHits }) : tr("{count} step matches", { count: stepHits })}</span> : null}
                     </span>
                   </span>
                   <span className={styles.itemChevron} aria-hidden><RightOutlined /></span>
@@ -383,63 +384,63 @@ function ProtocolReader({
       <header className={styles.readerHead}>
         <div className={styles.back}>
           <Button type="link" icon={<ArrowLeftOutlined />} onClick={onBack} style={{ paddingInline: 0 }}>
-            All protocols
+            {tr("All protocols")}
           </Button>
         </div>
         <div className={styles.readerTop}>
           <span className={styles.tile} aria-hidden>{m.icon}</span>
           <div className={styles.readerTitleBox}>
-            <div className={styles.kicker}>{m.label} · emergency protocol</div>
-            <h1 id="protocol-title" className={styles.readerTitle}>{p.title}</h1>
+            <div className={styles.kicker}>{tr("{label} · emergency protocol", { label: trData(m.label) })}</div>
+            <h1 id="protocol-title" className={styles.readerTitle}>{trData(p.title)}</h1>
           </div>
         </div>
-        {p.summary ? <p className={styles.readerSummary}>{highlight(p.summary, q)}</p> : null}
+        {p.summary ? <p className={styles.readerSummary}>{highlight(trData(p.summary), q)}</p> : null}
         <div className={styles.readerMeta}>
-          <span><EnvironmentOutlined /> {siteLabel}</span>
-          <span>Version {p.version}</span>
+          <span><EnvironmentOutlined /> {trData(siteLabel)}</span>
+          <span>{tr("Version {version}", { version: p.version })}</span>
           <span>
-            Updated by {p.updatedBy ?? "—"}
-            {p.updatedAtIso ? ` · ${new Date(p.updatedAtIso).toLocaleDateString("en-IN", { dateStyle: "medium" })}` : ""}
+            {tr("Updated by")}{" "}{p.updatedBy ?? "—"}
+            {p.updatedAtIso ? ` · ${new Date(p.updatedAtIso).toLocaleDateString(intlLocale(), { dateStyle: "medium" })}` : ""}
           </span>
         </div>
         <div className={styles.readerActions}>
-          <Button icon={<PrinterOutlined />} onClick={() => window.print()}>Print for notice board</Button>
-          <Button icon={<LinkOutlined />} onClick={onCopy}>Copy link</Button>
-          {canEdit ? <Button icon={<EditOutlined />} onClick={onEdit}>Edit</Button> : null}
-          {canEdit ? <Button danger icon={<DeleteOutlined />} onClick={onDelete}>Delete</Button> : null}
+          <Button icon={<PrinterOutlined />} onClick={() => window.print()}>{tr("Print for notice board")}</Button>
+          <Button icon={<LinkOutlined />} onClick={onCopy}>{tr("Copy link")}</Button>
+          {canEdit ? <Button icon={<EditOutlined />} onClick={onEdit}>{tr("Edit")}</Button> : null}
+          {canEdit ? <Button danger icon={<DeleteOutlined />} onClick={onDelete}>{tr("Delete")}</Button> : null}
         </div>
       </header>
 
       <div className={styles.readerBody}>
         <section aria-labelledby="steps-title">
-          <h2 id="steps-title" className={styles.sectionTitle}>What to do</h2>
+          <h2 id="steps-title" className={styles.sectionTitle}>{tr("What to do")}</h2>
           {p.steps.length ? (
             <ol className={styles.steps}>
               {p.steps.map((s, i) => (
                 <li key={i} className={`${styles.step} ${i === 0 ? styles.stepFirst : ""}`}>
                   <span className={styles.stepNo} aria-hidden>{i + 1}</span>
                   <div>
-                    {i === 0 ? <span className={styles.firstLabel}>Do this first</span> : null}
-                    <p className={styles.stepText} style={i === 0 ? { marginTop: 0 } : undefined}>{highlight(s, q)}</p>
+                    {i === 0 ? <span className={styles.firstLabel}>{tr("Do this first")}</span> : null}
+                    <p className={styles.stepText} style={i === 0 ? { marginTop: 0 } : undefined}>{highlight(trData(s), q)}</p>
                   </div>
                 </li>
               ))}
             </ol>
           ) : (
-            <p style={{ color: nectarColors.muted }}>No steps written yet.</p>
+            <p style={{ color: nectarColors.muted }}>{tr("No steps written yet.")}</p>
           )}
         </section>
 
         {p.emergencyContacts.length ? (
           <section aria-labelledby="contacts-title">
-            <h2 id="contacts-title" className={styles.sectionTitle}>Who to call</h2>
+            <h2 id="contacts-title" className={styles.sectionTitle}>{tr("Who to call")}</h2>
             <div className={styles.contacts}>
               {p.emergencyContacts.map((c) => (
                 <a key={c.label + c.phone} href={`tel:${c.phone.replace(/\s+/g, "")}`} className={styles.contact}>
                   <PhoneFilled aria-hidden />
                   <span>
                     <span className={styles.contactNumber}>{c.phone}</span>
-                    <span className={styles.contactLabel}>{c.label}</span>
+                    <span className={styles.contactLabel}>{trData(c.label)}</span>
                   </span>
                 </a>
               ))}
@@ -448,8 +449,8 @@ function ProtocolReader({
         ) : null}
 
         <div className={styles.readerActions} style={{ marginTop: 0 }}>
-          <Link href="/safety/report"><Button type="primary" icon={<AlertOutlined />}>Report what happened</Button></Link>
-          <Link href="/safety/training"><Button>Safety training</Button></Link>
+          <Link href="/safety/report"><Button type="primary" icon={<AlertOutlined />}>{tr("Report what happened")}</Button></Link>
+          <Link href="/safety/training"><Button>{tr("Safety training")}</Button></Link>
         </div>
       </div>
     </article>

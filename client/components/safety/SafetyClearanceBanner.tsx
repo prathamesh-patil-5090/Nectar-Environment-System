@@ -8,6 +8,7 @@ import { getPendingClearances } from "@/lib/api/safety";
 import { getSafetyEvents, subscribeSafety } from "@/lib/safety/store";
 import { pendingClearanceFor, type PendingClearanceRef } from "@/lib/safety/gates";
 import type { SafetyEvent } from "@/lib/safety/types";
+import { tr, trData, trNode } from "@/lib/i18n";
 
 const EMPTY: SafetyEvent[] = [];
 
@@ -41,17 +42,17 @@ export default function SafetyClearanceBanner({ employeeId }: { employeeId?: str
       showIcon
       icon={<SafetyOutlined />}
       style={{ marginBottom: 16 }}
-      title="Safety clearance pending — return to duty is blocked"
+      title={tr("Safety clearance pending — return to duty is blocked")}
       description={
         <span>
-          Safety In-charge or Manager must clear this person on{" "}
-          {pending.map((p, i) => (
-            <span key={p.eventId}>
-              {i ? ", " : ""}
-              <Link href={`/safety/incidents/${p.eventId}`}>{p.title}</Link>
-            </span>
-          ))}{" "}
-          before this leave can be closed.
+          {trNode("Safety In-charge or Manager must clear this person on {cases} before this leave can be closed.", {
+            cases: pending.map((p, i) => (
+              <span key={p.eventId}>
+                {i ? ", " : ""}
+                <Link href={`/safety/incidents/${p.eventId}`}>{trData(p.title)}</Link>
+              </span>
+            )),
+          })}
         </span>
       }
     />
@@ -65,7 +66,7 @@ export function SafetyClearanceTag({ employeeId }: { employeeId?: string }) {
   if (!pending.length) return null;
   return (
     <Link href={`/safety/incidents/${pending[0].eventId}`}>
-      <Tag color="orange" icon={<SafetyOutlined />}>Safety clearance pending</Tag>
+      <Tag color="orange" icon={<SafetyOutlined />}>{tr("Safety clearance pending")}</Tag>
     </Link>
   );
 }

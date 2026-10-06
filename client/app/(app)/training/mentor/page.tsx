@@ -13,6 +13,7 @@ import TrainingSubNav from "@/components/training/ui/TrainingSubNav";
 import EventFormModal from "@/components/training/mentor/EventFormModal";
 import { EVENT_TYPE_LABEL } from "@/components/training/ui/EventCard";
 import styles from "@/components/training/ui/training.module.css";
+import { tr, trData } from "@/lib/i18n";
 
 /** Mentor Studio: the mentor's own events (Meetup organizer tools). */
 export default function MentorStudioPage() {
@@ -37,7 +38,7 @@ export default function MentorStudioPage() {
     };
   }, [events.data]);
 
-  if (!viewer.personId) return <Result status="info" title="Mentor Studio needs a profile on your login" />;
+  if (!viewer.personId) return <Result status="info" title={tr("Mentor Studio needs a profile on your login")} />;
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     try {
@@ -51,26 +52,26 @@ export default function MentorStudioPage() {
 
   const columns: ColumnsType<TrainingEvent> = [
     {
-      title: "Event",
+      title: tr("Event"),
       key: "title",
       render: (_, e) => (
         <div>
-          <Link href={`/training/mentor/events/${e.id}`} style={{ fontWeight: 600 }}>{e.title}</Link>
+          <Link href={`/training/mentor/events/${e.id}`} style={{ fontWeight: 600 }}>{trData(e.title)}</Link>
           <div className={styles.line}>
-            {EVENT_TYPE_LABEL[e.type]} · {e.format === "online" ? "Online" : "At a plant"}
-            {e.seriesId ? " · Series" : ""}
+            {EVENT_TYPE_LABEL[e.type]} · {e.format === "online" ? tr("Online") : tr("At a plant")}
+            {e.seriesId ? tr(" · Series") : ""}
           </div>
         </div>
       ),
     },
-    { title: "When", key: "when", render: (_, e) => fmtTimeRange(e.startsAt, e.endsAt) },
+    { title: tr("When"), key: "when", render: (_, e) => fmtTimeRange(e.startsAt, e.endsAt) },
     {
-      title: "Seats",
+      title: tr("Seats"),
       key: "seats",
-      render: (_, e) => `${e.goingCount}/${e.capacity}${e.waitlistCount ? ` · ${e.waitlistCount} waiting` : ""}`,
+      render: (_, e) => `${e.goingCount}/${e.capacity}${e.waitlistCount ? tr(" · {waitlistCount} waiting", { waitlistCount: e.waitlistCount }) : ""}`,
     },
     {
-      title: "Status",
+      title: tr("Status"),
       dataIndex: "status",
       render: (s: TrainingEvent["status"]) => <Tag color={s === "published" ? "green" : s === "cancelled" ? "red" : s === "draft" ? "default" : "blue"}>{s}</Tag>,
     },
@@ -83,16 +84,16 @@ export default function MentorStudioPage() {
           trigger={["click"]}
           menu={{
             items: [
-              { key: "manage", label: "Manage attendees", onClick: () => router.push(`/training/mentor/events/${e.id}`) },
-              { key: "view", label: "View event page", onClick: () => router.push(`/training/events/${e.id}`) },
-              ...(e.status === "draft" || e.status === "published" ? [{ key: "edit", label: "Edit", onClick: () => { setEditing(e); setFormOpen(true); } }] : []),
-              ...(e.status === "draft" ? [{ key: "publish", label: "Publish", onClick: () => act(() => publishEvent(e.id, viewer.personId!), "Published. Community members were notified.") }] : []),
-              { key: "dup", label: "Duplicate as draft", onClick: () => act(() => duplicateEvent(e.id, viewer.personId!), "Copied as a new draft") },
-              ...(e.status === "draft" || e.status === "published" ? [{ key: "cancel", danger: true, label: "Cancel event", onClick: () => { setReason(""); setCancelling(e); } }] : []),
+              { key: "manage", label: tr("Manage attendees"), onClick: () => router.push(`/training/mentor/events/${e.id}`) },
+              { key: "view", label: tr("View event page"), onClick: () => router.push(`/training/events/${e.id}`) },
+              ...(e.status === "draft" || e.status === "published" ? [{ key: "edit", label: tr("Edit"), onClick: () => { setEditing(e); setFormOpen(true); } }] : []),
+              ...(e.status === "draft" ? [{ key: "publish", label: tr("Publish"), onClick: () => act(() => publishEvent(e.id, viewer.personId!), tr("Published. Community members were notified.")) }] : []),
+              { key: "dup", label: tr("Duplicate as draft"), onClick: () => act(() => duplicateEvent(e.id, viewer.personId!), tr("Copied as a new draft")) },
+              ...(e.status === "draft" || e.status === "published" ? [{ key: "cancel", danger: true, label: tr("Cancel event"), onClick: () => { setReason(""); setCancelling(e); } }] : []),
             ],
           }}
         >
-          <Button icon={<MoreOutlined />} aria-label="Actions" />
+          <Button icon={<MoreOutlined />} aria-label={tr("Actions")} />
         </Dropdown>
       ),
     },
@@ -106,7 +107,7 @@ export default function MentorStudioPage() {
       loading={events.loading}
       scroll={{ x: 800 }}
       pagination={{ pageSize: 10, hideOnSinglePage: true }}
-      locale={{ emptyText: <Empty description={empty} /> }}
+      locale={{ emptyText: <Empty description={trData(empty)} /> }}
     />
   );
 
@@ -115,25 +116,25 @@ export default function MentorStudioPage() {
       <TrainingSubNav />
       <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#0B1A24" }}>Mentor Studio</h1>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#0B1A24" }}>{tr("Mentor Studio")}</h1>
           <p style={{ margin: "4px 0 0", color: "#4A6375" }}>
-            Create sessions and seminars, manage seats and the waitlist, and see who&apos;s coming. You get a notification for every registration.
+            {tr("Create sessions and seminars, manage seats and the waitlist, and see who's coming. You get a notification for every registration.")}
           </p>
         </div>
-        {isMentor && <Button type="primary" size="large" onClick={() => { setEditing(null); setFormOpen(true); }}>Create event</Button>}
+        {isMentor && <Button type="primary" size="large" onClick={() => { setEditing(null); setFormOpen(true); }}>{tr("Create event")}</Button>}
       </header>
 
       {!isMentor && !events.loading && (events.data ?? []).length === 0 ? (
-        <Result status="info" title="You're not a mentor" subTitle="HR or the Director can add you as a mentor." />
+        <Result status="info" title={tr("You're not a mentor")} subTitle={tr("HR or the Director can add you as a mentor.")} />
       ) : events.loading && !events.data ? (
         <Skeleton active />
       ) : (
         <Tabs
           defaultActiveKey="upcoming"
           items={[
-            { key: "upcoming", label: `Upcoming (${groups.upcoming.length})`, children: table(groups.upcoming, "No upcoming events") },
-            { key: "drafts", label: `Drafts (${groups.drafts.length})`, children: table(groups.drafts, "No drafts") },
-            { key: "past", label: `Past (${groups.past.length})`, children: table(groups.past, "No past events") },
+            { key: "upcoming", label: tr("Upcoming ({upcomingCount})", { upcomingCount: groups.upcoming.length }), children: table(groups.upcoming, tr("No upcoming events")) },
+            { key: "drafts", label: tr("Drafts ({draftCount})", { draftCount: groups.drafts.length }), children: table(groups.drafts, tr("No drafts")) },
+            { key: "past", label: tr("Past ({pastCount})", { pastCount: groups.past.length }), children: table(groups.past, tr("No past events")) },
           ]}
         />
       )}
@@ -142,18 +143,18 @@ export default function MentorStudioPage() {
 
       <Modal
         open={Boolean(cancelling)}
-        title={`Cancel “${cancelling?.title ?? ""}”?`}
-        okText="Cancel event"
+        title={tr("Cancel “{title}”?", { title: cancelling?.title ?? "" })}
+        okText={tr("Cancel event")}
         okButtonProps={{ danger: true, disabled: !reason.trim() }}
-        cancelText="Keep it"
+        cancelText={tr("Keep it")}
         onCancel={() => setCancelling(null)}
         onOk={() =>
           cancelling &&
-          act(() => cancelEvent(cancelling.id, reason.trim(), viewer.personId!), "Event cancelled. Everyone registered was told.").then(() => setCancelling(null))
+          act(() => cancelEvent(cancelling.id, reason.trim(), viewer.personId!), tr("Event cancelled. Everyone registered was told.")).then(() => setCancelling(null))
         }
       >
-        <p>Everyone going or on the waitlist gets a notification with your reason.</p>
-        <Input.TextArea rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason" />
+        <p>{tr("Everyone going or on the waitlist gets a notification with your reason.")}</p>
+        <Input.TextArea rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={tr("Reason")} aria-label={tr("Reason")} />
       </Modal>
     </div>
   );

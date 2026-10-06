@@ -35,6 +35,7 @@ import {
 import { TODAY } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
 import { SafetyClearanceTag } from "@/components/safety/SafetyClearanceBanner";
+import { tr, trData } from "@/lib/i18n";
 
 export default function LeaveLifecycleClient() {
   const { message, modal } = App.useApp();
@@ -77,25 +78,25 @@ export default function LeaveLifecycleClient() {
 
   const onReturn = (row: LifecycleCase) => {
     if (!canReturn) {
-      message.error("You cannot confirm return.");
+      message.error(tr("You cannot confirm return."));
       return;
     }
     const isExtension = row.kind === "extension_open";
     if (isExtension && !canManager) {
-      message.error("Only Manager or Director can close an extension.");
+      message.error(tr("Only Manager or Director can close an extension."));
       return;
     }
     let remark = "";
     let returnDate = dayjs(TODAY);
     modal.confirm({
       title: isExtension
-        ? `Close extension — ${row.employeeName}`
-        : `Confirm return — ${row.employeeName}`,
+        ? tr("Close extension — {employeeName}", { employeeName: trData(row.employeeName) })
+        : tr("Confirm return — {employeeName}", { employeeName: trData(row.employeeName) }),
       width: 460,
       content: (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <p style={{ margin: 0, fontSize: 13, color: nectarColors.muted }}>
-            {row.message}
+            {trData(row.message)}
           </p>
           <DatePicker
             defaultValue={returnDate}
@@ -109,8 +110,8 @@ export default function LeaveLifecycleClient() {
               rows={2}
               placeholder={
                 isExtension
-                  ? "Manager remark (required)"
-                  : "Remark (optional)"
+                  ? tr("Manager remark (required)")
+                  : tr("Remark (optional)")
               }
               onChange={(e) => {
                 remark = e.target.value;
@@ -119,7 +120,7 @@ export default function LeaveLifecycleClient() {
           ) : null}
         </div>
       ),
-      okText: isExtension ? "Close extension" : "Confirm return",
+      okText: isExtension ? tr("Close extension") : tr("Confirm return"),
       onOk: () => {
         try {
           confirmReturnLifecycle({
@@ -130,11 +131,11 @@ export default function LeaveLifecycleClient() {
             actorRole,
           });
           message.success(
-            isExtension ? "Extension closed — cover released." : "Return confirmed.",
+            isExtension ? tr("Extension closed — cover released.") : tr("Return confirmed."),
           );
           refresh();
         } catch (e) {
-          message.error(e instanceof Error ? e.message : "Failed");
+          message.error(e instanceof Error ? trData(e.message) : tr("Failed"));
           return Promise.reject();
         }
       },
@@ -143,21 +144,21 @@ export default function LeaveLifecycleClient() {
 
   const onDisrupt = (row: LifecycleCase) => {
     if (!canPool && !canManager) {
-      message.error("SIC / Manager can report cover disruption.");
+      message.error(tr("SIC / Manager can report cover disruption."));
       return;
     }
     let note = "";
     let disruptKind: "no_show" | "became_unavailable" = "no_show";
     modal.confirm({
-      title: `Report cover disruption — ${row.employeeName}`,
+      title: tr("Report cover disruption — {employeeName}", { employeeName: trData(row.employeeName) }),
       width: 460,
       content: (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <Select
             defaultValue="no_show"
             options={[
-              { value: "no_show", label: "Cover no-show" },
-              { value: "became_unavailable", label: "Became unavailable" },
+              { value: "no_show", label: tr("Cover no-show") },
+              { value: "became_unavailable", label: tr("Became unavailable") },
             ]}
             onChange={(v) => {
               disruptKind = v as typeof disruptKind;
@@ -165,14 +166,14 @@ export default function LeaveLifecycleClient() {
           />
           <Input.TextArea
             rows={3}
-            placeholder="What happened? (required)"
+            placeholder={tr("What happened? (required)")}
             onChange={(e) => {
               note = e.target.value;
             }}
           />
         </div>
       ),
-      okText: "Report disruption",
+      okText: tr("Report disruption"),
       okButtonProps: { danger: true },
       onOk: () => {
         try {
@@ -182,10 +183,10 @@ export default function LeaveLifecycleClient() {
             note,
             actor: session?.name ?? "User",
           });
-          message.warning("Cover released — re-cover via Match / OT Decisions.");
+          message.warning(tr("Cover released — re-cover via Match / OT Decisions."));
           refresh();
         } catch (e) {
-          message.error(e instanceof Error ? e.message : "Failed");
+          message.error(e instanceof Error ? trData(e.message) : tr("Failed"));
           return Promise.reject();
         }
       },
@@ -194,17 +195,17 @@ export default function LeaveLifecycleClient() {
 
   const columns: ColumnsType<LifecycleCase> = [
     {
-      title: "Case",
+      title: tr("Case"),
       key: "case",
       render: (_, row) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{row.title}</div>
+          <div style={{ fontWeight: 600 }}>{trData(row.title)}</div>
           <div style={{ fontSize: 12, color: nectarColors.muted }}>
-            {row.message}
+            {trData(row.message)}
           </div>
           {row.softBlock ? (
             <Tag color={nectarColors.alert} style={{ marginTop: 4 }}>
-              {row.softBlock}
+              {trData(row.softBlock)}
             </Tag>
           ) : null}
           <div style={{ marginTop: 4 }}>
@@ -214,52 +215,52 @@ export default function LeaveLifecycleClient() {
       ),
     },
     {
-      title: "Kind",
+      title: tr("Kind"),
       dataIndex: "kind",
       width: 130,
-      render: (k: LifecycleKind) => <Tag>{lifecycleKindLabel(k)}</Tag>,
+      render: (k: LifecycleKind) => <Tag>{trData(lifecycleKindLabel(k))}</Tag>,
     },
     {
-      title: "Site",
+      title: tr("Site"),
       dataIndex: "siteId",
       width: 110,
-      render: (id) => getSiteName(id),
+      render: (id) => trData(getSiteName(id)),
     },
     {
-      title: "Expected return",
+      title: tr("Expected return"),
       dataIndex: "expectedReturnDate",
       width: 120,
     },
     {
-      title: "Cover",
+      title: tr("Cover"),
       key: "cover",
       width: 140,
-      render: (_, row) => row.coverName ?? "—",
+      render: (_, row) => (row.coverName ? trData(row.coverName) : "—"),
     },
     {
-      title: "Action",
+      title: tr("Action"),
       key: "action",
       width: 200,
       render: (_, row) => (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <Link href={row.href}>Leave</Link>
+          <Link href={row.href}>{tr("Leave")}</Link>
           {(row.kind === "due_return" ||
             row.kind === "late_return" ||
             row.kind === "early_return_ready" ||
             row.kind === "extension_open") &&
           canReturn ? (
             <Button type="primary" size="small" onClick={() => onReturn(row)}>
-              {row.kind === "extension_open" ? "Close extension" : "Confirm return"}
+              {row.kind === "extension_open" ? tr("Close extension") : tr("Confirm return")}
             </Button>
           ) : null}
           {(row.kind === "active_cover" || row.kind === "extension_open") &&
           (canPool || canManager) ? (
             <Button size="small" danger onClick={() => onDisrupt(row)}>
-              Disrupt
+              {tr("Disrupt")}
             </Button>
           ) : null}
           {row.kind === "cover_disrupted" ? (
-            <Link href="/overtime/decisions">OT Decisions</Link>
+            <Link href="/overtime/decisions">{tr("OT Decisions")}</Link>
           ) : null}
         </div>
       ),
@@ -275,12 +276,10 @@ export default function LeaveLifecycleClient() {
             fontSize: 22,
           }}
         >
-          Leave Lifecycle / Coverage
+          {tr("Leave Lifecycle / Coverage")}
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted, maxWidth: 740 }}>
-          Returns, extensions, emergency paths, and cover disruptions. Late
-          return keeps cover until Manager closes the extension; cover no-show
-          re-opens the vacancy.
+          {tr("Returns, extensions, emergency paths, and cover disruptions. Late return keeps cover until Manager closes the extension; cover no-show re-opens the vacancy.")}
         </p>
       </div>
 
@@ -288,7 +287,7 @@ export default function LeaveLifecycleClient() {
         <Select
           allowClear={!locked}
           disabled={!!locked}
-          placeholder="All sites"
+          placeholder={tr("All sites")}
           style={{ minWidth: 180 }}
           value={siteId}
           options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -298,24 +297,24 @@ export default function LeaveLifecycleClient() {
           style={{ minWidth: 180 }}
           value={kind}
           options={[
-            { value: "all", label: "All kinds" },
-            { value: "extension_open", label: "Extensions" },
-            { value: "due_return", label: "Return due" },
-            { value: "late_return", label: "Late / overdue" },
-            { value: "active_cover", label: "Active cover" },
-            { value: "cover_disrupted", label: "Disrupted" },
-            { value: "emergency_open", label: "Emergency" },
-            { value: "unexplained", label: "Unexplained" },
+            { value: "all", label: tr("All kinds") },
+            { value: "extension_open", label: tr("Extensions") },
+            { value: "due_return", label: tr("Return due") },
+            { value: "late_return", label: tr("Late / overdue") },
+            { value: "active_cover", label: tr("Active cover") },
+            { value: "cover_disrupted", label: tr("Disrupted") },
+            { value: "emergency_open", label: tr("Emergency") },
+            { value: "unexplained", label: tr("Unexplained") },
           ]}
           onChange={setKind}
         />
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        <KpiStat label="Extensions" value={report.extensionCount} tone="alert" />
-        <KpiStat label="Due / late" value={report.dueReturnCount} />
-        <KpiStat label="Disrupted" value={report.disruptedCount} tone="alert" />
-        <KpiStat label="Emergency" value={report.emergencyCount} />
+        <KpiStat label={tr("Extensions")} value={report.extensionCount} tone="alert" />
+        <KpiStat label={tr("Due / late")} value={report.dueReturnCount} />
+        <KpiStat label={tr("Disrupted")} value={report.disruptedCount} tone="alert" />
+        <KpiStat label={tr("Emergency")} value={report.emergencyCount} />
       </div>
 
       <Table

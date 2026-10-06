@@ -14,8 +14,9 @@ import {
 import { TODAY } from "@/lib/shift";
 import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { tr, trTable, trData, trEnum } from "@/lib/i18n";
 
-const KIND_LABEL: Record<ManpowerIssue["kind"], string> = {
+const KIND_LABEL: Record<ManpowerIssue["kind"], string> = trTable({
   uncovered_vacancy: "Uncovered",
   open_vacancy: "Open vacancy",
   plant_overlap: "Plant overlap",
@@ -27,7 +28,7 @@ const KIND_LABEL: Record<ManpowerIssue["kind"], string> = {
   ot_decision_pending: "OT decision",
   lifecycle_extension: "Leave extension",
   cover_disrupted: "Cover disrupted",
-};
+});
 
 export default function ManpowerConflictPage() {
   const session = getSession();
@@ -57,12 +58,10 @@ export default function ManpowerConflictPage() {
             fontSize: 22,
           }}
         >
-          Manpower + Conflict
+          {tr("Manpower + Conflict")}
         </div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Plant shortages, uncovered shifts, leave overlaps, and roster
-          conflicts in one place. Attention items block leave site-approve and
-          rotation publish until resolved (cover / OT / schedule edit).
+          {tr("Plant shortages, uncovered shifts, leave overlaps, and roster conflicts in one place. Attention items block leave site-approve and rotation publish until resolved (cover / OT / schedule edit).")}
         </p>
       </div>
 
@@ -70,7 +69,7 @@ export default function ManpowerConflictPage() {
         <Select
           allowClear={!locked}
           disabled={!!locked}
-          placeholder="All sites"
+          placeholder={tr("All sites")}
           style={{ minWidth: 200 }}
           value={siteId}
           options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -95,83 +94,83 @@ export default function ManpowerConflictPage() {
         }}
       >
         <KpiStat
-          label="Attention"
+          label={tr("Attention")}
           value={report.attentionCount}
           tone="alert"
         />
         <KpiStat
-          label="Uncovered"
+          label={tr("Uncovered")}
           value={report.uncoveredCount}
           tone="alert"
         />
         <KpiStat
-          label="Open vacancies"
+          label={tr("Open vacancies")}
           value={report.openVacancyCount}
           tone="info"
         />
-        <KpiStat label="Plant overlaps" value={report.overlapCount} />
-        <KpiStat label="All issues" value={report.issues.length} />
+        <KpiStat label={tr("Plant overlaps")} value={report.overlapCount} />
+        <KpiStat label={tr("All issues")} value={report.issues.length} />
       </div>
 
       <Table
         rowKey="id"
         dataSource={report.issues}
         style={{ background: nectarColors.white }}
-        locale={{ emptyText: "No manpower or conflict issues in this window" }}
+        locale={{ emptyText: tr("No manpower or conflict issues in this window") }}
         columns={[
           {
-            title: "Severity",
+            title: tr("Severity"),
             dataIndex: "severity",
             width: 110,
             render: (s: string) => (
               <Tag color={s === "attention" ? nectarColors.alert : "#D97706"}>
-                {s}
+                {trData(s)}
               </Tag>
             ),
           },
           {
-            title: "Kind",
+            title: tr("Kind"),
             dataIndex: "kind",
             render: (k: ManpowerIssue["kind"]) => KIND_LABEL[k] ?? k,
           },
           {
-            title: "Date",
+            title: tr("Date"),
             dataIndex: "date",
             width: 120,
           },
           {
-            title: "Site",
+            title: tr("Site"),
             dataIndex: "siteId",
-            render: (id: string) => getSiteName(id),
+            render: (id: string) => trData(getSiteName(id)),
           },
           {
-            title: "Shift",
+            title: tr("Shift"),
             dataIndex: "shiftCode",
             width: 70,
-            render: (c?: string) => (c ? <Tag>{c}</Tag> : "—"),
+            render: (c?: string) => (c ? <Tag>{trData(c)}</Tag> : "—"),
           },
           {
-            title: "Issue",
+            title: tr("Issue"),
             dataIndex: "message",
             render: (m: string, r) => (
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{r.title}</div>
-                <div style={{ fontSize: 12, color: nectarColors.muted }}>{m}</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{trData(r.title)}</div>
+                <div style={{ fontSize: 12, color: nectarColors.muted }}>{trData(m)}</div>
               </div>
             ),
           },
           {
-            title: "Resolve via",
+            title: tr("Resolve via"),
             dataIndex: "resolvableBy",
             width: 120,
-            render: (r: string) => r.replace("_", " "),
+            render: (r: string) => trEnum(r),
           },
           {
             title: "",
             key: "link",
             width: 90,
             render: (_, r) =>
-              r.href ? <Link href={r.href}>Open</Link> : null,
+              r.href ? <Link href={r.href}>{tr("Open")}</Link> : null,
           },
         ]}
       />

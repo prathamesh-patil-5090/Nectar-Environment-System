@@ -22,6 +22,7 @@ import {
   OT_STATUS_COLORS,
   OT_STATUS_OPTIONS,
 } from "@/components/overtime/OtStatusStrip";
+import { tr, trData } from "@/lib/i18n";
 
 const { RangePicker } = DatePicker;
 
@@ -47,7 +48,7 @@ function Field({
         flex: wide ? "1 1 220px" : "1 1 140px",
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", color: nectarColors.muted }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", color: nectarColors.muted }}>{trData(label)}</span>
       {children}
     </label>
   );
@@ -63,14 +64,14 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
       : null;
 
   const statusMenu: MenuProps["items"] = [
-    { key: "all", label: "All statuses", onClick: () => patch({ status: undefined }) },
+    { key: "all", label: tr("All statuses"), onClick: () => patch({ status: undefined }) },
     { type: "divider" },
     ...OT_STATUS_OPTIONS.map((opt) => ({
       key: opt.value,
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color }} />
-          {opt.label}
+          {trData(opt.label)}
         </span>
       ),
       onClick: () => patch({ status: opt.value }),
@@ -134,12 +135,12 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
                 lineHeight: 1.2,
               }}
             >
-              Filters
+              {tr("Filters")}
             </div>
             <div style={{ fontSize: 12, color: nectarColors.muted }}>
               {activeCount
-                ? `${activeCount} active · hover OT Status for quick switch`
-                : "Refine OT by period, site, people, and status"}
+                ? tr("{activeCount} active · hover OT Status for quick switch", { activeCount })
+                : tr("Refine OT by period, site, people, and status")}
             </div>
           </div>
         </div>
@@ -150,12 +151,12 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           disabled={activeCount === 0}
           style={{ color: nectarColors.muted }}
         >
-          Clear
+          {tr("Clear")}
         </Button>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
-        <Field label="Date range" wide>
+        <Field label={tr("Date range")} wide>
           <RangePicker
             value={rangeValue}
             style={controlStyle}
@@ -175,10 +176,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Year">
+        <Field label={tr("Year")}>
           <Select
             allowClear
-            placeholder="Any year"
+            placeholder={tr("Any year")}
             style={controlStyle}
             value={value.year}
             options={availableOtYears.map((y) => ({ value: y, label: String(y) }))}
@@ -188,10 +189,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Month">
+        <Field label={tr("Month")}>
           <Select
             allowClear
-            placeholder="Any month"
+            placeholder={tr("Any month")}
             style={controlStyle}
             value={value.month}
             disabled={!value.year}
@@ -200,11 +201,11 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Site">
+        <Field label={tr("Site")}>
           <Select
             allowClear={!lockedSiteId}
             disabled={!!lockedSiteId}
-            placeholder="All sites"
+            placeholder={tr("All sites")}
             style={controlStyle}
             value={lockedSiteId ?? value.siteId}
             options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -212,10 +213,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Department">
+        <Field label={tr("Department")}>
           <Select
             allowClear
-            placeholder="All departments"
+            placeholder={tr("All departments")}
             style={controlStyle}
             value={value.department}
             options={departments.map((d) => ({ value: d, label: d }))}
@@ -223,12 +224,12 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Employee">
+        <Field label={tr("Employee")}>
           <Select
             allowClear
             showSearch
             optionFilterProp="label"
-            placeholder="All employees"
+            placeholder={tr("All employees")}
             style={controlStyle}
             value={value.employeeId}
             options={employees.map((e) => ({ value: e.id, label: e.name }))}
@@ -236,10 +237,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Shift">
+        <Field label={tr("Shift")}>
           <Select
             allowClear
-            placeholder="All shifts"
+            placeholder={tr("All shifts")}
             style={controlStyle}
             value={value.shiftId}
             options={shifts.map((s) => ({ value: s.id, label: s.name }))}
@@ -247,10 +248,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="Employee type">
+        <Field label={tr("Employee type")}>
           <Select
             allowClear
-            placeholder="All types"
+            placeholder={tr("All types")}
             style={controlStyle}
             value={value.employeeType}
             options={(
@@ -260,10 +261,10 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
           />
         </Field>
 
-        <Field label="OT Status">
+        <Field label={tr("OT Status")}>
           <Select
             allowClear
-            placeholder="All statuses"
+            placeholder={tr("All statuses")}
             style={controlStyle}
             value={value.status}
             options={OT_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
@@ -317,7 +318,7 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
                   }}
                 >
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: opt.color }} />
-                  {opt.label}
+                  {trData(opt.label)}
                 </button>
               </Dropdown>
             ))}
