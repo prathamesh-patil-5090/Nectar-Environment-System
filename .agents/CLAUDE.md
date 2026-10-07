@@ -13,5 +13,8 @@ When instructed with `/update-agents`:
 ## Tech Stack & Architecture
 - **Next.js 16 (App Router)** + React 19 + TypeScript.
 - **Ant Design 6** + Tailwind CSS v4.
-- **LocalStorage State Stores**: Located in `client/lib/*/store.ts` (`shift`, `leave`, `overtime`, `training`).
-- **RBAC**: Plant-scoped access control defined in `client/lib/rbac.ts`.
+- **Server**: NestJS 10 + MongoDB in `server/` (modules in `server/src/modules/`); client calls it via `client/lib/api/*`.
+- **LocalStorage caches**: `client/lib/*/store.ts` (`shift`, `leave`, `ot-decision`, `safety`, `e-permit`, `training`, …).
+- **i18n**: English / Hindi / Marathi via `client/lib/i18n/` — add new UI strings to `locales/` or `catalog/`.
+- **RBAC**: `client/lib/rbac.ts`. HoD (Senior Manager) has Plant Manager (Assistant Manager) access across all plants — use `isManagerRole()`, not `role === "manager"`.
+- **Shared rules**: `client/lib/safety/rules.ts` and `client/lib/e-permit/rules.ts` must stay identical to their server copies.
