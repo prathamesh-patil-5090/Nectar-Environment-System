@@ -64,6 +64,7 @@ import {
   scopedEmployeeId,
   scopedSiteId,
   isInChargeOf,
+  isManagerRole,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
@@ -740,7 +741,7 @@ export default function LeaveDetailPage({
                       const otActorRole =
                         role === "director"
                           ? "director"
-                          : role === "manager"
+                          : isManagerRole(role)
                             ? "manager"
                             : "sic";
                       run(
@@ -1017,7 +1018,7 @@ export default function LeaveDetailPage({
                         actorRole:
                           role === "director"
                             ? "director"
-                            : role === "manager"
+                            : isManagerRole(role)
                               ? "manager"
                               : role === "supervisor"
                                 ? "supervisor"

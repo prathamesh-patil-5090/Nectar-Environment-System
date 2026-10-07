@@ -13,6 +13,7 @@ import AdminTab from "./AdminTab";
 import { useViewer } from "@/lib/training/hooks";
 import { useT } from "@/lib/i18n";
 import styles from "../ui/training.module.css";
+import { isManagerRole } from "@/lib/rbac";
 
 /** Training for HR / Manager / Director ("Academic Records"). The active tab is kept in the URL. */
 export default function AcademicRecordsConsole() {
@@ -21,14 +22,14 @@ export default function AcademicRecordsConsole() {
   const pathname = usePathname();
   const params = useSearchParams();
   const tab = params?.get("tab") ?? "team";
-  const canFlag = viewer.role === "director" || viewer.role === "manager";
+  const canFlag = viewer.role === "director" || isManagerRole(viewer.role);
   const isAdmin = viewer.role === "director" || viewer.role === "hr";
   const t = useT();
 
   const items = [
     {
       key: "team",
-      label: viewer.role === "manager" ? t("training.myTeam") : t("training.teamProgress"),
+      label: isManagerRole(viewer.role) ? t("training.myTeam") : t("training.teamProgress"),
       children: <TeamProgressTable />,
     },
     ...(canFlag ? [{ key: "flags", label: t("training.assignFlag"), children: <MyFlagsTab /> }] : []),

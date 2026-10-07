@@ -16,6 +16,7 @@ import { useViewer } from "@/lib/training/hooks";
 import { nectarColors } from "@/lib/theme";
 import { sWhiteR14BorderShadow } from "@/lib/styles";
 import { tr, intlLocale, trData } from "@/lib/i18n";
+import { isManagerRole } from "@/lib/rbac";
 
 interface TrainingScheduleViewProps {
   /** Show only this employee's sessions (learner view). Omit for the manager / Director view. */
@@ -27,7 +28,7 @@ export default function TrainingScheduleView({ employeeId }: TrainingScheduleVie
   const { message } = App.useApp();
   const viewer = useViewer();
   const { ready } = useTrainingData();
-  const isManager = !employeeId && (viewer.role === "manager" || viewer.role === "director");
+  const isManager = !employeeId && (isManagerRole(viewer.role) || viewer.role === "director");
   const sessions = getTrainingSessions(employeeId);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);

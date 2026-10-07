@@ -31,6 +31,7 @@ import {
   canManageRelieverPool,
   normalizeRole,
   scopedSiteId,
+  isManagerRole,
 } from "@/lib/rbac";
 import { TODAY } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
@@ -70,7 +71,7 @@ export default function LeaveLifecycleClient() {
   const actorRole =
     role === "director"
       ? "director"
-      : role === "manager"
+      : isManagerRole(role)
         ? "manager"
         : role === "supervisor"
           ? "supervisor"

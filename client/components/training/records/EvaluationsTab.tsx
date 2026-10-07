@@ -9,6 +9,7 @@ import { useAsync, useViewer } from "@/lib/training/hooks";
 import type { PendingEvaluation } from "@/lib/training/types";
 import EvaluatorScoringModal from "../EvaluatorScoringModal";
 import { tr, trData } from "@/lib/i18n";
+import { isManagerRole } from "@/lib/rbac";
 
 /**
  * Learners who passed the skill map and wait for an on-site practical or oral viva.
@@ -16,7 +17,7 @@ import { tr, trData } from "@/lib/i18n";
  */
 export default function EvaluationsTab() {
   const viewer = useViewer();
-  const canScore = viewer.role === "director" || viewer.role === "manager";
+  const canScore = viewer.role === "director" || isManagerRole(viewer.role);
   const { data, loading, error, reload } = useAsync(
     () => getPendingEvaluations(canScore ? viewer.personId : undefined),
     [viewer.personId, canScore],

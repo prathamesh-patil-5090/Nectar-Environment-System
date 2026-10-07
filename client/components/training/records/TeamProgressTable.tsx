@@ -16,6 +16,7 @@ import {
 import { useViewer } from "@/lib/training/hooks";
 import FlagTrainingNeedModal, { flaggableIds } from "./FlagTrainingNeedModal";
 import { translatePersonName, useT, trData, trCell } from "@/lib/i18n";
+import { isManagerRole } from "@/lib/rbac";
 
 type Row = {
   id: string;
@@ -196,7 +197,7 @@ export default function TeamProgressTable() {
         pagination={{ pageSize: 15, hideOnSinglePage: true }}
         locale={{
           emptyText:
-            viewer.role === "manager" ? t("training.noAllotted") : t("training.nobodyInTeam"),
+            isManagerRole(viewer.role) ? t("training.noAllotted") : t("training.nobodyInTeam"),
         }}
       />
       <FlagTrainingNeedModal open={flagFor !== null} initialEmployeeIds={flagFor ?? []} onClose={() => setFlagFor(null)} />

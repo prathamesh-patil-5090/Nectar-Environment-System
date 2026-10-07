@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSession, type SessionUser } from "@/lib/auth";
-import { normalizeRole } from "@/lib/rbac";
+import { isManagerRole, normalizeRole } from "@/lib/rbac";
 import { getMentors } from "@/lib/api/training";
 import { personIdOf } from "./identity";
 
@@ -60,7 +60,7 @@ export function useViewer(): Viewer {
     session,
     personId: personIdOf(session),
     role,
-    isRecords: role === "hr" || role === "manager" || role === "director",
+    isRecords: role === "hr" || isManagerRole(role) || role === "director",
   };
 }
 
