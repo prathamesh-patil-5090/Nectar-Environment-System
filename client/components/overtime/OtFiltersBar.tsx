@@ -284,46 +284,47 @@ export default function OtFiltersBar({ value, onChange, lockedSiteId }: Props) {
             }}
             onChange={(status: OtStatus | undefined) => patch({ status })}
           />
-          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {OT_STATUS_OPTIONS.map((opt) => (
-              <Dropdown key={opt.value} menu={{ items: statusMenu }} trigger={["hover"]}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    patch({
-                      status:
-                        value.status === opt.value ? undefined : opt.value,
-                    })
-                  }
-                  style={{
-                    border: `1px solid ${
-                      value.status === opt.value
-                        ? opt.color
-                        : "rgba(28, 68, 99, 0.15)"
-                    }`,
-                    background:
-                      value.status === opt.value
-                        ? `${opt.color}18`
-                        : nectarColors.white,
-                    borderRadius: 999,
-                    padding: "4px 10px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: nectarColors.ink,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: opt.color }} />
-                  {trData(opt.label)}
-                </button>
-              </Dropdown>
-            ))}
-          </div>
         </Field>
+      </div>
+
+      <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {OT_STATUS_OPTIONS.map((opt) => (
+          <Dropdown key={opt.value} menu={{ items: statusMenu }} trigger={["hover"]}>
+            <button
+              type="button"
+              onClick={() =>
+                patch({
+                  status:
+                    value.status === opt.value ? undefined : opt.value,
+                })
+              }
+              style={{
+                border: `1px solid ${
+                  value.status === opt.value
+                    ? opt.color
+                    : "rgba(28, 68, 99, 0.15)"
+                }`,
+                background:
+                  value.status === opt.value
+                    ? `${opt.color}18`
+                    : nectarColors.white,
+                borderRadius: 999,
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: nectarColors.ink,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontFamily: "inherit",
+              }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: opt.color }} />
+              {trData(opt.label)}
+            </button>
+          </Dropdown>
+        ))}
       </div>
     </div>
   );

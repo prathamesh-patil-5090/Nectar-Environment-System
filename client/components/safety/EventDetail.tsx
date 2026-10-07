@@ -73,6 +73,11 @@ import type { LeaveRequest } from "@/lib/leave/types";
 import { LEAVE_STATUS_LABELS } from "@/lib/leave/types";
 import { createBreakdownOtDecision, getOtDecisionById } from "@/lib/ot-decision";
 import EventTimeline from "./EventTimeline";
+import { useEPermits } from "@/lib/e-permit/hooks";
+import { permitsForBreakdown } from "@/lib/e-permit/views";
+import { EPERMIT_STATUS_LABELS } from "@/lib/e-permit/rules";
+import { E_PERMITS_ENABLED } from "@/lib/e-permit/feature";
+import { canIssueEPermit } from "@/lib/rbac";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { Dot, Facts, Person, Prose, Quiet, Section, SubHeading, severityColor, statusColor } from "./ui";
 import { tr, trNode, intlLocale, trData } from "@/lib/i18n";
@@ -670,6 +675,12 @@ function BreakdownCard({ ev, canEdit, peopleOptions, empName, onSave, busy, ot }
   const [rows, setRows] = useState(ev.otEntries);
   const [restoredAt, setRestoredAt] = useState(ev.restoredAt ?? "");
   const [otHours, setOtHours] = useState(4);
+  // Breakdown repair needs an E-Permit before repair OT (plan §13)
+  const { permits } = useEPermits();
+  const linkedPermits = permitsForBreakdown(permits, ev.id);
+  const permitRequired = E_PERMITS_ENABLED && !linkedPermits.length;
+  const session = getSession();
+  const canIssueHere = canIssueEPermit(session) && session?.siteId === ev.siteId;
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       setRows(ev.otEntries);
@@ -701,11 +712,31 @@ function BreakdownCard({ ev, canEdit, peopleOptions, empName, onSave, busy, ot }
               })
             : "—"}
         </Descriptions.Item>
+        {E_PERMITS_ENABLED ? (
+          <Descriptions.Item label={tr("E-Permits")}>
+            {linkedPermits.length
+              ? linkedPermits.map((p) => (
+                  <Link key={p.id} href={`/e-permits/${p.id}`} style={{ marginRight: 8 }}>
+                    {p.permitNo} ({tr(EPERMIT_STATUS_LABELS[p.status])})
+                  </Link>
+                ))
+              : tr("None yet — repair work needs an E-Permit")}
+          </Descriptions.Item>
+        ) : null}
       </Descriptions>
+      {E_PERMITS_ENABLED && !ev.restoredAt && canIssueHere ? (
+        <div style={{ margin: "8px 0" }}>
+          <Link href={`/e-permits/new?breakdown=${encodeURIComponent(ev.id)}`}>
+            <Button>{linkedPermits.length ? tr("Issue another E-Permit for this repair") : tr("Issue E-Permit for this repair")}</Button>
+          </Link>
+        </div>
+      ) : null}
       {canEdit && !ev.restoredAt ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", margin: "8px 0" }}>
           <InputNumber min={1} max={12} value={otHours} onChange={(v) => setOtHours(Number(v) || 1)} suffix="h" />
           <Button
+            disabled={permitRequired}
+            title={permitRequired ? tr("Issue an E-Permit for the repair first") : undefined}
             loading={busy}
             onClick={() => {
               const decision = createBreakdownOtDecision({

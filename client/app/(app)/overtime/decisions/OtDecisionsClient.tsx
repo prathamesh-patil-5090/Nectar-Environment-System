@@ -257,6 +257,12 @@ export default function OtDecisionsClient() {
           {row.leaveId ? (
             <Link href={`/leave/requests/${row.leaveId}`}>{tr("Leave")}</Link>
           ) : null}
+          {row.safetyEventId ? (
+            <Link href={`/safety/breakdowns/${row.safetyEventId}`}>{tr("Breakdown")}</Link>
+          ) : null}
+          {row.ePermitId ? (
+            <Link href={`/e-permits/${row.ePermitId}`}>{tr("E-Permit")}</Link>
+          ) : null}
           <Link href="/overtime/assign">{tr("Assign")}</Link>
         </div>
       ),

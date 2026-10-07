@@ -287,6 +287,34 @@ export function createBreakdownOtDecision(input: {
   });
 }
 
+/**
+ * OT request for permitted work that needs more hours than the E-Permit window. Always a new decision;
+ * it carries the permit id so OT shows what work it was for and the permit shows who approved the hours.
+ */
+export function createEPermitOtDecision(input: {
+  siteId: string;
+  date: string;
+  hours: number;
+  ePermitId: string;
+  permitNo: string;
+  workTitle: string;
+}): OtDecision {
+  const ev = evaluateOtDecision({ siteId: input.siteId, date: input.date, hours: input.hours, trigger: "e_permit_overrun" });
+  return upsertOtDecision({
+    status: "pending",
+    trigger: "e_permit_overrun",
+    siteId: input.siteId,
+    date: input.date,
+    ePermitId: input.ePermitId,
+    hours: ev.hours,
+    cost: ev.cost,
+    flags: ev.flags,
+    proposedAssignees: ev.proposedAssignees,
+    title: `E-Permit overrun: ${input.permitNo} · ${input.workTitle}`,
+    message: ev.message,
+  });
+}
+
 /** Cost helper for UI using operator rate when available */
 export function estimateOtCost(hours: number, payCategory = "operator"): number {
   try {
