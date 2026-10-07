@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Alert, Spin, theme } from "antd";
 import SkillHeatmap from "@/components/SkillHeatmap";
 import UrgentTrainingList from "@/components/UrgentTrainingList";
@@ -29,6 +30,12 @@ export default function DashboardPage() {
   const role = normalizeRole(session?.role);
   const empId = selfEmployeeId(session);
   const isEmployee = role === "employee";
+  const router = useRouter();
+
+  // Heads of Department are not plant staff — their home is the E-Permits inbox.
+  useEffect(() => {
+    if (role === "hod") router.replace("/e-permits");
+  }, [role, router]);
 
   const [roster, setRoster] = useState<Employee[] | null>(null);
   const [sites, setSites] = useState<Site[]>([]);

@@ -40,6 +40,7 @@ import {
   SettingOutlined,
   SafetyOutlined,
   WarningOutlined,
+  FileProtectOutlined,
 } from "@ant-design/icons";
 import { getSession, logout, type SessionUser, type UserRole } from "@/lib/auth";
 import { resetDemoLocalData } from "@/lib/demo-reset";
@@ -54,12 +55,15 @@ import {
   canViewLeaveManagement,
   canViewOtModule,
   canViewEmployeeRoster,
+  canIssueEPermit,
+  canViewEPermitsNav,
   canViewRelieverPoolNav,
   canViewShiftsNav,
   canViewSitesNav,
   normalizeRole,
   roleLabel,
   visibleShiftNavKeys,
+  isManagerRole,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { hydrateAllStoresFromApi } from "@/lib/sync";
@@ -76,7 +80,7 @@ type TFn = (key: string) => string;
 
 /** HR / Manager / Director see Training, Events + Certifications as records; everyone else as Academy. */
 function academyNavGroup(role: UserRole, t: TFn): NonNullable<MenuProps["items"]>[number] {
-  const isRecords = role === "hr" || role === "manager" || role === "director";
+  const isRecords = role === "hr" || isManagerRole(role) || role === "director";
   return {
     key: isRecords ? "academic-records" : "academy",
     icon: <BookOutlined />,
@@ -174,6 +178,9 @@ const PAGE_TITLE_KEYS = [
   "/safety/breakdowns",
   "/safety/protocols",
   "/safety/training",
+  "/e-permits",
+  "/e-permits/new",
+  "/e-permits/policies",
 ] as const;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -360,6 +367,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/overtime")) extras.push("overtime");
     if (pathname.startsWith("/reliever-pool")) extras.push("reliever-pool");
     if (pathname.startsWith("/safety")) extras.push("safety");
+    if (pathname.startsWith("/e-permits")) extras.push("e-permits");
     if (pathname.startsWith("/shifts") && canViewShiftsNav(user)) {
       extras.push("shifts");
     }
@@ -440,6 +448,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     [t, safetyChildren],
   );
 
+  const ePermitsNavItem = useMemo((): NonNullable<MenuProps["items"]>[number] | null => {
+    if (!canViewEPermitsNav(user)) return null;
+    return {
+      key: "e-permits",
+      icon: <FileProtectOutlined />,
+      label: t("nav.ePermits"),
+      children: [
+        { key: "/e-permits", label: t("nav.ePermitsList") },
+        ...(canIssueEPermit(user) ? [{ key: "/e-permits/new", label: t("nav.ePermitsNew") }] : []),
+        { key: "/e-permits/policies", label: t("nav.ePermitsPolicies") },
+      ],
+    };
+  }, [t, user]);
+
   const meetingsNavItem = useMemo(
     (): NonNullable<MenuProps["items"]>[number] => ({
       key: "/meetings",
@@ -481,6 +503,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       "academic-records": t("nav.academicRecords"),
       "reliever-pool": t("nav.relieverPool"),
       safety: t("nav.safety"),
+      "e-permits": t("nav.ePermits"),
     }),
     [t],
   );
@@ -546,6 +569,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname === "/safety") return "/safety";
 
+    // 3c. E-Permits (a permit's own page maps to the list)
+    if (pathname === "/e-permits/new") return "/e-permits/new";
+    if (pathname.startsWith("/e-permits/policies")) return "/e-permits/policies";
+    if (pathname.startsWith("/e-permits")) return "/e-permits";
+
     // 4. Employee directory vs own profile (own profile is navbar-only)
     if (pathname === "/employees" || pathname.startsWith("/employees/")) {
       return "/employees";
@@ -594,6 +622,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/safety/incidents/")) return t("pages./safety/incidents");
     if (pathname.startsWith("/safety/breakdowns/")) return t("pages./safety/breakdowns");
+    if (pathname.startsWith("/e-permits/") && pathname !== "/e-permits/new" && !pathname.startsWith("/e-permits/policies")) {
+      return t("pages./e-permits");
+    }
     if (pathname.startsWith("/training/")) {
       return t("nav.training");
     }
@@ -615,24 +646,58 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItemsFiltered = useMemo(() => {
     const role = normalizeRole(user?.role);
+    type NavItem = NonNullable<MenuProps["items"]>[number];
+    type NavSection = { key: string; label?: string; items: (NavItem | null | false)[] };
+
+    /** Headed sections when expanded; dividers instead when collapsed (group titles don't fit the icon rail). */
+    const sectioned = (sections: NavSection[]): MenuProps["items"] => {
+      const out: NavItem[] = [];
+      for (const s of sections) {
+        const items = s.items.filter(Boolean) as NavItem[];
+        if (!items.length) continue;
+        if (!s.label) {
+          out.push(...items);
+        } else if (collapsed) {
+          if (out.length) out.push({ type: "divider", key: `${s.key}-divider` });
+          out.push(...items);
+        } else {
+          out.push({ type: "group", key: s.key, label: s.label, children: items });
+        }
+      }
+      return out;
+    };
+
     if (role === "employee") {
-      return [
-        { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
+      return sectioned([
+        { key: "home", items: [{ key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") }] },
         {
-          key: "leave",
-          icon: <CalendarOutlined />,
-          label: t("nav.leave"),
-          children: [
-            { key: "/leave", label: t("nav.leaveOverview") },
-            { key: "/leave/requests", label: t("nav.leaveRequests") },
+          key: "grp-my-work",
+          label: t("nav.groupMyWork"),
+          items: [
+            {
+              key: "leave",
+              icon: <CalendarOutlined />,
+              label: t("nav.leave"),
+              children: [
+                { key: "/leave", label: t("nav.leaveOverview") },
+                { key: "/leave/requests", label: t("nav.leaveRequests") },
+              ],
+            },
+            { key: "/salary", icon: <WalletOutlined />, label: t("nav.salary") },
+            academyNavGroup(role, t),
           ],
         },
-        academyNavGroup(role, t),
-        safetyNavItem,
-        { key: "/salary", icon: <WalletOutlined />, label: t("nav.salary") },
-        meetingsNavItem,
-        medicalRecordsNavItem,
-      ] as MenuProps["items"];
+        { key: "grp-safety", label: t("nav.groupSafety"), items: [safetyNavItem, ePermitsNavItem] },
+        { key: "grp-more", label: t("nav.groupMore"), items: [meetingsNavItem, medicalRecordsNavItem] },
+      ]);
+    }
+
+    // Heads of Department (and deputies) are not plant staff: permits and safety only.
+    if (role === "hod") {
+      return sectioned([
+        { key: "grp-safety", label: t("nav.groupSafety"), items: [ePermitsNavItem, safetyNavItem] },
+        { key: "grp-collab", label: t("nav.groupCollab"), items: [meetingsNavItem] },
+      ]);
     }
 
     const leaveKids = leaveChildren.filter((c) => {
@@ -652,63 +717,66 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ? shiftChildren.filter((c) => shiftKeys.includes(c.key))
       : [];
 
-    const items: MenuProps["items"] = [
-      { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
-      ...(canViewEmployeeRoster(user)
-        ? [{ key: "/employees", icon: <TeamOutlined />, label: t("nav.employees") }]
-        : []),
-    ];
-
-    if (canViewSitesNav(user)) {
-      items.push({ key: "/sites", icon: <EnvironmentOutlined />, label: t("nav.sites") });
-    }
-
-    items.push(academyNavGroup(role, t));
-
-    if (canViewShiftsNav(user) && shiftKids.length) {
-      items.push({ key: "shifts", icon: <ScheduleOutlined />, label: t("nav.shifts"), children: shiftKids });
-    }
-
-    if (canViewRelieverPoolNav(user)) {
-      items.push({
-        key: "reliever-pool",
-        icon: <ClusterOutlined />,
-        label: t("nav.relieverPool"),
-        children: [
-          { key: "/reliever-pool", label: t("nav.relieverPool") },
-          { key: "/reliever-pool/competition", label: t("nav.competition") },
+    return sectioned([
+      { key: "home", items: [{ key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") }] },
+      {
+        key: "grp-people",
+        label: t("nav.groupPeople"),
+        items: [
+          canViewEmployeeRoster(user) && { key: "/employees", icon: <TeamOutlined />, label: t("nav.employees") },
+          academyNavGroup(role, t),
+          medicalRecordsNavItem,
         ],
-      });
-    }
-
-    items.push({ key: "leave", icon: <CalendarOutlined />, label: t("nav.leave"), children: leaveKids });
-
-    if (canViewOtModule(user)) {
-      items.push({
-        key: "overtime",
-        icon: <ClockCircleOutlined />,
-        label: t("nav.overtime"),
-        children: [
-          ...overtimeChildren,
-          ...(canAssignOt(user)
-            ? [{ key: "/overtime/assign", label: t("pages./overtime/assign") }]
-            : []),
+      },
+      {
+        key: "grp-workforce",
+        label: t("nav.groupWorkforce"),
+        items: [
+          canViewSitesNav(user) && { key: "/sites", icon: <EnvironmentOutlined />, label: t("nav.sites") },
+          canViewShiftsNav(user) && shiftKids.length > 0 && {
+            key: "shifts", icon: <ScheduleOutlined />, label: t("nav.shifts"), children: shiftKids,
+          },
+          canViewRelieverPoolNav(user) && {
+            key: "reliever-pool",
+            icon: <ClusterOutlined />,
+            label: t("nav.relieverPool"),
+            children: [
+              { key: "/reliever-pool", label: t("nav.relieverPool") },
+              { key: "/reliever-pool/competition", label: t("nav.competition") },
+            ],
+          },
         ],
-      });
-    }
-
-    items.push(safetyNavItem);
-    items.push(meetingsNavItem);
-    items.push(medicalRecordsNavItem);
-
-    return items;
+      },
+      {
+        key: "grp-time-pay",
+        label: t("nav.groupTimePay"),
+        items: [
+          { key: "leave", icon: <CalendarOutlined />, label: t("nav.leave"), children: leaveKids },
+          canViewOtModule(user) && {
+            key: "overtime",
+            icon: <ClockCircleOutlined />,
+            label: t("nav.overtime"),
+            children: [
+              ...overtimeChildren,
+              ...(canAssignOt(user)
+                ? [{ key: "/overtime/assign", label: t("pages./overtime/assign") }]
+                : []),
+            ],
+          },
+        ],
+      },
+      { key: "grp-safety", label: t("nav.groupSafety"), items: [safetyNavItem, ePermitsNavItem] },
+      { key: "grp-collab", label: t("nav.groupCollab"), items: [meetingsNavItem] },
+    ]);
   }, [
     user,
     t,
+    collapsed,
     leaveChildren,
     shiftChildren,
     overtimeChildren,
     safetyNavItem,
+    ePermitsNavItem,
     meetingsNavItem,
     medicalRecordsNavItem,
     locale,
