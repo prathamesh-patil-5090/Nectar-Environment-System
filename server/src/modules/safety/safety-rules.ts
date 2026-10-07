@@ -33,6 +33,7 @@ export type SafetyCategory =
 export type SafetyRole =
   | "director"
   | "manager"
+  | "hod"
   | "hr"
   | "site_incharge"
   | "shift_incharge"
@@ -96,6 +97,7 @@ export function normalizeSafetyRole(role?: string): SafetyRole {
   const known: SafetyRole[] = [
     "director",
     "manager",
+    "hod",
     "hr",
     "site_incharge",
     "shift_incharge",
@@ -109,6 +111,7 @@ export function normalizeSafetyRole(role?: string): SafetyRole {
 const ALL_ROLES: SafetyRole[] = [
   "director",
   "manager",
+  "hod",
   "hr",
   "site_incharge",
   "shift_incharge",
@@ -138,33 +141,33 @@ export type SafetyAction =
 export const SAFETY_PERMISSIONS: Record<SafetyAction, SafetyRole[]> = {
   view: ALL_ROLES,
   /** Only the plant manager raises safety concerns (near-miss, injury, fatal injury, death). */
-  reportNearMiss: ["manager"],
-  reportIncident: ["manager"],
+  reportNearMiss: ["manager", "hod"],
+  reportIncident: ["manager", "hod"],
   /** Plant breakdowns are an operations / OT matter, logged by the plant leads. */
-  reportBreakdown: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
+  reportBreakdown: ["director", "manager", "hod", "safety_incharge", "site_incharge", "shift_incharge"],
   comment: ALL_ROLES,
   /**
    * Acknowledge, investigate, corrective actions, edit details — the people responsible for every case:
    * supervisor, shift in-charge, HR, Director and Safety In-charge, plus the manager who raised it.
    */
-  investigate: ["director", "safety_incharge", "manager", "site_incharge", "supervisor", "shift_incharge", "hr"],
+  investigate: ["director", "safety_incharge", "manager", "hod", "site_incharge", "supervisor", "shift_incharge", "hr"],
   /** Mark the case solved — the Director only; it stays open (reminders keep going) until the Director closes it. */
   resolve: ["director"],
   /** Close and reopen — the Director only. Closing is what finishes a case. */
   close: ["director"],
-  clearNonCritical: ["director", "safety_incharge", "manager"],
+  clearNonCritical: ["director", "safety_incharge", "manager", "hod"],
   clearCritical: ["director", "safety_incharge"],
   waiveClearance: ["director"],
-  linkLeave: ["director", "safety_incharge", "manager", "site_incharge", "hr"],
-  startCall: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
-  updateBreakdown: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
+  linkLeave: ["director", "safety_incharge", "manager", "hod", "site_incharge", "hr"],
+  startCall: ["director", "manager", "hod", "safety_incharge", "site_incharge", "shift_incharge"],
+  updateBreakdown: ["director", "manager", "hod", "safety_incharge", "site_incharge", "shift_incharge"],
   editProtocols: ["director", "safety_incharge"],
   /** The case report PDF — everyone who runs a case, never plain employees. */
-  downloadReport: ["director", "manager", "hr", "site_incharge", "shift_incharge", "safety_incharge", "supervisor"],
+  downloadReport: ["director", "manager", "hod", "hr", "site_incharge", "shift_incharge", "safety_incharge", "supervisor"],
 };
 
-/** Director, HR and Safety In-charge work across every site. */
-export const ORG_WIDE_ROLES: SafetyRole[] = ["director", "hr", "safety_incharge"];
+/** Director, HR, Safety In-charge and Heads of Department work across every site. */
+export const ORG_WIDE_ROLES: SafetyRole[] = ["director", "hr", "safety_incharge", "hod"];
 
 export type SafetyScope = { role?: string; siteId?: string | null };
 
