@@ -12,6 +12,7 @@ import {
   ROLE_LABELS,
 } from "@/lib/auth";
 import { LanguageSwitcher, useI18n, trData } from "@/lib/i18n";
+import { getLoginAccounts, type LoginAccount } from "@/lib/api/auth";
 
 import InteractiveEnvironmentalCanvas, {
   type ThemeMode,
@@ -38,6 +39,55 @@ type LoginValues = {
   password: string;
 };
 
+type DemoAccount = Omit<LoginAccount, "role"> & { role: (typeof DEMO_USERS_VISIBLE)[number]["role"] };
+type DemoGroup = { key: string; title: string; users: DemoAccount[] };
+
+/** Seniority inside a plant, top first. */
+const PLANT_RANK: Partial<Record<DemoAccount["role"], number>> = {
+  manager: 0,
+  management: 0,
+  site_incharge: 1,
+  shift_incharge: 1,
+  supervisor: 2,
+  employee: 3,
+};
+
+/** Leadership → Heads of Department → each plant (Manager → In-Charge → Supervisor → Employees). */
+function groupDemoAccounts(
+  hods: DemoAccount[],
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): DemoGroup[] {
+  const leadership = DEMO_USERS_VISIBLE.filter((u) => ["director", "hr", "safety_incharge"].includes(u.role));
+  const plants = new Map<string, DemoAccount[]>();
+  for (const u of DEMO_USERS_VISIBLE) {
+    if (!u.siteId || leadership.includes(u)) continue;
+    plants.set(u.siteId, [...(plants.get(u.siteId) ?? []), u]);
+  }
+  return [
+    { key: "leadership", title: t("login.demoGroupLeadership"), users: leadership },
+    {
+      key: "hods",
+      title: t("login.demoGroupHods"),
+      // Per department: HOD, then their deputy
+      users: [...hods].sort(
+        (a, b) =>
+          (a.departmentName ?? "").localeCompare(b.departmentName ?? "") || Number(a.isDeputy) - Number(b.isDeputy),
+      ),
+    },
+    ...[...plants].map(([siteId, users]) => ({
+      key: siteId,
+      title: t("login.demoGroupPlant", { site: siteId.replace("s-", "").toUpperCase() }),
+      users: [...users].sort((a, b) => (PLANT_RANK[a.role] ?? 9) - (PLANT_RANK[b.role] ?? 9)),
+    })),
+  ].filter((g) => g.users.length);
+}
+
+/** "HOD · Operations" / "Dy. HOD · Operations" — department comes from the database. */
+function hodLabel(u: DemoAccount, t: (key: string) => string): string {
+  const role = u.isDeputy ? t("login.demoDeputy") : t("login.demoHod");
+  return u.departmentName ? `${role} · ${trData(u.departmentName)}` : role;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [form] = Form.useForm();
@@ -52,10 +102,22 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const onFinish = (values: LoginValues) => {
+  // Heads of Department are listed from the database, not a local file.
+  const [hodAccounts, setHodAccounts] = useState<DemoAccount[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getLoginAccounts("hod")
+      .then((rows) => alive && setHodAccounts(rows))
+      .catch(() => alive && setHodAccounts([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const onFinish = async (values: LoginValues) => {
     setLoading(true);
     setError(null);
-    const user = login(values.email, values.password);
+    const user = await login(values.email, values.password);
     if (!user) {
       setError(t("login.invalidCreds"));
       setLoading(false);
@@ -206,11 +268,23 @@ export default function LoginPage() {
             </div>
 
             <div
+              className="nectar-demo-accounts"
               style={{
-                display: "flex", flexDirection: "column", gap: 3, maxHeight: 160, overflowY: "auto", paddingRight: 2,
+                display: "flex", flexDirection: "column", gap: 3, maxHeight: 160, overflowY: "auto", overflowX: "hidden", paddingRight: 2,
               }}
             >
-              {DEMO_USERS_VISIBLE.map((u) => (
+              {groupDemoAccounts(hodAccounts, t).map((group) => (
+                <div key={group.key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div
+                    style={{
+                      position: "sticky", top: 0, zIndex: 1, background: "#FFFFFF", padding: "8px 8px 3px",
+                      fontSize: 10, fontWeight: 650, letterSpacing: "0.06em", textTransform: "uppercase",
+                      color: "#94A3B8",
+                    }}
+                  >
+                    {group.title}
+                  </div>
+              {group.users.map((u) => (
                 <div
                   key={u.email}
                   onClick={() => handleSelectDemoUser(u.email)}
@@ -232,11 +306,12 @@ export default function LoginPage() {
                     e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
-                  <code style={{ fontSize: 11.5, color: "#1C4463", fontWeight: 500 }}>{u.email}</code>
+                  <code style={{ fontSize: 11.5, color: "#1C4463", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</code>
                   <span style={{ whiteSpace: "nowrap", color: "#64748B", fontSize: 11, fontWeight: 500 }}>
-                    {ROLE_LABELS[u.role]}
-                    {u.siteId ? ` · ${u.siteId.replace("s-", "").toUpperCase()}` : ""}
+                    {u.role === "hod" ? hodLabel(u, t) : ROLE_LABELS[u.role]}
                   </span>
+                </div>
+              ))}
                 </div>
               ))}
             </div>
