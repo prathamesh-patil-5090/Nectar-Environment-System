@@ -23,7 +23,7 @@
 11. [Routes & UI](#11-routes--ui)
 12. [Cross-module hooks](#12-cross-module-hooks)
 13. [Delivery phases](#13-delivery-phases)
-14. [Open questions](#14-open-questions)
+14. [Decided answers](#14-decided-answers)
 
 ---
 
@@ -62,11 +62,11 @@ Supervisor          ← primary issuer (notes)
         ↑
 Shift In-Charge     ← can issue; shift handover partner
         ↑
-Department Head     ← concerned-dept clearance (Manager of that dept / plant Manager)
+Head of Department  ← Senior Manager; clearance for own dept only (v1: separate login per dept)
         ↑
-Plant Manager       ← can issue; plant oversight
+Plant Manager       ← Assistant Manager; can issue; plant oversight (not a stand-in for all HoDs)
         ↑
-Safety In-charge    ← hot-work / confined-space policy gates (reuse existing role)
+Safety In-charge    ← only when policy `requireSafetyFor` matches (not every Hot Work)
         ↑
 Director            ← org visibility + override / waive (rare)
 ```
@@ -81,9 +81,9 @@ Authorization is **level × concern**, not “any manager can approve anything.�
 |---|---|
 | **L0 — Worker** | View own permits; sign acknowledgement / handover |
 | **L1 — Issuer** | Create draft issuer form; request dept clearances; re-issue / hand over (with co-sign) |
-| **L2 — Concerned dept head** | Approve / reject **only** permits that list their department |
-| **L3 — Plant Manager** | Issue; override soft blocks; close with remark; OT hour approval link |
-| **L4 — Safety In-charge** | Mandatory gate for Hot Work / confined space / tank entry (policy-driven) |
+| **L2 — Head of Department** (Senior Manager) | Approve / reject **only** permits that list their department (separate login per dept in v1) |
+| **L3 — Plant Manager** (Assistant Manager) | Issue; plant oversight; override soft blocks; close with remark; OT hour approval link |
+| **L4 — Safety In-charge** | Approve only when policy `requireSafetyFor` matches for that work type |
 | **L5 — Director** | Org-wide view; waive / escalate; never required for normal cold work |
 
 Same pattern as leave: illegal status jumps rejected; soft-blocks for contested / policy fails; OT path separate when work needs overtime hours.
@@ -166,15 +166,18 @@ Introduce (seed + schema):
 |---|---|
 | `departmentId` | `dept-electrical`, `dept-mechanical`, `dept-chemical`, `dept-operator`, `dept-safety` |
 | `name` | Electrical |
-| `headEmployeeId` / `headUserId` | Plant Manager or designated dept lead |
+| `headEmployeeId` / `headUserId` | **Head of Department** login (Senior Manager) — one per dept in v1 |
 | `siteIds[]` | Which plants this dept serves (ETP / RO / MEE) |
+
+**v1 managers:** **Plant Manager** = Assistant Manager (issuer / plant oversight). **Head of Department** = Senior Manager (dept clearance). Plant Manager does **not** act as HoD for multiple depts.
 
 **Concerned department** selection:
 
-1. Issuer picks **location** (site + area / equipment)
+1. Issuer picks **one seeded location** (site + area — e.g. MEE bay, RO skid; free text later only if product asks)
 2. Issuer picks **category** (Hot / Cold) + sub-category (welding, tank entry, …)
-3. Policy engine returns **required department clearances** (e.g. welding near MEE → Mechanical + Electrical + MEE ops)
-4. Only those heads must approve — not every department
+3. Policy engine returns **required department clearances** (e.g. welding near MEE → Mechanical + Electrical)
+4. Only those HoDs must approve — not every department
+5. **One permit = one location only** (no multi-site / multi-area span)
 
 ### Chain for one permit
 
@@ -230,7 +233,7 @@ Illegal jumps rejected (same spirit as leave transitions).
 | Situation | Behaviour |
 |---|---|
 | Missing dept approval | Cannot activate |
-| Hot work without Safety clearance | Soft-block activate |
+| Work type in `requireSafetyFor` without Safety clearance | Soft-block activate (not all Hot Work automatically) |
 | Assign worker who is on approved leave that day | Soft-block (reuse leave coverage check) |
 | Assign worker with pending safety return clearance | Soft-block (reuse Safety gate) |
 | Work past end with no extension | Stay open as `OVERDUE`; red clock; push OT Decision prompt — **do not auto-close** |
@@ -285,13 +288,15 @@ Every category has **sub-categories**; checklist fields depend on type of work.
 | UI / field | Purpose |
 |---|---|
 | **Issue permit** button | Start draft |
-| **Select location** | Site + area / equipment / plant proximity (e.g. near MEE) |
+| **Select location** | **One** seeded area per permit (e.g. MEE bay, RO skid, ETP clarifier) |
 | **Reason** | What work / why |
 | **Needed gears / equipment / safety** | Free text + structured checklist |
 | **Safety gear checks** | Pass/fail checklist (policy template by sub-category) |
 | **Tank clearance / tank safety checks** | Confined-space style gates when applicable |
-| **Workers needed / assigned** | Employee ids on the permit (holders of the work) |
+| **Workers needed / assigned** | Employee ids on the permit; they **acknowledge with signature** (issuer also signs) |
 | **Concerned departments** | Auto-suggested from policy; issuer can add (not remove required) |
+
+**Literacy path:** Issuer = Supervisor / Shift In-Charge / Manager creates the permit; workers do not draft it — they only **sign acknowledgement** (same spirit as leave on-behalf). Issuer signature is required too.
 
 ---
 
@@ -411,8 +416,8 @@ EBS/S3: checklist photos optional under existing media pattern (Safety or shared
 | Module | Hook |
 |---|---|
 | **Leave** | Soft-block assigning a worker who has covering leave that day (`employeeHasCoveringLeave`) |
-| **Safety** | Hot/tank/confined → Safety In-charge clearance; pending return clearance blocks worker on permit |
-| **OT** | Overdue / extension → `e_permit_overrun` decision; Assign OT prefills permit id + hours |
+| **Safety** | Safety In-charge clearance **only if** `requireSafetyFor` matches; pending return clearance blocks worker on permit; **breakdown repair also needs an E-Permit** before / with repair OT |
+| **OT** | Overdue / extension → `e_permit_overrun` decision; Assign OT prefills permit id + hours; breakdown OT stays linked but **requires E-Permit** |
 | **Shifts** | Handover prefers issuers on duty that shift; optional “active permits at site” on shift hub |
 | **Notifications** | Clearance request, 1h warning, overdue, handover pending, closed |
 | **Employees** | Department field → holder / head resolution |
@@ -440,18 +445,26 @@ Costing note: all of this stays on the shared EC2 + DocumentDB + S3 stack in [FE
 
 ---
 
-## 14. Open questions
+## 14. Decided answers
 
-1. **Department heads** — separate logins per dept, or plant Manager acts as head for multiple depts in v1?  
-2. **Location master** — free text vs seeded areas (MEE bay, RO skid, ETP clarifier, …)?  
-3. **Must Safety In-charge approve all Hot Work**, or only when policy `requireSafetyFor` matches?  
-4. **Can one permit span two sites?** (Notes imply single location — recommend **no** for v1.)  
-5. **Worker literacy** — supervisor issues and workers only acknowledge (same as leave on-behalf)?  
-6. **Feature flag** under Safety nav vs own top-level menu?  
-7. Should **breakdown repair** require an E-Permit before OT, or stay on Safety Breakdown path only?
+Decisions captured 7 Oct 2026 (product alignment).
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Department heads — separate logins vs Plant Manager as multi-dept head? | **Two manager types in v1:** **Plant Manager** = Assistant Manager; **Head of Department** = Senior Manager. **Separate HoD login per department** — Plant Manager does **not** act as head for multiple depts. |
+| 2 | Location master — free text vs seeded areas? | **Seeded locations for now** (e.g. MEE bay, RO skid, ETP clarifier). Free-text option only later if the product asks for it. |
+| 3 | Safety In-charge on all Hot Work vs policy match? | Safety In-charge approves **only where needed** — when policy **`requireSafetyFor` matches** that work type. Not every Hot Work automatically. |
+| 4 | Can one permit span two sites? | **No.** **1 E-Permit = 1 specific location only.** |
+| 5 | Worker literacy — who issues / who signs? | **Issuer** (Supervisor / Shift In-Charge / Manager) creates the permit. **Workers acknowledge with their signature.** **Issuer signature is required too.** |
+| 6 | Nav: under Safety vs own top-level menu? | **Still open** — not decided in the alignment chat. Default recommendation until decided: own **E-Permits** top-level menu next to Safety (or under Safety as a child). |
+| 7 | Breakdown repair — E-Permit before OT? | **Yes.** Even breakdown repair **requires an E-Permit** (not Safety Breakdown path alone). |
+
+### Still open
+
+- **§14 #6 only** — place E-Permits under Safety nav vs its own top-level menu (and whether a feature flag gates the nav).
 
 ---
 
 ## One-line stakeholder view
 
-> **E-Permit** = time-boxed, multi-department **permission to work**, with a scalar approval chain, level-based authorization, and policies — wired into Nectar’s existing Leave / Safety / OT stack so overrun hours and approvals stay one audited story.
+> **E-Permit** = time-boxed, **one-location** permission to work, cleared by **Heads of Department** (and Safety only when policy says so), issued by Supervisor / SIC / Manager with worker + issuer signatures — including for **breakdown repair** — wired into Leave / Safety / OT so overrun hours stay one audited story.
