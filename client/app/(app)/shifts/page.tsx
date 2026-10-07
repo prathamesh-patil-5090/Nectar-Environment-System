@@ -19,6 +19,7 @@ import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { gridGap16, gridGap162, rowWrapGap1BgR8 } from "@/lib/styles";
 import Panel from "@/components/Panel";
+import ActivePermitsPanel from "@/components/e-permit/ActivePermitsPanel";
 import { tr, trNode, translatePersonName, trData, trCell, trEnum } from "@/lib/i18n";
 
 export default function ShiftsDashboardPage() {
@@ -154,6 +155,8 @@ export default function ShiftsDashboardPage() {
           )}
         </Panel>
       </div>
+
+      <ActivePermitsPanel siteId={siteId} />
 
       <div className="nectar-ot-two" style={gridGap16}>
         <Panel title={tr("OT by cause (shift-linked)")}>
