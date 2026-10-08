@@ -40,6 +40,7 @@ import {
   shouldNotifyOverdue,
   shouldWarn,
   validateForSubmit,
+  validatePlannedSchedule,
   validateGasReadings,
   type ChecklistAnswer,
   type LocationRef,
@@ -108,6 +109,25 @@ const session = (u: (typeof DEMO_USERS)[number]): SessionUser => ({
   employeeId: u.employeeId,
 });
 const byEmail = (email: string) => [...DEMO_USERS, ...HOD_USERS].find((u) => u.email === email)!;
+
+describe("planned schedule", () => {
+  const shift = { start: "2026-10-08T00:30:00.000Z", end: "2026-10-08T08:30:00.000Z" }; // 06:00–14:00 IST
+  it("accepts a forward window inside the shift, including the shift edges", () => {
+    expect(validatePlannedSchedule(shift.start, shift.end, shift)).toEqual([]);
+  });
+  it("rejects start equal to or after end", () => {
+    expect(validatePlannedSchedule("2026-10-08T02:00:00.000Z", "2026-10-08T02:00:00.000Z", shift)).toContain("Planned end must be after the planned start");
+    expect(validatePlannedSchedule("2026-10-08T03:00:00.000Z", "2026-10-08T02:00:00.000Z", shift)).toContain("Planned end must be after the planned start");
+  });
+  it("rejects a start before or an end after the shift", () => {
+    expect(validatePlannedSchedule("2026-10-07T18:30:00.000Z", "2026-10-08T02:00:00.000Z", shift)).toEqual(["Planned schedule must be inside the chosen shift"]);
+    expect(validatePlannedSchedule("2026-10-08T02:00:00.000Z", "2026-10-08T09:00:00.000Z", shift)).toEqual(["Planned schedule must be inside the chosen shift"]);
+  });
+  it("ignores an empty or half-filled schedule", () => {
+    expect(validatePlannedSchedule(undefined, undefined, shift)).toEqual([]);
+    expect(validatePlannedSchedule("2026-10-08T02:00:00.000Z", undefined, shift)).toEqual([]);
+  });
+});
 
 describe("e-permit rules — shared with server", () => {
   it("client and server rule files are identical", () => {

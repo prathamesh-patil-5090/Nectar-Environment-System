@@ -162,6 +162,7 @@ export function YesNaList({
               <Radio.Group
                 size="small"
                 optionType="button"
+                buttonStyle="solid"
                 value={a?.value || undefined}
                 onChange={(e) => set(d.key, { value: e.target.value as YesNa })}
                 options={[

@@ -22,6 +22,7 @@ import {
   requiresSafetyGate,
   shiftChoices,
   validateForSubmit,
+  validatePlannedSchedule,
   type ChecklistAnswer,
   type EPermitCategory,
   type EPermitSubCategory,
@@ -162,6 +163,7 @@ function IssuePermitForm() {
     [dir.employees, siteId],
   );
   const choices = useMemo(() => shiftChoices(now), [now]);
+  const shiftChoice = choices.find((c) => c.shiftCode === d.shiftCode);
   const hot = requiresFireGas(d.category);
 
   const approvalsPreview = useMemo(() => {
@@ -198,7 +200,15 @@ function IssuePermitForm() {
     parentPermitId: d.parentPermitId,
   });
 
-  const errors = useMemo(() => validateForSubmit({ ...input(), gasReadings: gasDraftToReadings(d.gas) }), [d, siteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const planErrors = validatePlannedSchedule(d.planned?.[0]?.toISOString(), d.planned?.[1]?.toISOString(), shiftChoice);
+  const errors = useMemo(
+    () => [...validateForSubmit({ ...input(), gasReadings: gasDraftToReadings(d.gas) }), ...planErrors],
+    [d, siteId, shiftChoice], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const goTo = (next: number) => {
+    if (step === 0 && next > 0 && planErrors.length) return;
+    setStep(next);
+  };
 
   if (viewer === undefined) return null;
   if (!viewer || !canIssuePermits(viewer)) {
@@ -311,11 +321,20 @@ function IssuePermitForm() {
             }))}
           />
         </Field>
-        <Field id="planned" label={tr("Planned schedule (optional)")} hint={tr("Inside the chosen shift")}>
+        <Field
+          id="planned"
+          label={tr("Planned schedule (optional)")}
+          hint={shiftChoice ? tr("Inside the chosen shift ({from}–{to})", { from: dayjs(shiftChoice.start).format("HH:mm"), to: dayjs(shiftChoice.end).format("HH:mm") }) : tr("Choose the shift first")}
+          error={planErrors[0] ? trData(planErrors[0]) : undefined}
+        >
           <DatePicker.RangePicker
             showTime={{ format: "HH:mm" }}
             format="DD MMM HH:mm"
+            status={planErrors.length ? "error" : undefined}
             value={d.planned}
+            defaultPickerValue={shiftChoice ? [dayjs(shiftChoice.start), dayjs(shiftChoice.start)] : undefined}
+            disabledDate={(day) => (shiftChoice ? outsideWindowDay(day, shiftChoice) : true)}
+            disabledTime={(day) => (shiftChoice && day ? windowTimeLimits(day, shiftChoice) : {})}
             onChange={(v) => set({ planned: v as [Dayjs | null, Dayjs | null] | null })}
             style={{ width: "100%" }}
           />
@@ -440,7 +459,6 @@ function IssuePermitForm() {
     </Section>
   );
 
-  const shiftChoice = choices.find((c) => c.shiftCode === d.shiftCode);
   const summaryRow = (label: string, value: React.ReactNode, sub?: React.ReactNode) => (
     <div style={{ padding: "10px 16px", borderTop: `1px solid ${token.colorSplit}`, fontSize: 13, lineHeight: 1.45 }}>
       <div style={{ fontSize: 12, color: token.colorTextSecondary }}>{label}</div>
@@ -519,7 +537,7 @@ function IssuePermitForm() {
       </div>
       {masters.error ? <Alert type="error" showIcon title={tr("Departments and locations unavailable: {error}", { error: trData(masters.error) })} /> : null}
       <div data-anim="intro">
-        <Steps current={step} onChange={setStep} items={steps} size="small" />
+        <Steps current={step} onChange={goTo} items={steps} size="small" />
       </div>
       <div data-anim="intro" className="safety-case-grid">
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
@@ -529,7 +547,7 @@ function IssuePermitForm() {
             <div style={{ display: "flex", gap: 8 }}>
               <Button loading={busy} onClick={onSave} disabled={!d.locationId || !d.subCategory || !d.shiftCode}>{tr("Save draft")}</Button>
               {step < 3 ? (
-                <Button type="primary" onClick={() => setStep(step + 1)}>{tr("Next")}</Button>
+                <Button type="primary" disabled={step === 0 && planErrors.length > 0} onClick={() => goTo(step + 1)}>{tr("Next")}</Button>
               ) : (
                 <Button type="primary" loading={busy} disabled={errors.length > 0} onClick={() => onSubmit()}>{tr("Acknowledge & submit")}</Button>
               )}
@@ -562,7 +580,25 @@ function IssuePermitForm() {
   );
 }
 
-function Field({ id, label, required, hint, children }: { id: string; label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+/** Days with no minute inside the shift window (a night shift spans two days). */
+function outsideWindowDay(day: Dayjs, w: { start: string; end: string }): boolean {
+  return day.endOf("day").isBefore(dayjs(w.start)) || !day.startOf("day").isBefore(dayjs(w.end));
+}
+
+/** Hours / minutes of `day` that fall outside the shift window; the shift end itself stays selectable. */
+function windowTimeLimits(day: Dayjs, w: { start: string; end: string }) {
+  const start = dayjs(w.start);
+  const end = dayjs(w.end);
+  const outside = (t: Dayjs) => t.isBefore(start) || t.isAfter(end);
+  const at = (h: number, m: number) => day.hour(h).minute(m).second(0).millisecond(0);
+  const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+  return {
+    disabledHours: () => range(24).filter((h) => outside(at(h, 0)) && outside(at(h, 59))),
+    disabledMinutes: (h: number) => range(60).filter((m) => outside(at(h, m))),
+  };
+}
+
+function Field({ id, label, required, hint, error, children }: { id: string; label: string; required?: boolean; hint?: string; error?: string; children: React.ReactNode }) {
   const { token } = theme.useToken();
   return (
     <div data-field={id} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, minWidth: 0 }}>
@@ -571,7 +607,7 @@ function Field({ id, label, required, hint, children }: { id: string; label: str
         {required ? <span style={{ color: token.colorError }}> *</span> : null}
       </span>
       {children}
-      {hint ? <span style={{ fontSize: 12, color: token.colorTextTertiary }}>{hint}</span> : null}
+      {error ? <span role="alert" style={{ fontSize: 12, color: token.colorError }}>{error}</span> : hint ? <span style={{ fontSize: 12, color: token.colorTextTertiary }}>{hint}</span> : null}
     </div>
   );
 }

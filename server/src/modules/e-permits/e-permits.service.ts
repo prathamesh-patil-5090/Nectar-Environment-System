@@ -91,6 +91,7 @@ import {
   shouldNotifyOverdue,
   shouldWarn,
   validateForSubmit,
+  validatePlannedSchedule,
   validateGasReadings,
 } from './e-permit-rules';
 
@@ -557,12 +558,8 @@ export class EPermitsService {
       certificates: body.certificates ? checklist(body.certificates, CERTIFICATE_TYPES, true) : existing?.certificates ?? checklist([], CERTIFICATE_TYPES, true),
       gasReadings: gasReadings ?? existing?.gasReadings ?? [],
     };
-    if (fields.plannedFrom && fields.plannedTo && Date.parse(fields.plannedTo) <= Date.parse(fields.plannedFrom)) {
-      throw new BadRequestException('Planned end must be after the planned start');
-    }
-    if (fields.plannedTo && Date.parse(fields.plannedTo) > Date.parse(window.end)) {
-      throw new BadRequestException('Planned end must be inside the chosen shift');
-    }
+    const planErrors = validatePlannedSchedule(fields.plannedFrom, fields.plannedTo, window);
+    if (planErrors.length) throw new BadRequestException(planErrors[0]);
     return fields;
   }
 

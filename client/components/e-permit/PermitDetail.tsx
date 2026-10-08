@@ -362,11 +362,16 @@ export default function PermitDetail({ id }: { id: string }) {
   );
 
   // ── Acknowledgements ─────────────────────────────────────────────────────
-  const people = [
-    { id: p.issuerId, role: tr("Issuer") },
-    { id: p.holderId, role: tr("Permit Holder") },
-    ...p.workerIds.filter((w) => w !== p.holderId && w !== p.issuerId).map((w) => ({ id: w, role: tr("Worker") })),
-  ];
+  // One row per person (acks are per person); someone who is both issuer and holder gets both roles.
+  const rolesById = new Map<string, string[]>();
+  for (const [id, role] of [
+    [p.issuerId, tr("Issuer")],
+    [p.holderId, tr("Permit Holder")],
+    ...p.workerIds.filter((w) => w !== p.holderId && w !== p.issuerId).map((w) => [w, tr("Worker")]),
+  ]) {
+    rolesById.set(id, [...(rolesById.get(id) ?? []), role]);
+  }
+  const people = [...rolesById].map(([id, roles]) => ({ id, role: roles.join(" · ") }));
   const ackOf = (personId: string, context: "issue" | "renewal", round: number) =>
     p.acks.find((a) => a.personId === personId && a.context === context && a.round === round);
 

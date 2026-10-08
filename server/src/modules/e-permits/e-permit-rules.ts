@@ -551,6 +551,23 @@ export function validateForSubmit(p: PermitFormRef, policy: EPermitPolicy = EPER
   return errors;
 }
 
+/** Problems with the optional planned schedule: it must run forwards and sit inside the chosen shift window. */
+export function validatePlannedSchedule(
+  plannedFrom: string | undefined,
+  plannedTo: string | undefined,
+  window: { start: string; end: string } | undefined,
+): string[] {
+  if (!plannedFrom || !plannedTo) return [];
+  const from = Date.parse(plannedFrom);
+  const to = Date.parse(plannedTo);
+  const errors: string[] = [];
+  if (to <= from) errors.push("Planned end must be after the planned start");
+  if (window && (from < Date.parse(window.start) || to > Date.parse(window.end))) {
+    errors.push("Planned schedule must be inside the chosen shift");
+  }
+  return errors;
+}
+
 // ── Approvals ─────────────────────────────────────────────────────────────
 
 export type LocationRef = { id: string; siteId: string; ownerDepartmentId: string; tags?: string[]; concernedDepartmentIds?: string[] };
