@@ -558,7 +558,9 @@ export class EPermitsService {
       certificates: body.certificates ? checklist(body.certificates, CERTIFICATE_TYPES, true) : existing?.certificates ?? checklist([], CERTIFICATE_TYPES, true),
       gasReadings: gasReadings ?? existing?.gasReadings ?? [],
     };
-    const planErrors = validatePlannedSchedule(fields.plannedFrom, fields.plannedTo, window);
+    // A past start is refused only when this request sets the plan; editing other fields of an old draft still works.
+    const settingPlan = body.plannedFrom !== undefined || body.plannedTo !== undefined;
+    const planErrors = validatePlannedSchedule(fields.plannedFrom, fields.plannedTo, window, settingPlan ? Date.now() : undefined);
     if (planErrors.length) throw new BadRequestException(planErrors[0]);
     return fields;
   }

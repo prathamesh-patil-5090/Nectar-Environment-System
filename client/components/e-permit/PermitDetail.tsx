@@ -83,6 +83,7 @@ import {
 } from "./PermitBits";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { tr, trData } from "@/lib/i18n";
+import { plantDayKey, plantNow } from "@/lib/plant-time";
 
 type ModalKind =
   | { kind: "decide"; approval: EPermitApproval; decision: "approve" | "reject"; review?: boolean }
@@ -451,7 +452,7 @@ export default function PermitDetail({ id }: { id: string }) {
         if (hours <= 0) return;
         const decision = createEPermitOtDecision({
           siteId: p.siteId,
-          date: new Date().toISOString().slice(0, 10),
+          date: plantDayKey(plantNow()),
           hours,
           ePermitId: p.id,
           permitNo: p.permitNo,

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { Alert, App, Button, DatePicker, Popover, Segmented, Select, theme } from "antd";
 import { ArrowLeftOutlined, EditOutlined } from "@ant-design/icons";
-import dayjs, { type Dayjs } from "dayjs";
+import type { Dayjs } from "dayjs";
 import {
   CERTIFICATE_TYPES,
   EPERMIT_CATEGORY_LABELS,
@@ -33,6 +33,7 @@ import { Dot, Panel, Section } from "@/components/quiet";
 import { fmtShort } from "@/components/e-permit/PermitBits";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { tr, trData } from "@/lib/i18n";
+import { plantDayKey, plantNow } from "@/lib/plant-time";
 
 type Tab = "overview" | "approvers" | "locations" | "checklists" | "reference";
 
@@ -156,7 +157,7 @@ function AvailabilityBar({ dept, now, reload }: { dept: Department; now: number;
                     format="DD MMM HH:mm"
                     value={until}
                     onChange={setUntil}
-                    disabledDate={(d) => d.isBefore(dayjs(), "day")}
+                    disabledDate={(d) => d.format("YYYY-MM-DD") < plantDayKey(plantNow())}
                     style={{ width: "100%" }}
                   />
                   <Button type="primary" disabled={!until} loading={busy} onClick={() => save(until)}>

@@ -127,6 +127,14 @@ describe("planned schedule", () => {
     expect(validatePlannedSchedule(undefined, undefined, shift)).toEqual([]);
     expect(validatePlannedSchedule("2026-10-08T02:00:00.000Z", undefined, shift)).toEqual([]);
   });
+  it("with `now`, refuses a start that has passed, allowing one 15-minute slot of slack", () => {
+    const now = Date.parse("2026-10-08T03:28:00.000Z"); // 08:58 IST
+    expect(validatePlannedSchedule("2026-10-08T03:30:00.000Z", "2026-10-08T04:30:00.000Z", shift, now)).toEqual([]);
+    expect(validatePlannedSchedule("2026-10-08T03:15:00.000Z", "2026-10-08T04:30:00.000Z", shift, now)).toEqual([]);
+    expect(validatePlannedSchedule("2026-10-08T02:00:00.000Z", "2026-10-08T04:30:00.000Z", shift, now)).toEqual(["Planned start has already passed"]);
+    // Without `now` (editing other fields of an old draft) a past start is not re-checked.
+    expect(validatePlannedSchedule("2026-10-08T02:00:00.000Z", "2026-10-08T04:30:00.000Z", shift)).toEqual([]);
+  });
 });
 
 describe("e-permit rules — shared with server", () => {

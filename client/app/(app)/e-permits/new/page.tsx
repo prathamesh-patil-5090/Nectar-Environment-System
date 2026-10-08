@@ -3,9 +3,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, App, Button, DatePicker, Input, Modal, Radio, Select, Steps, Switch, theme } from "antd";
+import { Alert, App, Button, Input, Modal, Radio, Select, Steps, Switch, theme } from "antd";
 import { ArrowLeftOutlined, LockOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import dayjs, { type Dayjs } from "dayjs";
+import { plantDayTime, plantTime } from "@/lib/plant-time";
 import {
   CERTIFICATE_TYPES,
   EPERMIT_CATEGORY_LABELS,
@@ -43,7 +43,7 @@ import { useDirectory } from "@/lib/safety/hooks";
 import { ePermitActorOf } from "@/lib/rbac";
 import { getSession } from "@/lib/auth";
 import { Panel, Section } from "@/components/quiet";
-import { GasReadingsInput, YesNaList, gasDraftToReadings, type GasDraft } from "@/components/e-permit/PermitBits";
+import { GasReadingsInput, ShiftSchedule, YesNaList, gasDraftToReadings, type GasDraft } from "@/components/e-permit/PermitBits";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { tr, trData } from "@/lib/i18n";
 
@@ -55,7 +55,7 @@ type Draft = {
   subCategory?: EPermitSubCategory;
   emergency: boolean;
   shiftCode?: PermitShiftCode;
-  planned: [Dayjs | null, Dayjs | null] | null;
+  planned: [string, string] | null;
   description: string;
   hazardsText: string;
   jsaRef: string;
@@ -96,7 +96,7 @@ function fromPermit(p: EPermit, asContinuation: boolean): Draft {
     subCategory: p.subCategory,
     emergency: asContinuation ? false : p.emergency,
     shiftCode: asContinuation ? undefined : p.shiftCode,
-    planned: !asContinuation && p.plannedFrom && p.plannedTo ? [dayjs(p.plannedFrom), dayjs(p.plannedTo)] : null,
+    planned: !asContinuation && p.plannedFrom && p.plannedTo ? [p.plannedFrom, p.plannedTo] : null,
     description: p.description,
     hazardsText: p.hazardsText,
     jsaRef: p.jsaRef,
@@ -183,8 +183,8 @@ function IssuePermitForm() {
     subCategory: d.subCategory as EPermitSubCategory,
     emergency: d.emergency,
     shiftCode: d.shiftCode as PermitShiftCode,
-    plannedFrom: d.planned?.[0]?.toISOString(),
-    plannedTo: d.planned?.[1]?.toISOString(),
+    plannedFrom: d.planned?.[0] ?? null,
+    plannedTo: d.planned?.[1] ?? null,
     description: d.description,
     hazardsText: d.hazardsText,
     jsaRef: d.jsaRef,
@@ -200,7 +200,7 @@ function IssuePermitForm() {
     parentPermitId: d.parentPermitId,
   });
 
-  const planErrors = validatePlannedSchedule(d.planned?.[0]?.toISOString(), d.planned?.[1]?.toISOString(), shiftChoice);
+  const planErrors = validatePlannedSchedule(d.planned?.[0], d.planned?.[1], shiftChoice, now);
   const errors = useMemo(
     () => [...validateForSubmit({ ...input(), gasReadings: gasDraftToReadings(d.gas) }), ...planErrors],
     [d, siteId, shiftChoice], // eslint-disable-line react-hooks/exhaustive-deps
@@ -305,38 +305,15 @@ function IssuePermitForm() {
             options={SUBCATEGORIES[d.category].map((s) => ({ value: s, label: tr(EPERMIT_SUBCATEGORY_LABELS[s]) }))}
           />
         </Field>
-        <Field id="shift" label={tr("Shift")} required hint={tr("Valid until the end of the chosen shift")}>
-          <Select
-            placeholder={tr("Current or next shift")}
-            value={d.shiftCode}
-            onChange={(v) => set({ shiftCode: v, planned: null })}
-            options={choices.map((c) => ({
-              value: c.shiftCode,
-              label: tr("Shift {code} · {from}–{to} · {when}", {
-                code: c.shiftCode,
-                from: dayjs(c.start).format("HH:mm"),
-                to: dayjs(c.end).format("HH:mm"),
-                when: c.running ? tr("running now") : tr("starts {day}", { day: dayjs(c.start).format("DD MMM HH:mm") }),
-              }),
-            }))}
-          />
-        </Field>
-        <Field
-          id="planned"
-          label={tr("Planned schedule (optional)")}
-          hint={shiftChoice ? tr("Inside the chosen shift ({from}–{to})", { from: dayjs(shiftChoice.start).format("HH:mm"), to: dayjs(shiftChoice.end).format("HH:mm") }) : tr("Choose the shift first")}
-          error={planErrors[0] ? trData(planErrors[0]) : undefined}
-        >
-          <DatePicker.RangePicker
-            showTime={{ format: "HH:mm" }}
-            format="DD MMM HH:mm"
-            status={planErrors.length ? "error" : undefined}
-            value={d.planned}
-            defaultPickerValue={shiftChoice ? [dayjs(shiftChoice.start), dayjs(shiftChoice.start)] : undefined}
-            disabledDate={(day) => (shiftChoice ? outsideWindowDay(day, shiftChoice) : true)}
-            disabledTime={(day) => (shiftChoice && day ? windowTimeLimits(day, shiftChoice) : {})}
-            onChange={(v) => set({ planned: v as [Dayjs | null, Dayjs | null] | null })}
-            style={{ width: "100%" }}
+        <Field id="shift" label={tr("Shift")} required hint={tr("Valid until the end of the chosen shift")} error={planErrors[0] ? trData(planErrors[0]) : undefined} wide>
+          <ShiftSchedule
+            choices={choices}
+            now={now}
+            shift={d.shiftCode}
+            onShiftChange={(v) => set({ shiftCode: v, planned: null })}
+            planned={d.planned ?? null}
+            onPlannedChange={(planned) => set({ planned })}
+            invalid={planErrors.length > 0}
           />
         </Field>
         <Field id="jsa" label={tr("JSA / risk assessment ref.")}>
@@ -483,8 +460,8 @@ function IssuePermitForm() {
         )}
         {summaryRow(
           tr("Shift"),
-          d.shiftCode ? `${d.shiftCode}${shiftChoice ? ` · ${dayjs(shiftChoice.start).format("HH:mm")}–${dayjs(shiftChoice.end).format("HH:mm")}` : ""}` : null,
-          shiftChoice ? (shiftChoice.running ? tr("running now") : tr("starts {day}", { day: dayjs(shiftChoice.start).format("DD MMM HH:mm") })) : null,
+          d.shiftCode ? `${d.shiftCode}${shiftChoice ? ` · ${plantTime(shiftChoice.start)}–${plantTime(shiftChoice.end)}` : ""}` : null,
+          shiftChoice ? (shiftChoice.running ? tr("running now") : tr("starts {day}", { day: plantDayTime(shiftChoice.start) })) : null,
         )}
         {summaryRow(
           tr("Workers"),
@@ -580,28 +557,10 @@ function IssuePermitForm() {
   );
 }
 
-/** Days with no minute inside the shift window (a night shift spans two days). */
-function outsideWindowDay(day: Dayjs, w: { start: string; end: string }): boolean {
-  return day.endOf("day").isBefore(dayjs(w.start)) || !day.startOf("day").isBefore(dayjs(w.end));
-}
-
-/** Hours / minutes of `day` that fall outside the shift window; the shift end itself stays selectable. */
-function windowTimeLimits(day: Dayjs, w: { start: string; end: string }) {
-  const start = dayjs(w.start);
-  const end = dayjs(w.end);
-  const outside = (t: Dayjs) => t.isBefore(start) || t.isAfter(end);
-  const at = (h: number, m: number) => day.hour(h).minute(m).second(0).millisecond(0);
-  const range = (n: number) => Array.from({ length: n }, (_, i) => i);
-  return {
-    disabledHours: () => range(24).filter((h) => outside(at(h, 0)) && outside(at(h, 59))),
-    disabledMinutes: (h: number) => range(60).filter((m) => outside(at(h, m))),
-  };
-}
-
-function Field({ id, label, required, hint, error, children }: { id: string; label: string; required?: boolean; hint?: string; error?: string; children: React.ReactNode }) {
+function Field({ id, label, required, hint, error, wide, children }: { id: string; label: string; required?: boolean; hint?: string; error?: string; wide?: boolean; children: React.ReactNode }) {
   const { token } = theme.useToken();
   return (
-    <div data-field={id} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, minWidth: 0 }}>
+    <div data-field={id} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, minWidth: 0, gridColumn: wide ? "1 / -1" : undefined }}>
       <span style={{ fontSize: 13, fontWeight: 500 }}>
         {label}
         {required ? <span style={{ color: token.colorError }}> *</span> : null}

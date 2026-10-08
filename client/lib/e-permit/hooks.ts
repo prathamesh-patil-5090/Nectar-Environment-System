@@ -13,6 +13,7 @@ import {
   syncEPermitsWithApi,
 } from "./store";
 import type { EPermit, EPermitMasters } from "./types";
+import { onPlantClockSync, plantNow, syncPlantClock } from "@/lib/plant-time";
 
 const EMPTY: EPermit[] = [];
 
@@ -101,12 +102,21 @@ export function usePermitViewer(masters: EPermitMasters): PermitViewer | null | 
   }, [session, masters]);
 }
 
-/** Re-render every `ms` so countdowns and the red overdue clock stay current. */
+/**
+ * Plant "now" (server clock, see lib/plant-time), re-read every `ms` so countdowns, the running
+ * shift and the red overdue clock stay current.
+ */
 export function useNow(ms = 30_000): number {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(plantNow);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), ms);
-    return () => clearInterval(t);
+    const tick = () => setNow(plantNow());
+    const t = setInterval(tick, ms);
+    const off = onPlantClockSync(tick);
+    void syncPlantClock();
+    return () => {
+      clearInterval(t);
+      off();
+    };
   }, [ms]);
   return now;
 }

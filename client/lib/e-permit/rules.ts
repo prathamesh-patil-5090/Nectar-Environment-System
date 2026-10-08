@@ -551,11 +551,18 @@ export function validateForSubmit(p: PermitFormRef, policy: EPermitPolicy = EPER
   return errors;
 }
 
-/** Problems with the optional planned schedule: it must run forwards and sit inside the chosen shift window. */
+/** Slack for a planned start that is just behind "now": one 15-minute slot, for rounding and clock drift. */
+export const PLANNED_START_GRACE_MINUTES = 15;
+
+/**
+ * Problems with the optional planned schedule: it must run forwards and sit inside the chosen shift window.
+ * Pass `now` while the plan is being set, so a start that has already passed is refused.
+ */
 export function validatePlannedSchedule(
   plannedFrom: string | undefined,
   plannedTo: string | undefined,
   window: { start: string; end: string } | undefined,
+  now?: number,
 ): string[] {
   if (!plannedFrom || !plannedTo) return [];
   const from = Date.parse(plannedFrom);
@@ -564,6 +571,9 @@ export function validatePlannedSchedule(
   if (to <= from) errors.push("Planned end must be after the planned start");
   if (window && (from < Date.parse(window.start) || to > Date.parse(window.end))) {
     errors.push("Planned schedule must be inside the chosen shift");
+  }
+  if (now !== undefined && from < now - PLANNED_START_GRACE_MINUTES * MINUTE) {
+    errors.push("Planned start has already passed");
   }
   return errors;
 }

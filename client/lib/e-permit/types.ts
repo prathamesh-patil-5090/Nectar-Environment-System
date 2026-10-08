@@ -241,8 +241,9 @@ export type NewEPermitInput = {
   subCategory: EPermitSubCategory;
   emergency?: boolean;
   shiftCode: PermitShiftCode;
-  plannedFrom?: string;
-  plannedTo?: string;
+  /** `null` clears a plan saved on the draft earlier. */
+  plannedFrom?: string | null;
+  plannedTo?: string | null;
   description: string;
   hazardsText?: string;
   jsaRef?: string;
