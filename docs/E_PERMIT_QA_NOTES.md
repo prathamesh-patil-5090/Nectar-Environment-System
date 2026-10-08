@@ -2,11 +2,11 @@
 
 **Date:** 8 Oct 2026  
 **Where found:** Issue permit wizard + Permit detail  
-**Status:** Open — noted for fix, not fixed yet  
+**Status:** Fixed (developer side) — awaiting QA re-test · commit `8a7dec5` on `aniket-ui`  
 
 ---
 
-## 1. Planned schedule allows times outside the chosen shift
+## 1. Planned schedule allows times outside the chosen shift — ✅ Fixed (dev)
 
 **Page:** `/e-permits/new` · Step 1 — Work & shift  
 **Field:** Plan a schedule (optional)
@@ -22,7 +22,7 @@ Only times **within the selected shift window** should be selectable (or selecti
 
 ---
 
-## 2. Yes / NA buttons — pressed state hard to see
+## 2. Yes / NA buttons — pressed state hard to see — ✅ Fixed (dev)
 
 **Page:** Issue permit · checklist steps (safety measures, PPE, fire/gas, certificates)  
 **Control:** Yes / NA button group
@@ -37,7 +37,7 @@ Selected Yes / NA should have a **clear filled background** (and contrast) so th
 
 ---
 
-## 3. Start and end date/time can be the same
+## 3. Start and end date/time can be the same — ✅ Fixed (dev)
 
 **Page:** `/e-permits/new` · Plan a schedule  
 **Example:** `08 Oct 00:00 → 08 Oct 00:00`
@@ -52,7 +52,7 @@ Start must be **before** end. Block OK / Next with a short validation message wh
 
 ---
 
-## 4. React duplicate key on Permit detail (`emp0124`)
+## 4. React duplicate key on Permit detail (`emp0124`) — ✅ Fixed (dev)
 
 **Page:** Permit detail — Acknowledgements  
 **Error (×2 in overlay):**  
@@ -84,12 +84,14 @@ Unique React keys (e.g. `${person.id}-${person.role}` or `${person.id}-${index}`
 
 ## Quick checklist for fixes
 
-| # | Fix in short |
-|---|---|
-| 1 | Constrain planned schedule picker to shift start–end |
-| 2 | Style selected Yes/NA with filled bg |
-| 3 | Reject start ≥ end on planned schedule |
-| 4 | Unique keys / dedupe acknowledgements people list |
+| # | Fix in short | Dev status | What was done |
+|---|---|---|---|
+| 1 | Constrain planned schedule picker to shift start–end | ✅ Fixed | Only the shift's days/hours are pickable; picker locked until a shift is chosen; server also rejects a start before the shift |
+| 2 | Style selected Yes/NA with filled bg | ✅ Fixed | `buttonStyle="solid"` — selected option is filled |
+| 3 | Reject start ≥ end on planned schedule | ✅ Fixed | Inline error under the field, Next disabled, listed under "Still needed" (shared `validatePlannedSchedule` rule, client + server) |
+| 4 | Unique keys / dedupe acknowledgements people list | ✅ Fixed | One row per person with combined roles (e.g. "Issuer · Permit Holder") |
+
+Verified in the browser on the test stack (Shift C 22:00–06:00, issuer = holder `emp0124`). QA to re-test and close.
 
 ---
 
