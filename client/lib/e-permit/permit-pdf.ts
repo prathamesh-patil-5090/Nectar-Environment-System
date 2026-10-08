@@ -16,12 +16,13 @@ import {
   type ChecklistItemDef,
 } from "./rules";
 import type { EPermit, SiteEmergencyContact } from "./types";
+import { PLANT_TZ } from "@/lib/plant-time";
 
 /** Plant-local "14:32, Wednesday, 7 Oct 2026" (PDFs stay in English like the Safety report). */
 const fmt = (iso?: string | null) => {
   if (!iso) return "—";
   const d = new Date(iso);
-  const opts = { timeZone: "Asia/Kolkata" } as const;
+  const opts = { timeZone: PLANT_TZ } as const;
   return `${d.toLocaleTimeString("en-IN", { ...opts, hour: "2-digit", minute: "2-digit", hour12: false })}, ${d.toLocaleDateString("en-IN", { ...opts, weekday: "long" })}, ${d.toLocaleDateString("en-IN", { ...opts, day: "numeric", month: "short", year: "numeric" })}`;
 };
 

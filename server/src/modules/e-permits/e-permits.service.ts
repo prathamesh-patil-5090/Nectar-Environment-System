@@ -559,7 +559,10 @@ export class EPermitsService {
       gasReadings: gasReadings ?? existing?.gasReadings ?? [],
     };
     // A past start is refused only when this request sets the plan; editing other fields of an old draft still works.
-    const settingPlan = body.plannedFrom !== undefined || body.plannedTo !== undefined;
+    // The wizard always sends both fields, so compare with what is stored rather than checking for presence.
+    const instant = (iso?: string) => (iso ? Date.parse(iso) : null);
+    const settingPlan =
+      instant(fields.plannedFrom) !== instant(existing?.plannedFrom) || instant(fields.plannedTo) !== instant(existing?.plannedTo);
     const planErrors = validatePlannedSchedule(fields.plannedFrom, fields.plannedTo, window, settingPlan ? Date.now() : undefined);
     if (planErrors.length) throw new BadRequestException(planErrors[0]);
     return fields;

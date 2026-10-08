@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, InputNumber, Radio, Select, Space, theme } from "antd";
 import { ArrowRightOutlined, ClockCircleOutlined, CloseOutlined, WarningOutlined } from "@ant-design/icons";
 import {
@@ -9,6 +9,7 @@ import {
   EPERMIT_SUBCATEGORY_LABELS,
   GAS_KEYS,
   GAS_LIMITS,
+  PLANNED_START_GRACE_MINUTES,
   isGasReadingOk,
   isOverdue,
   minutesLeft,
@@ -255,11 +256,67 @@ const fmtDuration = (min: number) =>
 
 const minutesBetween = (a: number, b: number) => Math.max(0, Math.round((b - a) / 60_000));
 
+const iso = (t: number) => new Date(t).toISOString();
+
 /** First slot a plan may start at: the shift start, or — once the shift is running — the next slot from now. */
-function earliestStart(w: { start: string; end: string }, now: number): number {
-  const ws = Date.parse(w.start);
+function earliestStart(ws: number, we: number, now: number): number {
   const step = SLOT_MINUTES * 60_000;
-  return now <= ws ? ws : Math.min(ws + Math.ceil((now - ws) / step) * step, Date.parse(w.end) - step);
+  return now <= ws ? ws : Math.min(ws + Math.ceil((now - ws) / step) * step, we - step);
+}
+
+/** What the clock last did to the plan: moved its start (`at`), or cleared it because the shift rolled on. */
+export type PlanMove = { windowStart: string; plan: [string, string] | null; at: number | null };
+
+/**
+ * Keeps the planned schedule valid as time passes. Call it from the page (not the panel) so it also runs
+ * on later wizard steps:
+ * - a start that is past the grace period moves to the next free slot, keeping the planned duration;
+ * - a plan that no longer sits in the chosen shift (the shift ended and rolled to its next day) is cleared,
+ *   rather than silently moved to another day.
+ * Returns the move while the plan is still the one the clock set, so the panel can say what happened.
+ */
+export function usePlanFollowsClock(
+  w: { start: string; end: string } | undefined,
+  planned: [string, string] | null,
+  onChange: (next: [string, string] | null) => void,
+  now: number,
+): PlanMove | null {
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  const [move, setMove] = useState<PlanMove | null>(null);
+  const windowStart = w?.start;
+  const windowEnd = w?.end;
+  const plannedFrom = planned?.[0];
+  const plannedTo = planned?.[1];
+
+  useEffect(() => {
+    if (!windowStart || !windowEnd || !plannedFrom || !plannedTo) return;
+    const ws = Date.parse(windowStart);
+    const we = Date.parse(windowEnd);
+    const from = Date.parse(plannedFrom);
+    const to = Date.parse(plannedTo);
+    let next: PlanMove;
+    if (from < ws || to > we) {
+      next = { windowStart, plan: null, at: null };
+    } else if (from < now - PLANNED_START_GRACE_MINUTES * 60_000) {
+      const start = earliestStart(ws, we, now);
+      const end = Math.min(start + Math.max(to - from, SLOT_MINUTES * 60_000), we);
+      next = { windowStart, plan: [iso(start), iso(end)], at: start };
+    } else {
+      return;
+    }
+    onChangeRef.current(next.plan);
+    // The clock, not the user, changed the plan; remember it so the panel can say so.
+    setMove(next); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [windowStart, windowEnd, plannedFrom, plannedTo, now]);
+
+  const current =
+    move &&
+    move.windowStart === windowStart &&
+    (move.plan === null ? !planned : planned?.[0] === move.plan[0] && planned?.[1] === move.plan[1]);
+  return current ? move : null;
 }
 
 /** Hour labels under the timeline: every 2 h from the shift start, plus the end. */
@@ -287,6 +344,7 @@ export function ShiftSchedule<C extends string>({
   onPlannedChange,
   now,
   invalid,
+  moved,
 }: {
   choices: { shiftCode: C; start: string; end: string; running: boolean }[];
   shift?: C;
@@ -295,6 +353,8 @@ export function ShiftSchedule<C extends string>({
   onPlannedChange: (next: [string, string] | null) => void;
   now: number;
   invalid?: boolean;
+  /** From {@link usePlanFollowsClock}: tells the user the clock moved or cleared the plan. */
+  moved?: PlanMove | null;
 }) {
   const { token } = theme.useToken();
   const [focused, setFocused] = useState<C | null>(null);
@@ -401,7 +461,7 @@ export function ShiftSchedule<C extends string>({
           );
         })}
       </div>
-      <PlannedWork window={chosen} planned={planned} onChange={onPlannedChange} now={now} invalid={invalid} />
+      <PlannedWork window={chosen} planned={planned} onChange={onPlannedChange} now={now} invalid={invalid} moved={moved} />
     </div>
   );
 }
@@ -413,34 +473,19 @@ function PlannedWork({
   onChange,
   now,
   invalid,
+  moved,
 }: {
   window?: { start: string; end: string };
   planned: [string, string] | null;
   onChange: (next: [string, string] | null) => void;
   now: number;
   invalid?: boolean;
+  moved?: PlanMove | null;
 }) {
   const { token } = theme.useToken();
   const heading = (
     <span style={{ fontSize: 13, fontWeight: 500 }}>{tr("Planned schedule (optional)")}</span>
   );
-  const firstSlot = w ? earliestStart(w, now) : undefined;
-  /** Set when time ran past the planned start and it was moved forward, so the user is told. */
-  const [movedTo, setMovedTo] = useState<number | null>(null);
-
-  // Time moves on: a planned start that has slipped into the past moves up to the next free slot.
-  useEffect(() => {
-    if (!w || !planned || firstSlot === undefined) return;
-    const from = Date.parse(planned[0]);
-    const to = Date.parse(planned[1]);
-    if (from >= firstSlot) return;
-    const we = Date.parse(w.end);
-    const iso = (t: number) => new Date(t).toISOString();
-    onChange([iso(firstSlot), iso(to > firstSlot ? to : Math.min(firstSlot + HOUR_MS, we))]);
-    // The clock, not the user, moved the plan; remember it so the panel can say so.
-    setMovedTo(firstSlot); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [w, planned, firstSlot, onChange]);
-
   if (!w) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 16px", borderTop: `1px solid ${token.colorBorderSecondary}` }}>
@@ -452,17 +497,13 @@ function PlannedWork({
 
   const ws = Date.parse(w.start);
   const we = Date.parse(w.end);
+  const firstSlot = earliestStart(ws, we, now);
   const slots = shiftSlots(w);
   const from = planned ? Date.parse(planned[0]) : undefined;
   const to = planned ? Date.parse(planned[1]) : undefined;
   const has = from !== undefined && to !== undefined && to > from;
-  const iso = (t: number) => new Date(t).toISOString();
-  const set = (next: [string, string] | null) => {
-    setMovedTo(null);
-    onChange(next);
-  };
-  const pickStart = (t: number) => set([iso(t), iso(to !== undefined && to > t ? to : Math.min(t + HOUR_MS, we))]);
-  const pickEnd = (t: number) => set([iso(from ?? firstSlot!), iso(t)]);
+  const pickStart = (t: number) => onChange([iso(t), iso(to !== undefined && to > t ? to : Math.min(t + HOUR_MS, we))]);
+  const pickEnd = (t: number) => onChange([iso(from ?? firstSlot), iso(t)]);
   const pct = (t: number) => Math.min(100, Math.max(0, ((t - ws) / (we - ws)) * 100));
   const showNow = now > ws && now < we;
   const ticks = timelineTicks(ws, we);
@@ -486,14 +527,14 @@ function PlannedWork({
         >
           {has ? fmtDuration(minutesBetween(from!, to!)) : tr("Not set")}
         </span>
-        {planned ? <Button type="text" size="small" icon={<CloseOutlined />} aria-label={tr("Clear")} onClick={() => set(null)} /> : null}
+        {planned ? <Button type="text" size="small" icon={<CloseOutlined />} aria-label={tr("Clear")} onClick={() => onChange(null)} /> : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, maxWidth: 360 }}>
         <Select<number>
           aria-label={tr("Start")}
           placeholder={tr("Start")}
           value={from}
-          options={slotOptions(slots.slice(0, -1).filter((t) => t >= firstSlot!), from)}
+          options={slotOptions(slots.slice(0, -1).filter((t) => t >= firstSlot), from)}
           onChange={pickStart}
           style={{ flex: 1, minWidth: 0 }}
           popupMatchSelectWidth={false}
@@ -503,16 +544,18 @@ function PlannedWork({
           aria-label={tr("End")}
           placeholder={tr("End")}
           value={to}
-          options={slotOptions(slots.filter((t) => t > (from ?? firstSlot!)), to)}
+          options={slotOptions(slots.filter((t) => t > (from ?? firstSlot)), to)}
           onChange={pickEnd}
           style={{ flex: 1, minWidth: 0 }}
           popupMatchSelectWidth={false}
         />
       </div>
-      {movedTo !== null && planned ? (
+      {moved ? (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12, color: token.colorWarningText }}>
           <ClockCircleOutlined />
-          {tr("Planned start moved to {time} — the earlier time has passed", { time: plantTime(movedTo) })}
+          {moved.at !== null
+            ? tr("Planned start moved to {time} — the earlier time has passed", { time: plantTime(moved.at) })
+            : tr("Planned schedule cleared — that shift has ended. Pick a time in the next one.")}
         </div>
       ) : null}
       <div aria-hidden style={{ marginTop: 26 }}>

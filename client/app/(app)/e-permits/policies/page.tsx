@@ -15,6 +15,7 @@ import {
   GAS_LIMITS,
   PERMIT_RULES,
   PERMIT_SHIFTS,
+  PLANT_UTC_OFFSET_MINUTES,
   PPE_ITEMS,
   SAFETY_MEASURES,
   SUBCATEGORIES,
@@ -33,7 +34,7 @@ import { Dot, Panel, Section } from "@/components/quiet";
 import { fmtShort } from "@/components/e-permit/PermitBits";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { tr, trData } from "@/lib/i18n";
-import { plantDayKey, plantNow } from "@/lib/plant-time";
+import { plantDayTime, plantNow } from "@/lib/plant-time";
 
 type Tab = "overview" | "approvers" | "locations" | "checklists" | "reference";
 
@@ -157,9 +158,13 @@ function AvailabilityBar({ dept, now, reload }: { dept: Department; now: number;
                     format="DD MMM HH:mm"
                     value={until}
                     onChange={setUntil}
-                    disabledDate={(d) => d.format("YYYY-MM-DD") < plantDayKey(plantNow())}
+                    disabledDate={(d) => d.endOf("day").valueOf() < plantNow()}
                     style={{ width: "100%" }}
                   />
+                  {/* The picker follows the device clock; off IST, show what that means at the plant. */}
+                  {until && until.utcOffset() !== PLANT_UTC_OFFSET_MINUTES ? (
+                    <span style={{ fontSize: 12, color: token.colorTextSecondary }}>{tr("Plant time (IST): {time}", { time: plantDayTime(until.valueOf()) })}</span>
+                  ) : null}
                   <Button type="primary" disabled={!until} loading={busy} onClick={() => save(until)}>
                     {tr("Hand over to deputy")}
                   </Button>

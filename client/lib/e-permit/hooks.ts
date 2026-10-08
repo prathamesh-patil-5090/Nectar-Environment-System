@@ -110,7 +110,10 @@ export function useNow(ms = 30_000): number {
   const [now, setNow] = useState(plantNow);
   useEffect(() => {
     const tick = () => setNow(plantNow());
-    const t = setInterval(tick, ms);
+    const t = setInterval(() => {
+      tick();
+      void syncPlantClock(); // no-op unless a re-sync is due
+    }, ms);
     const off = onPlantClockSync(tick);
     void syncPlantClock();
     return () => {

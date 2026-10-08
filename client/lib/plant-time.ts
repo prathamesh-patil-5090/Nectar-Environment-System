@@ -7,26 +7,39 @@
  * Nothing here is shown to the user; it only makes the times correct.
  */
 import { intlLocale } from "@/lib/i18n";
+import { API_BASE_URL } from "@/lib/api/client";
 
 export const PLANT_TZ = "Asia/Kolkata";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+/** Re-read the server clock this often, so a device clock corrected mid-session is picked up. */
+const RESYNC_MS = 10 * 60_000;
+/** After a failed sync (e.g. /health down), wait this long before asking again. */
+const RETRY_MS = 30_000;
 
 /** Server clock minus device clock, in ms. 0 until the first sync. */
 let skewMs = 0;
-let synced: Promise<void> | null = null;
+let inFlight: Promise<void> | null = null;
+/** Device time of the last successful sync / last failure (null = never). */
+let lastOkAt: number | null = null;
+let lastFailAt: number | null = null;
 const listeners = new Set<() => void>();
 
 /** Current time by the server's clock (epoch ms). */
 export const plantNow = () => Date.now() + skewMs;
 
+/** Device-clock jumps can make "elapsed" negative; treat any jump as long ago. */
+const olderThan = (at: number | null, ms: number) => at === null || Math.abs(Date.now() - at) >= ms;
+
 /**
- * Reads the server time once per page load (round-trip midpoint) and corrects the device clock.
- * Ignores failures: the device clock is used until a sync succeeds.
+ * Reads the server time (round-trip midpoint) and corrects the device clock. Cheap to call often:
+ * it fetches at most every 10 minutes, and backs off 30 s after a failure. Ignores failures — the last
+ * known skew (or the device clock) is used until a sync succeeds.
  */
 export function syncPlantClock(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  synced ??= (async () => {
+  if (inFlight) return inFlight;
+  if (!olderThan(lastOkAt, RESYNC_MS) || !olderThan(lastFailAt, RETRY_MS)) return Promise.resolve();
+  inFlight = (async () => {
     try {
       const sent = Date.now();
       const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
@@ -35,13 +48,20 @@ export function syncPlantClock(): Promise<void> {
       if (!Number.isFinite(server)) throw new Error("no server time");
       const skew = server - (sent + received) / 2;
       // Under a second is network noise, not a wrong clock.
-      skewMs = Math.abs(skew) < 1000 ? 0 : Math.round(skew);
-      listeners.forEach((l) => l());
+      const next = Math.abs(skew) < 1000 ? 0 : Math.round(skew);
+      lastOkAt = Date.now();
+      lastFailAt = null;
+      if (next !== skewMs) {
+        skewMs = next;
+        listeners.forEach((l) => l());
+      }
     } catch {
-      synced = null; // try again next time
+      lastFailAt = Date.now();
+    } finally {
+      inFlight = null;
     }
   })();
-  return synced;
+  return inFlight;
 }
 
 /** Called when the server clock sync changes `plantNow()`. */

@@ -43,7 +43,7 @@ import { useDirectory } from "@/lib/safety/hooks";
 import { ePermitActorOf } from "@/lib/rbac";
 import { getSession } from "@/lib/auth";
 import { Panel, Section } from "@/components/quiet";
-import { GasReadingsInput, ShiftSchedule, YesNaList, gasDraftToReadings, type GasDraft } from "@/components/e-permit/PermitBits";
+import { GasReadingsInput, ShiftSchedule, YesNaList, gasDraftToReadings, usePlanFollowsClock, type GasDraft } from "@/components/e-permit/PermitBits";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { tr, trData } from "@/lib/i18n";
 
@@ -200,10 +200,12 @@ function IssuePermitForm() {
     parentPermitId: d.parentPermitId,
   });
 
+  // Runs on every step, so a plan whose start slips into the past is moved before Review / submit.
+  const planMove = usePlanFollowsClock(shiftChoice, d.planned ?? null, (planned) => set({ planned }), now);
   const planErrors = validatePlannedSchedule(d.planned?.[0], d.planned?.[1], shiftChoice, now);
   const errors = useMemo(
     () => [...validateForSubmit({ ...input(), gasReadings: gasDraftToReadings(d.gas) }), ...planErrors],
-    [d, siteId, shiftChoice], // eslint-disable-line react-hooks/exhaustive-deps
+    [d, siteId, shiftChoice, now], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const goTo = (next: number) => {
     if (step === 0 && next > 0 && planErrors.length) return;
@@ -314,6 +316,7 @@ function IssuePermitForm() {
             planned={d.planned ?? null}
             onPlannedChange={(planned) => set({ planned })}
             invalid={planErrors.length > 0}
+            moved={planMove}
           />
         </Field>
         <Field id="jsa" label={tr("JSA / risk assessment ref.")}>

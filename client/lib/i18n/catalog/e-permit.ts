@@ -401,6 +401,8 @@ const ePermit: PhraseCatalog = {
   "Not set": ["तय नहीं", "ठरलेले नाही"],
   "Already passed": ["समय निकल चुका", "वेळ निघून गेली"],
   "Planned start moved to {time} — the earlier time has passed": ["नियोजित शुरुआत {time} पर खिसकाई गई — पहले का समय निकल चुका", "नियोजित सुरुवात {time} वर हलवली — आधीची वेळ निघून गेली"],
+  "Planned schedule cleared — that shift has ended. Pick a time in the next one.": ["नियोजित समय हटाया गया — वह शिफ्ट समाप्त हो गई। अगली शिफ्ट में समय चुनें।", "नियोजित वेळ काढली — ती शिफ्ट संपली. पुढच्या शिफ्टमध्ये वेळ निवडा."],
+  "Plant time (IST): {time}": ["प्लांट समय (IST): {time}", "प्लांट वेळ (IST): {time}"],
   "Planned start has already passed": ["नियोजित शुरुआत का समय निकल चुका है", "नियोजित सुरुवातीची वेळ निघून गेली आहे"],
   "{h} hours": ["{h} घंटे", "{h} तास"],
   "Not chosen yet": ["अभी चुना नहीं गया", "अजून निवडलेले नाही"],
