@@ -64,6 +64,7 @@ import {
   scopedEmployeeId,
   scopedSiteId,
   isInChargeOf,
+  isManagerRole,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { listReplacementOptions } from "@/lib/reliever/pool";
@@ -77,6 +78,7 @@ import {
 } from "@/lib/ot-decision";
 import { rowBetweenWrapGap12, sSerifText18Ink, sSerifText18InkMb122, sSerifText18Mb12, sSerifText26Ink, sWhitePadR10 } from "@/lib/styles";
 import type { CSSProperties } from "react";
+import { tr, trNode, trData, trEnum } from "@/lib/i18n";
 
 const sText12MutedMt2: CSSProperties = {
   display: "block",
@@ -105,7 +107,7 @@ function InfoTile({
       <div
         style={{ fontSize: 11, letterSpacing: "0.04em", color: nectarColors.muted, marginBottom: 4, fontWeight: 600 }}
       >
-        {label}
+        {trData(label)}
       </div>
       <div
         style={{ fontSize: 14, color: nectarColors.ink, fontWeight: 500, lineHeight: 1.45, wordBreak: "break-word" }}
@@ -241,7 +243,7 @@ export default function LeaveDetailPage({
 
   if (!leave || !impact) {
     return (
-      <Empty description="Leave request not found"><Button type="primary" onClick={() => router.push("/leave/requests")}>Back</Button></Empty>
+      <Empty description={tr("Leave request not found")}><Button type="primary" onClick={() => router.push("/leave/requests")}>{tr("Back")}</Button></Empty>
     );
   }
 
@@ -249,12 +251,12 @@ export default function LeaveDetailPage({
   const empScope = scopedEmployeeId(session);
   if (empScope && leave.employeeId !== empScope) {
     return (
-      <Empty description="You can only view your own leave requests."><Button type="primary" onClick={() => router.push("/leave/requests")}>My leave</Button></Empty>
+      <Empty description={tr("You can only view your own leave requests.")}><Button type="primary" onClick={() => router.push("/leave/requests")}>{tr("My leave")}</Button></Empty>
     );
   }
   if (siteScope && leave.siteId !== siteScope && !empScope) {
     return (
-      <Empty description="This leave request is outside your plant scope."><Button type="primary" onClick={() => router.push("/leave/requests")}>Back</Button></Empty>
+      <Empty description={tr("This leave request is outside your plant scope.")}><Button type="primary" onClick={() => router.push("/leave/requests")}>{tr("Back")}</Button></Empty>
     );
   }
 
@@ -284,7 +286,7 @@ export default function LeaveDetailPage({
       message.success(ok);
       refresh();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Action failed");
+      message.error(err instanceof Error ? trData(err.message) : tr("Action failed"));
     }
   };
 
@@ -294,8 +296,11 @@ export default function LeaveDetailPage({
       kind: "leave_decision",
       title: approved ? "Leave approved" : "Leave rejected",
       body: approved
-        ? `Your leave ${leave.startDate}–${leave.endDate} was approved by ${actor}.`
-        : `Your leave was rejected by ${actor}${reason ? `: ${reason}` : "."}`,
+        ? "Your leave {startDate}–{endDate} was approved by {actor}."
+        : reason
+          ? "Your leave was rejected by {actor}: {reason}"
+          : "Your leave was rejected by {actor}.",
+      params: { startDate: leave.startDate, endDate: leave.endDate, actor, reason: reason ?? "" },
       href: `/leave/requests/${leave.id}`,
       meta: { leaveId: leave.id },
     });
@@ -309,7 +314,7 @@ export default function LeaveDetailPage({
         onClick={() => router.push("/leave/requests")}
         style={{ width: "fit-content", paddingInline: 0 }}
       >
-        Leave requests
+        {tr("Leave requests")}
       </Button>
 
       {!["CLOSED", "REJECTED", "CANCELLED"].includes(leave.status) ? (
@@ -319,20 +324,20 @@ export default function LeaveDetailPage({
       <div style={{ background: nectarColors.white, padding: 24, borderRadius: 10 }}>
         <div style={rowBetweenWrapGap12}>
           <div>
-            <div style={sSerifText26Ink}>{leave.employeeName}</div>
+            <div style={sSerifText26Ink}>{trData(leave.employeeName)}</div>
             <div style={{ color: nectarColors.muted }}>
               <Link href={`/employees/${leave.employeeId}`}>{leave.employeeId}</Link>
               {" · "}
-              {getSiteName(leave.siteId)} · {leave.department}
+              {trData(getSiteName(leave.siteId))} · {trData(leave.department)}
             </div>
           </div>
           <Space wrap>
-            <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>{leave.mode}</Tag>
+            <Tag color={leave.mode === "emergency" ? nectarColors.alert : nectarColors.sky}>{trData(leave.mode)}</Tag>
             <Tag color={leave.status === "CANCELLED" ? "default" : undefined}>{LEAVE_STATUS_LABELS[leave.status]}</Tag>
             <Tag>
               {leave.entrySource === "supervisor_on_behalf"
-                ? "Entered by supervisor"
-                : "Requested by employee"}
+                ? tr("Entered by supervisor")
+                : tr("Requested by employee")}
             </Tag>
           </Space>
         </div>
@@ -345,13 +350,13 @@ export default function LeaveDetailPage({
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              Withdrawn
-              {leave.cancelledByName ? ` by ${leave.cancelledByName}` : ""}
+              {tr("Withdrawn")}
+              {leave.cancelledByName ? tr(" by {cancelledByName}", { cancelledByName: trData(leave.cancelledByName) }) : ""}
               {leave.cancelledByRole ? ` (${leave.cancelledByRole})` : ""}
             </div>
-            <div style={{ fontSize: 13, color: nectarColors.ink }}>{leave.cancellationReason ?? "No reason recorded"}</div>
+            <div style={{ fontSize: 13, color: nectarColors.ink }}>{leave.cancellationReason ?? tr("No reason recorded")}</div>
             {leave.cancelledAt ? (
-              <div style={{ marginTop: 6, fontSize: 12, color: nectarColors.muted }}>{leave.cancelledAt.slice(0, 16).replace("T", " ")}</div>
+              <div style={{ marginTop: 6, fontSize: 12, color: nectarColors.muted }}>{trData(leave.cancelledAt.slice(0, 16).replace("T", " "))}</div>
             ) : null}
           </div>
         ) : null}
@@ -363,12 +368,12 @@ export default function LeaveDetailPage({
               border: "1px solid #D97706",
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Policy warnings</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>{tr("Policy warnings")}</div>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
               {leave.policyFlags
                 .filter((f) => f.severity === "warn")
                 .map((f) => (
-                  <li key={f.code + f.message}>{f.message}</li>
+                  <li key={f.code + f.message}>{trData(f.message)}</li>
                 ))}
             </ul>
             {leave.policySuggestions?.length ? (
@@ -378,69 +383,69 @@ export default function LeaveDetailPage({
         ) : null}
 
         <div style={{ marginTop: 22 }}>
-          <div style={sSerifText18InkMb122}>Leave details</div>
+          <div style={sSerifText18InkMb122}>{tr("Leave details")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-            <InfoTile label="Leave type">
+            <InfoTile label={tr("Leave type")}>
               {LEAVE_TYPE_LABELS[leave.leaveType]}
               {leave.isHalfDay
-                ? ` · Half-day (${leave.halfDaySlot ?? "—"})`
+                ? tr(" · Half-day ({halfDaySlot})", { halfDaySlot: leave.halfDaySlot ?? "—" })
                 : ""}
             </InfoTile>
-            <InfoTile label="Dates">
+            <InfoTile label={tr("Dates")}>
               {leave.startDate} → {leave.endDate}
-              <span style={sText12MutedMt2}>{leave.daysRequested} day{leave.daysRequested === 1 ? "" : "s"}</span>
+              <span style={sText12MutedMt2}>{leave.daysRequested === 1 ? tr("{count} day", { count: leave.daysRequested }) : tr("{count} days", { count: leave.daysRequested })}</span>
             </InfoTile>
-            <InfoTile label="Expected return">{leave.expectedReturnDate}</InfoTile>
-            <InfoTile label="Actual return">{leave.actualReturnDate ?? "—"}</InfoTile>
-            <InfoTile label="Lifecycle" wide>
+            <InfoTile label={tr("Expected return")}>{leave.expectedReturnDate}</InfoTile>
+            <InfoTile label={tr("Actual return")}>{leave.actualReturnDate ?? "—"}</InfoTile>
+            <InfoTile label={tr("Lifecycle")} wide>
               {lifecycleCases.length ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {lifecycleCases.slice(0, 3).map((c) => (
                     <div key={c.id} style={{ fontSize: 13 }}>
-                      <Tag>{c.kind.replaceAll("_", " ")}</Tag> {c.message}
+                      <Tag>{trEnum(c.kind)}</Tag> {trData(c.message)}
                     </div>
                   ))}
                   <Link href={`/leave/lifecycle?leaveId=${leave.id}`}>
-                    Open Lifecycle queue
+                    {tr("Open Lifecycle queue")}
                   </Link>
                 </div>
               ) : (
-                "No active lifecycle flags"
+                tr("No active lifecycle flags")
               )}
             </InfoTile>
-            <InfoTile label="Leave balance">{leave.leaveBalanceDays} days</InfoTile>
-            <InfoTile label="Supervisor">{leave.supervisorName}</InfoTile>
-            <InfoTile label="Shift In-Charge">{leave.siteInChargeName}</InfoTile>
-            <InfoTile label="Manager">{leave.managerName ?? "—"}</InfoTile>
-            <InfoTile label="Entered by">
-              {leave.enteredByName}
-              <span style={sText12MutedMt2}>{leave.enteredByRole}</span>
+            <InfoTile label={tr("Leave balance")}>{tr("{leaveBalanceDays} days", { leaveBalanceDays: leave.leaveBalanceDays })}</InfoTile>
+            <InfoTile label={tr("Supervisor")}>{trData(leave.supervisorName)}</InfoTile>
+            <InfoTile label={tr("Shift In-Charge")}>{trData(leave.siteInChargeName)}</InfoTile>
+            <InfoTile label={tr("Manager")}>{leave.managerName ?? "—"}</InfoTile>
+            <InfoTile label={tr("Entered by")}>
+              {trData(leave.enteredByName)}
+              <span style={sText12MutedMt2}>{trData(leave.enteredByRole)}</span>
             </InfoTile>
             {leave.employeeConsent ? (
-              <InfoTile label="Employee consent">
-                {leave.employeeConsent}
+              <InfoTile label={tr("Employee consent")}>
+                {trData(leave.employeeConsent)}
                 {leave.employeeConsentAt
                   ? ` · ${leave.employeeConsentAt.slice(0, 16).replace("T", " ")}`
                   : ""}
               </InfoTile>
             ) : null}
             {leave.managerDecision ? (
-              <InfoTile label="Manager decision">
-                {leave.managerDecision}
+              <InfoTile label={tr("Manager decision")}>
+                {trData(leave.managerDecision)}
                 {leave.managerDecisionAt
                   ? ` · ${leave.managerDecisionAt.slice(0, 16).replace("T", " ")}`
                   : ""}
               </InfoTile>
             ) : null}
             {leave.rejectionReason ? (
-              <InfoTile label="Rejection reason" wide>{leave.rejectionReason}</InfoTile>
+              <InfoTile label={tr("Rejection reason")} wide>{trData(leave.rejectionReason)}</InfoTile>
             ) : null}
-            <InfoTile label="Reason" wide>{leave.reason}</InfoTile>
+            <InfoTile label={tr("Reason")} wide>{trData(leave.reason)}</InfoTile>
             {leave.lastCommunication ? (
-              <InfoTile label="Last communication" wide>{leave.lastCommunication}</InfoTile>
+              <InfoTile label={tr("Last communication")} wide>{trData(leave.lastCommunication)}</InfoTile>
             ) : null}
             {leave.replacementPlan ? (
-              <InfoTile label="Replacement plan" wide>{leave.replacementPlan}</InfoTile>
+              <InfoTile label={tr("Replacement plan")} wide>{trData(leave.replacementPlan)}</InfoTile>
             ) : null}
           </div>
         </div>
@@ -455,12 +460,9 @@ export default function LeaveDetailPage({
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
             <WarningOutlined style={{ color: nectarColors.alert, fontSize: 18, marginTop: 2 }} />
             <div>
-              <div style={sSerifText18Ink}>Same-plant date overlap</div>
+              <div style={sSerifText18Ink}>{tr("Same-plant date overlap")}</div>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: nectarColors.muted, lineHeight: 1.45 }}>
-                {plantOverlaps.length} other active leave
-                {plantOverlaps.length === 1 ? "" : "s"} at{" "}
-                {getSiteName(leave.siteId)} cover overlapping dates. Review
-                coverage before approving.
+                {tr("{count} other active leave(s) at {site} cover overlapping dates. Review coverage before approving.", { count: plantOverlaps.length, site: trData(getSiteName(leave.siteId)) })}
               </p>
             </div>
           </div>
@@ -475,12 +477,12 @@ export default function LeaveDetailPage({
                   textDecoration: "none",
                 }}
               >
-                <span style={{ fontWeight: 600, color: nectarColors.leaf }}>{o.employeeName}</span>
+                <span style={{ fontWeight: 600, color: nectarColors.leaf }}>{trData(o.employeeName)}</span>
                 <span style={{ fontSize: 13 }}>{o.startDate} → {o.endDate}</span>
-                <Tag color={o.mode === "emergency" ? nectarColors.alert : nectarColors.sky} style={{ margin: 0 }}>{o.mode}</Tag>
+                <Tag color={o.mode === "emergency" ? nectarColors.alert : nectarColors.sky} style={{ margin: 0 }}>{trData(o.mode)}</Tag>
                 <Tag style={{ margin: 0 }}>{LEAVE_STATUS_LABELS[o.status]}</Tag>
                 {o.potentialOtHours > 0 ? (
-                  <span style={{ fontSize: 12, color: nectarColors.alert, fontWeight: 600 }}>+{o.potentialOtHours} hrs OT risk</span>
+                  <span style={{ fontSize: 12, color: nectarColors.alert, fontWeight: 600 }}>{tr("+{potentialOtHours} hrs OT risk", { potentialOtHours: o.potentialOtHours })}</span>
                 ) : null}
               </Link>
             ))}
@@ -517,17 +519,17 @@ export default function LeaveDetailPage({
                 fontSize: 18,
               }}
             >
-              Manpower conflicts
+              {tr("Manpower conflicts")}
             </div>
             <Space size={4} wrap>
               <Tag color={manpowerReport.attentionCount ? nectarColors.alert : undefined}>
-                {manpowerReport.attentionCount} attention
+                {tr("{attentionCount} attention", { attentionCount: manpowerReport.attentionCount })}
               </Tag>
               {canSite ? (
                 <Tag color={leaveGate?.ok ? nectarColors.mint : nectarColors.alert}>
                   {leaveGate?.ok
-                    ? "Site-approve clear"
-                    : "Site-approve blocked"}
+                    ? tr("Site-approve clear")
+                    : tr("Site-approve blocked")}
                 </Tag>
               ) : null}
             </Space>
@@ -552,9 +554,9 @@ export default function LeaveDetailPage({
                     }
                     style={{ marginRight: 6 }}
                   >
-                    {i.kind.replaceAll("_", " ")}
+                    {trEnum(i.kind)}
                   </Tag>
-                  {i.message}
+                  {trData(i.message)}
                 </li>
               ))}
           </ul>
@@ -566,9 +568,7 @@ export default function LeaveDetailPage({
                 color: nectarColors.muted,
               }}
             >
-              Assign cover or accept OT below before site approval. Leave-on-roster
-            is expected until the leave is approved; rest / double-booking still
-            block and need a schedule edit.
+              {tr("Assign cover or accept OT below before site approval. Leave-on-roster is expected until the leave is approved; rest / double-booking still block and need a schedule edit.")}
             </p>
           ) : null}
         </div>
@@ -594,15 +594,15 @@ export default function LeaveDetailPage({
             ...p,
             label: p.coverSource
               ? candidateDisplaySource(p.coverSource)
-              : "This site",
+              : tr("This site"),
           })),
           ...replacementOptions.cluster.map((p) => ({
             ...p,
             label: p.coverSource
               ? candidateDisplaySource(p.coverSource)
               : p.homeSiteId
-                ? `Cluster · ${getSiteName(p.homeSiteId)}`
-                : "Cluster",
+                ? tr("Cluster · {siteName}", { siteName: trData(getSiteName(p.homeSiteId)) })
+                : tr("Cluster"),
           })),
         ];
         const showPanel =
@@ -616,21 +616,21 @@ export default function LeaveDetailPage({
 
         return (
           <div style={sWhitePadR10}>
-            <div style={{ fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, marginBottom: 8 }}>Replacement</div>
+            <div style={{ fontFamily: "var(--font-fraunces), Georgia, serif", fontSize: 18, marginBottom: 8 }}>{tr("Replacement")}</div>
             {leave.assignedRelieverId ||
             leave.assignedCoverEmployeeId ||
             leave.replacementPlan ? (
               <p style={{ margin: "0 0 12px", color: nectarColors.ink, fontSize: 14 }}>
                 {leave.replacementPlan ??
                   (assignedName
-                    ? `${assignedName} assigned`
-                    : "Replacement arranged")}
+                    ? tr("{assignedName} assigned", { assignedName: trData(assignedName) })
+                    : tr("Replacement arranged"))}
               </p>
             ) : (
               <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
                 {canPick
-                  ? "Choose cover from same-plant employees, cluster employees, or the reliever pool."
-                  : "Cover candidates appear once the Shift In-Charge arranges replacement."}
+                  ? tr("Choose cover from same-plant employees, cluster employees, or the reliever pool.")
+                  : tr("Cover candidates appear once the Shift In-Charge arranges replacement.")}
               </p>
             )}
 
@@ -652,8 +652,8 @@ export default function LeaveDetailPage({
                       hasCompetitionAck(leave.id, person.relieverId);
                     return (
                       <Radio key={person.relieverId} value={person.relieverId}>
-                        {person.name} · {person.label}
-                        {person.kind === "employee" ? " · employee" : " · pool"}
+                        {trData(person.name)} · {trData(person.label)}
+                        {person.kind === "employee" ? tr(" · employee") : tr(" · pool")}
                         {person.phone ? ` · ${person.phone}` : ""}
                         {contest ? (
                           <Tag
@@ -661,23 +661,23 @@ export default function LeaveDetailPage({
                             style={{ marginLeft: 8 }}
                           >
                             {cleared
-                              ? "Contested · acknowledged"
-                              : "Contested — needs Manager"}
+                              ? tr("Contested · acknowledged")
+                              : tr("Contested — needs Manager")}
                           </Tag>
                         ) : null}
                       </Radio>
                     );
                   })}
                   <Radio value="ot">
-                    No one — accept overtime
+                    {tr("No one — accept overtime")}
                     {otEval?.needsManagerRemark && !otCleared ? (
                       <Tag color={nectarColors.alert} style={{ marginLeft: 8 }}>
-                        Needs Manager OT decision
+                        {tr("Needs Manager OT decision")}
                       </Tag>
                     ) : null}
                     {otCleared ? (
                       <Tag color={nectarColors.mint} style={{ marginLeft: 8 }}>
-                        OT approved
+                        {tr("OT approved")}
                       </Tag>
                     ) : null}
                   </Radio>
@@ -695,20 +695,20 @@ export default function LeaveDetailPage({
                     <div>
                       {otEval.hours}h · ₹{otEval.cost}
                       {otEval.flags.length
-                        ? ` · ${otEval.flags.map((f) => f.replaceAll("_", " ")).join(", ")}`
+                        ? ` · ${otEval.flags.map((f) => trEnum(f)).join(", ")}`
                         : ""}
                     </div>
                     <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-                      {otEval.message}{" "}
+                      {trData(otEval.message)}{" "}
                       <Link href={`/overtime/decisions?leaveId=${leave.id}`}>
-                        OT Decisions
+                        {tr("OT Decisions")}
                       </Link>
                     </p>
                     {canManager && otEval.needsManagerRemark && !otCleared ? (
                       <Input.TextArea
                         style={{ marginTop: 8 }}
                         rows={2}
-                        placeholder="Manager remark to clear OT soft block"
+                        placeholder={tr("Manager remark to clear OT soft block")}
                         value={otRemark}
                         onChange={(e) => setOtRemark(e.target.value)}
                       />
@@ -723,11 +723,13 @@ export default function LeaveDetailPage({
                       color: nectarColors.muted,
                     }}
                   >
-                    Contested cover must be Awarded or Acknowledged on{" "}
-                    <Link href={`/reliever-pool/competition?leaveId=${leave.id}`}>
-                      Reliever Competition
-                    </Link>{" "}
-                    before Cover this shift succeeds.
+                    {trNode("Contested cover must be Awarded or Acknowledged on {link} before Cover this shift succeeds.", {
+                      link: (
+                        <Link href={`/reliever-pool/competition?leaveId=${leave.id}`}>
+                          {tr("Reliever Competition")}
+                        </Link>
+                      ),
+                    })}
                   </p>
                 ) : null}
                 <Space wrap style={{ marginTop: 12 }}>
@@ -739,7 +741,7 @@ export default function LeaveDetailPage({
                       const otActorRole =
                         role === "director"
                           ? "director"
-                          : role === "manager"
+                          : isManagerRole(role)
                             ? "manager"
                             : "sic";
                       run(
@@ -759,12 +761,12 @@ export default function LeaveDetailPage({
                               : { relieverId: coverChoice },
                           ),
                         coverChoice === "ot"
-                          ? "Covered with overtime"
-                          : "Cover arranged",
+                          ? tr("Covered with overtime")
+                          : tr("Cover arranged"),
                       );
                     }}
                   >
-                    Cover this shift
+                    {tr("Cover this shift")}
                   </Button>
                   <Button
                     danger
@@ -773,7 +775,7 @@ export default function LeaveDetailPage({
                       setRejectOpen(true);
                     }}
                   >
-                    Reject
+                    {tr("Reject")}
                   </Button>
                   <Button
                     onClick={() =>
@@ -784,11 +786,11 @@ export default function LeaveDetailPage({
                             actor,
                             "Escalated for manpower / OT review",
                           ),
-                        "Escalated",
+                        tr("Escalated"),
                       )
                     }
                   >
-                    Escalate
+                    {tr("Escalate")}
                   </Button>
                 </Space>
               </>
@@ -796,33 +798,29 @@ export default function LeaveDetailPage({
               <ul style={{ margin: 0, paddingLeft: 18, color: nectarColors.ink, fontSize: 14, lineHeight: 1.7 }}>
                 {people.slice(0, 8).map((person) => (
                   <li key={person.relieverId}>
-                    {person.name} · {person.label}
-                    {person.kind === "employee" ? " · employee" : " · pool"}
+                    {trData(person.name)} · {trData(person.label)}
+                    {person.kind === "employee" ? tr(" · employee") : tr(" · pool")}
                     {person.phone ? ` · ${person.phone}` : ""}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>No available cover candidates — overtime may be needed.</p>
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>{tr("No available cover candidates — overtime may be needed.")}</p>
             )}
           </div>
         );
       })()}
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>Actions</div>
+        <div style={sSerifText18Mb12}>{tr("Actions")}</div>
         {waitingOnConsent ? (
           <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
-            Waiting for <strong>{leave.employeeName}</strong> to approve or reject
-            this on-behalf request. Manager approval unlocks only after they
-            consent. Ask them to sign in as the employee and open this leave
-            (or their Notifications inbox).
+            {trNode("Waiting for {name} to approve or reject this on-behalf request. Manager approval unlocks only after they consent. Ask them to sign in as the employee and open this leave (or their Notifications inbox).", { name: <strong>{trData(leave.employeeName)}</strong> })}
           </p>
         ) : null}
         {canGiveConsent && leave.status === "PENDING_EMPLOYEE_CONSENT" ? (
           <p style={{ margin: "0 0 12px", color: nectarColors.muted, fontSize: 14 }}>
-            Your supervisor submitted this leave for you. Approve to send it
-            to your supervisor for verification, or reject to stop it here.
+            {tr("Your supervisor submitted this leave for you. Approve to send it to your supervisor for verification, or reject to stop it here.")}
           </p>
         ) : null}
         {(() => {
@@ -876,22 +874,22 @@ export default function LeaveDetailPage({
             showWithdraw;
 
           if (!hasButtons && !waitingOnConsent) {
-            let statusNote = "No actions available for your role on this leave.";
+            let statusNote = tr("No actions available for your role on this leave.");
             if (canGiveConsent && leave.status === "REQUESTED") {
               statusNote =
-                "You approved consent. This leave is now with your supervisor to verify.";
+                tr("You approved consent. This leave is now with your supervisor to verify.");
             } else if (leave.status === "APPROVED") {
-              statusNote = "Leave is approved. Confirm return when you are back on duty (supervisor/manager).";
+              statusNote = tr("Leave is approved. Confirm return when you are back on duty (supervisor/manager).");
             } else if (leave.status === "REJECTED") {
               statusNote = leave.rejectionReason
-                ? `Leave rejected: ${leave.rejectionReason}`
-                : "Leave was rejected. No further action needed.";
+                ? tr("Leave rejected: {rejectionReason}", { rejectionReason: trData(leave.rejectionReason) })
+                : tr("Leave was rejected. No further action needed.");
             } else if (leave.status === "CANCELLED") {
               statusNote = leave.cancellationReason
-                ? `Leave withdrawn: ${leave.cancellationReason}`
-                : "Leave was withdrawn. Kept on record for ops visibility.";
+                ? tr("Leave withdrawn: {cancellationReason}", { cancellationReason: trData(leave.cancellationReason) })
+                : tr("Leave was withdrawn. Kept on record for ops visibility.");
             } else if (leave.status === "CLOSED") {
-              statusNote = "Leave closed — return confirmed.";
+              statusNote = tr("Leave closed — return confirmed.");
             } else if (
               canGiveConsent &&
               leave.status === "PENDING_EMPLOYEE_CONSENT"
@@ -899,7 +897,7 @@ export default function LeaveDetailPage({
               statusNote = "";
             }
             return statusNote ? (
-              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>{statusNote}</p>
+              <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>{trData(statusNote)}</p>
             ) : null;
           }
 
@@ -911,7 +909,7 @@ export default function LeaveDetailPage({
                 setRejectOpen(true);
               }}
             >
-              Reject
+              {tr("Reject")}
             </Button>
           ) : null;
 
@@ -924,7 +922,7 @@ export default function LeaveDetailPage({
                 setWithdrawOpen(true);
               }}
             >
-              Withdraw leave
+              {tr("Withdraw leave")}
             </Button>
           ) : null;
 
@@ -943,14 +941,15 @@ export default function LeaveDetailPage({
                         employeeId: leave.submittedByEmployeeId,
                         kind: "leave_decision",
                         title: "Employee approved leave consent",
-                        body: `${leave.employeeName} approved the on-behalf leave — pending supervisor verification.`,
+                        body: "{employeeName} approved the on-behalf leave — pending supervisor verification.",
+                        params: { employeeName: leave.employeeName },
                         href: `/leave/requests/${leave.id}`,
                       });
                     }
-                  }, "Consent approved — sent to supervisor")
+                  }, tr("Consent approved — sent to supervisor"))
                 }
               >
-                Approve — send to supervisor
+                {tr("Approve — send to supervisor")}
               </Button>
               <Button
                 danger
@@ -959,7 +958,7 @@ export default function LeaveDetailPage({
                   setRejectOpen(true);
                 }}
               >
-                Reject — do not proceed
+                {tr("Reject — do not proceed")}
               </Button>
             </>
           ) : null}
@@ -968,10 +967,10 @@ export default function LeaveDetailPage({
             <Button
               type="primary"
               onClick={() =>
-                run(() => supervisorVerify(leave.id, actor), "Supervisor verified")
+                run(() => supervisorVerify(leave.id, actor), tr("Supervisor verified"))
               }
             >
-              Supervisor verify
+              {tr("Supervisor verify")}
             </Button>
           ) : null}
 
@@ -981,10 +980,10 @@ export default function LeaveDetailPage({
               onClick={() =>
                 run(() => {
                   managerDecideLeave(leave.id, actor, "approved");
-                }, "Manager approved — sent to Director")
+                }, tr("Manager approved — sent to Director"))
               }
             >
-              Manager approve
+              {tr("Manager approve")}
             </Button>
           ) : null}
 
@@ -995,10 +994,10 @@ export default function LeaveDetailPage({
                 run(() => {
                   adminFinalizeLeave(leave.id, actor, "approved");
                   notifyDecision(true);
-                }, "Leave approved by Director")
+                }, tr("Leave approved by Director"))
               }
             >
-              Director approve
+              {tr("Director approve")}
             </Button>
           ) : null}
 
@@ -1019,17 +1018,17 @@ export default function LeaveDetailPage({
                         actorRole:
                           role === "director"
                             ? "director"
-                            : role === "manager"
+                            : isManagerRole(role)
                               ? "manager"
                               : role === "supervisor"
                                 ? "supervisor"
                                 : "shift_incharge",
                       }),
-                    "Return recorded",
+                    tr("Return recorded"),
                   )
                 }
               >
-                Confirm return to duty
+                {tr("Confirm return to duty")}
               </Button>
             </>
           ) : null}
@@ -1038,7 +1037,7 @@ export default function LeaveDetailPage({
               <DatePicker value={returnDate} onChange={(d) => d && setReturnDate(d)} />
               <Input.TextArea
                 rows={2}
-                placeholder="Manager remark to close extension (required)"
+                placeholder={tr("Manager remark to close extension (required)")}
                 value={extensionRemark}
                 onChange={(e) => setExtensionRemark(e.target.value)}
                 style={{ minWidth: 220 }}
@@ -1055,11 +1054,11 @@ export default function LeaveDetailPage({
                         remark: extensionRemark,
                         actorRole: role === "director" ? "director" : "manager",
                       }),
-                    "Extension closed",
+                    tr("Extension closed"),
                   )
                 }
               >
-                Close extension
+                {tr("Close extension")}
               </Button>
             </>
           ) : null}
@@ -1067,7 +1066,7 @@ export default function LeaveDetailPage({
             <Button
               danger
               onClick={() => {
-                const note = window.prompt("Cover disruption note (required)");
+                const note = window.prompt(tr("Cover disruption note (required)"));
                 if (!note?.trim()) return;
                 run(
                   () =>
@@ -1077,19 +1076,18 @@ export default function LeaveDetailPage({
                       note: note.trim(),
                       actor,
                     }),
-                  "Cover disruption recorded",
+                  tr("Cover disruption recorded"),
                 );
               }}
             >
-              Report cover no-show
+              {tr("Report cover no-show")}
             </Button>
           ) : null}
           </Space>
 
           {showSite ? (
             <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>
-              Use the <strong>Replacement</strong> section above to choose who
-              covers this shift.
+              {trNode("Use the {section} section above to choose who covers this shift.", { section: <strong>{tr("Replacement")}</strong> })}
             </p>
           ) : null}
         </div>
@@ -1098,20 +1096,20 @@ export default function LeaveDetailPage({
       </div>
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>Workflow timeline</div>
+        <div style={sSerifText18Mb12}>{tr("Workflow timeline")}</div>
         <Timeline
           items={leave.timeline.map((t) => ({
             color: nectarColors.leaf,
             content: (
               <div>
                 <div style={{ fontWeight: 600 }}>
-                  {t.action}{" "}
-                  <span style={{ color: nectarColors.muted, fontWeight: 400 }}>· {t.actor} ({t.role})</span>
+                  {trData(t.action)}{" "}
+                  <span style={{ color: nectarColors.muted, fontWeight: 400 }}>· {trData(t.actor)} ({trData(t.role)})</span>
                 </div>
                 {t.note ? (
-                  <div style={{ fontSize: 12, color: nectarColors.muted }}>{t.note}</div>
+                  <div style={{ fontSize: 12, color: nectarColors.muted }}>{trData(t.note)}</div>
                 ) : null}
-                <div style={{ fontSize: 11, color: nectarColors.muted }}>{t.at.slice(0, 16).replace("T", " ")}</div>
+                <div style={{ fontSize: 11, color: nectarColors.muted }}>{trData(t.at.slice(0, 16).replace("T", " "))}</div>
               </div>
             ),
           }))}
@@ -1121,8 +1119,8 @@ export default function LeaveDetailPage({
       <Modal
         title={
           leave.status === "PENDING_EMPLOYEE_CONSENT"
-            ? "Reject leave consent"
-            : "Reject leave"
+            ? tr("Reject leave consent")
+            : tr("Reject leave")
         }
         open={rejectOpen}
         onCancel={() => setRejectOpen(false)}
@@ -1141,16 +1139,17 @@ export default function LeaveDetailPage({
                   employeeId: leave.submittedByEmployeeId,
                   kind: "leave_decision",
                   title: "Employee rejected leave consent",
-                  body: `${leave.employeeName} rejected the on-behalf request. It will not go to the manager.`,
+                  body: "{employeeName} rejected the on-behalf request. It will not go to the manager.",
+                  params: { employeeName: leave.employeeName },
                   href: `/leave/requests/${leave.id}`,
                 });
               }
-            }, "Consent rejected — request stopped");
+            }, tr("Consent rejected — request stopped"));
             setRejectOpen(false);
             return;
           }
           if (!note) {
-            message.error("Add a remark before rejecting");
+            message.error(tr("Add a remark before rejecting"));
             return;
           }
           const role =
@@ -1165,28 +1164,28 @@ export default function LeaveDetailPage({
           run(() => {
             rejectLeave(leave.id, actor, note, role);
             notifyDecision(false, note);
-          }, "Leave rejected");
+          }, tr("Leave rejected"));
           setRejectOpen(false);
         }}
-        okText="Reject"
+        okText={tr("Reject")}
         okButtonProps={{ danger: true }}
       >
         <Input.TextArea
           rows={3}
-          placeholder="Remark — why this leave is rejected"
+          placeholder={tr("Remark — why this leave is rejected")}
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
         />
       </Modal>
 
       <Modal
-        title="Withdraw leave request"
+        title={tr("Withdraw leave request")}
         open={withdrawOpen}
         onCancel={() => setWithdrawOpen(false)}
         onOk={() => {
           const note = withdrawNote.trim();
           if (!note) {
-            message.error("Add a reason before withdrawing");
+            message.error(tr("Add a reason before withdrawing"));
             return;
           }
           run(() => {
@@ -1205,25 +1204,24 @@ export default function LeaveDetailPage({
                 employeeId,
                 kind: "leave_decision",
                 title: "Leave withdrawn",
-                body: `${leave.employeeName} withdrew leave ${leave.startDate}–${leave.endDate}: ${note}`,
+                body: "{employeeName} withdrew leave {startDate}–{endDate}: {note}",
+                params: { employeeName: leave.employeeName, startDate: leave.startDate, endDate: leave.endDate, note },
                 href: `/leave/requests/${leave.id}`,
                 meta: { leaveId: leave.id },
               });
             }
-          }, "Leave withdrawn — still visible to ops");
+          }, tr("Leave withdrawn — still visible to ops"));
           setWithdrawOpen(false);
         }}
-        okText="Withdraw"
+        okText={tr("Withdraw")}
         okButtonProps={{ danger: true }}
       >
         <p style={{ margin: "0 0 10px", fontSize: 13, color: nectarColors.muted }}>
-          This does not permanently delete the request. Supervisors and managers
-          will still see it as withdrawn, with your reason. Withdrawal is not
-          allowed after site approval or escalation.
+          {tr("This does not permanently delete the request. Supervisors and managers will still see it as withdrawn, with your reason. Withdrawal is not allowed after site approval or escalation.")}
         </p>
         <Input.TextArea
           rows={3}
-          placeholder="Reason for withdrawing this leave"
+          placeholder={tr("Reason for withdrawing this leave")}
           value={withdrawNote}
           onChange={(e) => setWithdrawNote(e.target.value)}
         />

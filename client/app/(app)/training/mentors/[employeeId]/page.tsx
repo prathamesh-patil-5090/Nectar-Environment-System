@@ -10,6 +10,7 @@ import TrainingSubNav from "@/components/training/ui/TrainingSubNav";
 import Shelf from "@/components/training/ui/Shelf";
 import Cover from "@/components/training/ui/Cover";
 import { EventImageCard, communityCoverUrl } from "@/components/training/ui/EventCard";
+import { tr, trData } from "@/lib/i18n";
 
 /** Mentor profile: who they are, what they teach, their sessions and the circles they organise. */
 export default function MentorProfilePage() {
@@ -30,9 +31,9 @@ export default function MentorProfilePage() {
     return (
       <Result
         status="404"
-        title="Mentor not found"
+        title={tr("Mentor not found")}
         subTitle={mentor.error ?? undefined}
-        extra={<Link href="/training/mentors"><Button type="primary">All mentors</Button></Link>}
+        extra={<Link href="/training/mentors"><Button type="primary">{tr("All mentors")}</Button></Link>}
       />
     );
   }
@@ -47,43 +48,43 @@ export default function MentorProfilePage() {
     <div className="flex flex-col gap-6 min-w-0">
       <TrainingSubNav />
 
-      <nav aria-label="Breadcrumbs" className="text-xs font-medium text-slate-500 flex gap-2">
-        <Link href="/training/mentors" className="hover:text-emerald-700">Mentors</Link>
+      <nav aria-label={tr("Breadcrumbs")} className="text-xs font-medium text-slate-500 flex gap-2">
+        <Link href="/training/mentors" className="hover:text-emerald-700">{tr("Mentors")}</Link>
         <span>/</span>
-        <span className="text-slate-700">{m.name}</span>
+        <span className="text-slate-700">{trData(m.name)}</span>
       </nav>
 
       {/* Profile header */}
       <header className="grid gap-6 md:grid-cols-[260px_minmax(0,1fr)] items-start">
         <div className="aspect-[4/5] rounded-3xl overflow-hidden bg-slate-100 border border-slate-200">
-          <Cover src={m.photoUrl} label={m.name} className="object-[center_20%]" />
+          <Cover src={m.photoUrl} label={trData(m.name)} className="object-[center_20%]" />
         </div>
         <div className="flex flex-col gap-4 min-w-0">
           <div>
-            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#1C4463] text-white">Mentor</span>
-            <h1 className="m-0 mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">{m.name}</h1>
-            <p className="m-0 mt-1 text-slate-600">{[m.title, m.department].filter(Boolean).join(" · ")}</p>
+            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#1C4463] text-white">{tr("Mentor")}</span>
+            <h1 className="m-0 mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">{trData(m.name)}</h1>
+            <p className="m-0 mt-1 text-slate-600">{[m.title, m.department].filter(Boolean).map((x) => trData(String(x))).join(" · ")}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 max-w-md">
             {([
-              ["Upcoming", live.length],
-              ["Sessions hosted", done.length],
-              ["Learners taught", learners],
+              [tr("Upcoming"), live.length],
+              [tr("Sessions hosted"), done.length],
+              [tr("Learners taught"), learners],
             ] as const).map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-white border border-slate-200 px-3 py-2.5">
                 <div className="text-2xl font-extrabold text-slate-900">{value}</div>
-                <div className="text-xs text-slate-500">{label}</div>
+                <div className="text-xs text-slate-500">{trData(label)}</div>
               </div>
             ))}
           </div>
-          {m.bio && <p className="m-0 text-slate-700 leading-relaxed whitespace-pre-wrap max-w-3xl">{m.bio}</p>}
+          {m.bio && <p className="m-0 text-slate-700 leading-relaxed whitespace-pre-wrap max-w-3xl">{trData(m.bio)}</p>}
           {topics.length > 0 && (
             <div className="flex flex-col gap-2">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Teaches</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">{tr("Teaches")}</div>
               <div className="flex flex-wrap gap-2">
                 {topics.map((t) => (
                   <Link key={t} href={`/training/explore?q=${encodeURIComponent(t)}`} className="px-3 py-1 rounded-full text-sm bg-white! border border-slate-200 text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
-                    {t}
+                    {trData(t)}
                   </Link>
                 ))}
               </div>
@@ -91,12 +92,12 @@ export default function MentorProfilePage() {
           )}
           {organises.length > 0 && (
             <div className="flex flex-col gap-2">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Organises</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">{tr("Organises")}</div>
               <div className="flex flex-wrap gap-2">
                 {organises.map((c) => (
                   <Link key={c.id} href={`/training/communities/${c.slug}`} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white! border border-slate-200 hover:border-[#1C4463]">
                     <Avatar size={26} src={communityCoverUrl(c)} className="bg-emerald-700">{c.name[0]}</Avatar>
-                    <span className="text-sm font-semibold text-slate-800">{c.name}</span>
+                    <span className="text-sm font-semibold text-slate-800">{trData(c.name)}</span>
                   </Link>
                 ))}
               </div>
@@ -106,16 +107,16 @@ export default function MentorProfilePage() {
       </header>
 
       <Shelf
-        title="Upcoming sessions"
+        title={tr("Upcoming sessions")}
         items={live}
         loading={upcoming.loading}
         error={upcoming.error}
-        emptyText={`${m.name.split(" ")[0]} has no sessions scheduled right now`}
+        emptyText={tr("{name} has no sessions scheduled right now", { name: trData(m.name).split(" ")[0] })}
         viewAllHref={`/training/events?host=${encodeURIComponent(employeeId)}`}
         render={(e) => <EventImageCard key={e.id} event={e} />}
       />
       <Shelf
-        title="Past sessions"
+        title={tr("Past sessions")}
         items={done}
         loading={past.loading}
         hideWhenEmpty

@@ -7,6 +7,7 @@ import {
   type OtStatus,
 } from "@/lib/overtime";
 import { nectarColors } from "@/lib/theme";
+import { tr, trData } from "@/lib/i18n";
 
 export const OT_STATUS_COLORS: Record<OtStatus, string> = {
   PENDING: "#D97706",
@@ -37,14 +38,14 @@ export function OtStatusChip({
 }: ChipProps) {
   const color = OT_STATUS_COLORS[status];
   const items: MenuProps["items"] = [
-    { key: "all", label: "All statuses", onClick: () => onSelect(undefined) },
+    { key: "all", label: tr("All statuses"), onClick: () => onSelect(undefined) },
     { type: "divider" },
     ...OT_STATUS_OPTIONS.map((opt) => ({
       key: opt.value,
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color, flexShrink: 0 }} />
-          {opt.label}
+          {trData(opt.label)}
         </span>
       ),
       onClick: () => onSelect(opt.value),

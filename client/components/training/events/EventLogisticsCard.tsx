@@ -20,6 +20,7 @@ import type { TrainingEvent } from "@/lib/training/types";
 import { dayParts, fmtTimeRange } from "@/lib/training/hooks";
 import { getSiteName } from "@/lib/training/store";
 import { eventCalendarUrl } from "@/lib/api/training";
+import { tr, intlLocale, trData } from "@/lib/i18n";
 
 interface EventLogisticsCardProps {
   event: TrainingEvent;
@@ -39,7 +40,7 @@ export default function EventLogisticsCard({
   const startDate = new Date(event.startsAt);
   const endDate = new Date(event.endsAt);
 
-  const fullDateStr = startDate.toLocaleDateString("en-IN", {
+  const fullDateStr = startDate.toLocaleDateString(intlLocale(), {
     timeZone: "Asia/Kolkata",
     weekday: "long",
     month: "long",
@@ -49,8 +50,8 @@ export default function EventLogisticsCard({
 
   const venueTitle =
     event.format === "online"
-      ? "Google Meet Virtual Room"
-      : [getSiteName(event.venue?.siteId) ?? "Plant Site", event.venue?.room]
+      ? tr("Google Meet Virtual Room")
+      : [getSiteName(event.venue?.siteId) ?? tr("Plant Site"), event.venue?.room]
           .filter(Boolean)
           .join(" · ");
 
@@ -62,7 +63,7 @@ export default function EventLogisticsCard({
       `${event.description}\n\nSession hosted on Nectar Enviro Ops Training Platform.`
     );
     const location = encodeURIComponent(
-      event.format === "online" ? (event.meetLink || "Google Meet") : venueTitle
+      event.format === "online" ? (event.meetLink || tr("Google Meet")) : venueTitle
     );
     const dates = `${fmtGCal(startDate)}/${fmtGCal(endDate)}`;
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
@@ -80,10 +81,10 @@ export default function EventLogisticsCard({
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
-      message.success("Event link copied to clipboard!");
+      message.success(tr("Event link copied to clipboard!"));
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      message.error("Failed to copy link");
+      message.error(tr("Failed to copy link"));
     }
   };
 
@@ -94,7 +95,7 @@ export default function EventLogisticsCard({
   );
 
   return (
-    <aside aria-label="Event details and registration" className="flex flex-col gap-4">
+    <aside aria-label={tr("Event details and registration")} className="flex flex-col gap-4">
       {/* 1. Community Mini Widget (Meetup Signature) */}
       {event.community && (
         <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex items-center justify-between gap-3">
@@ -104,15 +105,15 @@ export default function EventLogisticsCard({
             </div>
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Organizing Circle
+                {tr("Organizing Circle")}
               </div>
               <Link
                 href={`/training/communities/${event.community.slug}`}
                 className="font-bold text-sm text-slate-900 hover:text-emerald-700 transition-colors truncate block"
               >
-                {event.community.name}
+                {trData(event.community.name)}
               </Link>
-              <div className="text-xs text-slate-500">Public Engineering Community</div>
+              <div className="text-xs text-slate-500">{tr("Public Engineering Community")}</div>
             </div>
           </div>
 
@@ -120,7 +121,7 @@ export default function EventLogisticsCard({
             href={`/training/communities/${event.community.slug}`}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:border-emerald-600 hover:text-emerald-700 transition-colors shrink-0"
           >
-            Visit Circle
+            {tr("Visit Circle")}
           </Link>
         </div>
       )}
@@ -132,22 +133,22 @@ export default function EventLogisticsCard({
           {/* Calendar Tile */}
           <div className="w-13 h-14 rounded-xl border border-slate-200 overflow-hidden flex flex-col text-center shadow-xs shrink-0 bg-white">
             <div className="bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider py-0.5">
-              {month}
+              {trData(month)}
             </div>
             <div className="flex-1 flex items-center justify-center font-extrabold text-xl text-slate-900 leading-none">
-              {day}
+              {trData(day)}
             </div>
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Date & Time
+              {tr("Date & Time")}
             </div>
             <div className="font-bold text-sm text-slate-900 leading-snug">
-              {fullDateStr}
+              {trData(fullDateStr)}
             </div>
             <div className="text-xs font-medium text-emerald-800 mt-0.5">
-              {fmtTimeRange(event.startsAt, event.endsAt)} IST
+              {tr("{timeRange} IST", { timeRange: fmtTimeRange(event.startsAt, event.endsAt) })}
             </div>
 
             {/* Calendar Export Dropdown */}
@@ -160,21 +161,21 @@ export default function EventLogisticsCard({
                     icon: <GlobalOutlined className="text-blue-600" />,
                     label: (
                       <a href={makeGoogleCalUrl()} target="_blank" rel="noreferrer">
-                        Google Calendar
+                        {tr("Google Calendar")}
                       </a>
                     ),
                   },
                   {
                     key: "ics",
                     icon: <CalendarOutlined className="text-emerald-600" />,
-                    label: <a href={eventCalendarUrl(event.id)}>Apple / iCal (.ics)</a>,
+                    label: <a href={eventCalendarUrl(event.id)}>{tr("Apple / iCal (.ics)")}</a>,
                   },
                   {
                     key: "outlook",
                     icon: <WindowsOutlined className="text-blue-700" />,
                     label: (
                       <a href={makeOutlookCalUrl()} target="_blank" rel="noreferrer">
-                        Outlook Calendar
+                        {tr("Outlook Calendar")}
                       </a>
                     ),
                   },
@@ -185,7 +186,7 @@ export default function EventLogisticsCard({
                 type="button"
                 className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer"
               >
-                <CalendarOutlined /> Add to Calendar <DownOutlined className="text-[9px]" />
+                <CalendarOutlined />{" "}{tr("Add to Calendar")}{" "}<DownOutlined className="text-[9px]" />
               </button>
             </Dropdown>
           </div>
@@ -200,28 +201,28 @@ export default function EventLogisticsCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Location
+              {tr("Location")}
             </div>
             <div className="font-bold text-sm text-slate-900">
-              {venueTitle}
+              {trData(venueTitle)}
             </div>
             <div className="text-xs text-slate-500 mt-0.5">
               {event.format === "online" ? (
                 going || event.isHost ? (
                   event.meetLink ? (
                     <span className="text-emerald-700 font-medium">
-                      Join link ready · opens 10 min before start
+                      {tr("Join link ready · opens 10 min before start")}
                     </span>
                   ) : (
-                    "Virtual link will be posted prior to session."
+                    tr("Virtual link will be posted prior to session.")
                   )
                 ) : (
                   <span className="inline-flex items-center gap-1 text-slate-500">
-                    <LockOutlined className="text-[10px]" /> Link visible for attendees
+                    <LockOutlined className="text-[10px]" />{" "}{tr("Link visible for attendees")}
                   </span>
                 )
               ) : (
-                "Physical attendance at the plant"
+                tr("Physical attendance at the plant")
               )}
             </div>
           </div>
@@ -230,7 +231,7 @@ export default function EventLogisticsCard({
         {/* Capacity & Progress Bar */}
         <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-slate-600">Reserved Seats</span>
+            <span className="font-medium text-slate-600">{tr("Reserved Seats")}</span>
             <span className="font-bold text-slate-900">
               {event.capacity - event.spotsLeft} / {event.capacity}
             </span>
@@ -244,9 +245,9 @@ export default function EventLogisticsCard({
           />
           <div className="text-[11px] text-slate-500 flex justify-between">
             <span>
-              {event.spotsLeft > 0 ? `${event.spotsLeft} spots available` : "Session is at capacity"}
+              {event.spotsLeft > 0 ? tr("{spotsLeft} spots available", { spotsLeft: event.spotsLeft }) : tr("Session is at capacity")}
             </span>
-            {event.waitlistCount > 0 && <span>{event.waitlistCount} waiting</span>}
+            {event.waitlistCount > 0 && <span>{tr("{waitlistCount} waiting", { waitlistCount: event.waitlistCount })}</span>}
           </div>
         </div>
 
@@ -259,8 +260,8 @@ export default function EventLogisticsCard({
           {/* Registration closure countdown or alert */}
           {event.rsvpClosesAt && phase !== "ended" && (
             <div className="text-center text-[11px] text-slate-500 font-medium">
-              Registration closes{" "}
-              {new Date(event.rsvpClosesAt).toLocaleString("en-IN", {
+              {tr("Registration closes")}{" "}
+              {new Date(event.rsvpClosesAt).toLocaleString(intlLocale(), {
                 timeZone: "Asia/Kolkata",
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -277,7 +278,7 @@ export default function EventLogisticsCard({
             onClick={handleCopyLink}
             className="text-xs font-semibold text-slate-600 hover:text-emerald-700 p-0 flex items-center gap-1.5"
           >
-            {copied ? "Link Copied!" : "Share Masterclass"}
+            {copied ? tr("Link Copied!") : tr("Share Masterclass")}
           </Button>
 
           <Button
@@ -286,7 +287,7 @@ export default function EventLogisticsCard({
             onClick={handleCopyLink}
             className="text-xs text-slate-500 hover:text-slate-800"
           >
-            Copy URL
+            {tr("Copy URL")}
           </Button>
         </div>
       </div>

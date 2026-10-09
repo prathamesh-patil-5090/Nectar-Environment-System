@@ -127,6 +127,36 @@ body {
   will-change: transform;
 }
 
+/* Sidebar and login demo-account list still scroll, just without a visible scrollbar */
+.nectar-sider,
+.nectar-demo-accounts {
+  scrollbar-width: none;
+}
+.nectar-sider::-webkit-scrollbar,
+.nectar-demo-accounts::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sidebar section headings (People, Workforce planning, …) — always one line */
+.nectar-sider .ant-menu-item-group-title {
+  padding: 14px 24px 4px !important;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.nectar-sider .ant-menu-dark .ant-menu-item-divider,
+.nectar-sider .ant-menu-item-divider {
+  margin: 8px 12px;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .nectar-sider.nectar-sider-collapsed {
   overflow: visible !important;
 }

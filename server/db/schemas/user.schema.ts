@@ -31,6 +31,7 @@ export class User {
       'shift_incharge',
       'safety_incharge',
       'supervisor',
+      'hod',
       'employee',
     ],
   })

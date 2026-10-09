@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { sSerifText18InkMb12, sWhitePadR10Border } from "@/lib/styles";
+import { trData } from "@/lib/i18n";
 
 /** White titled panel used on leave, shift and overtime pages. Pages override box/title styles where they differ. */
 export default function Panel({
@@ -15,7 +16,7 @@ export default function Panel({
 }) {
   return (
     <div style={boxStyle}>
-      <div style={titleStyle}>{title}</div>
+      <div style={titleStyle}>{trData(title)}</div>
       {children}
     </div>
   );

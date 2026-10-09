@@ -1,6 +1,7 @@
 "use client";
 
 import { ClockCircleOutlined } from "@ant-design/icons";
+import { tr, trData } from "@/lib/i18n";
 
 interface AgendaItem {
   time: string;
@@ -18,7 +19,7 @@ export default function EventAgendaTimeline({ agenda }: EventAgendaTimelineProps
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
         <ClockCircleOutlined className="text-emerald-600" />
-        <span>Session Agenda</span>
+        <span>{tr("Session Agenda")}</span>
       </div>
 
       <div className="relative pl-6 space-y-4 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200">
@@ -32,7 +33,7 @@ export default function EventAgendaTimeline({ agenda }: EventAgendaTimelineProps
             {/* Time badge and title */}
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2 w-full flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-2xs">
               <div className="text-sm font-semibold text-slate-800 leading-snug">
-                {slot.item}
+                {trData(slot.item)}
               </div>
               <span className="text-xs font-mono font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md self-start sm:self-auto shrink-0">
                 {slot.time}

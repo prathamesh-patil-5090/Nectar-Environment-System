@@ -24,6 +24,7 @@ import { canSafety } from "@/lib/rbac";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
 import { SeverityTag, StatusTag, TypeTag } from "./SafetyTags";
 import { Panel } from "./ui";
+import { tr, intlLocale, trData } from "@/lib/i18n";
 
 type Scope = "open" | "closed" | "all";
 
@@ -84,78 +85,78 @@ export default function EventsTable({ types, title }: { types: SafetyEventType[]
   const { pageRef, tableRef } = useTableMotion(loading && !events.length ? "" : rows.map((e) => e.id).join("|") || "empty");
 
   const muted = { color: token.colorTextSecondary };
-  const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const when = (iso: string) => new Date(iso).toLocaleString(intlLocale(), { dateStyle: "medium", timeStyle: "short" });
 
   const columns: ColumnsType<SafetyEvent> = [
     {
-      title: "Case",
+      title: tr("Case"),
       key: "title",
       render: (_, e) => (
         <div style={{ minWidth: 220, lineHeight: 1.35 }}>
           <Link href={`/safety/${base}/${e.id}`} style={{ fontWeight: 500, color: token.colorText }}>
-            {e.title}
+            {trData(e.title)}
           </Link>
           {e.isEmergency ? (
             <span style={{ marginLeft: 8, fontSize: 12, color: token.colorError, whiteSpace: "nowrap" }}>
-              <WarningOutlined /> Emergency
+              <WarningOutlined />{" "}{tr("Emergency")}
             </span>
           ) : null}
           <div style={{ fontSize: 13, ...muted }}>{e.location || e.id}</div>
         </div>
       ),
     },
-    ...(types.length > 1 ? [{ title: "Type", key: "type", render: (_: unknown, e: SafetyEvent) => <TypeTag type={e.type} /> }] : []),
+    ...(types.length > 1 ? [{ title: tr("Type"), key: "type", render: (_: unknown, e: SafetyEvent) => <TypeTag type={e.type} /> }] : []),
     {
-      title: "Site",
+      title: tr("Site"),
       key: "site",
       render: (_, e) => (
         <div style={{ lineHeight: 1.35 }}>
-          <div>{dir.siteName(e.siteId)}</div>
-          <div style={{ fontSize: 13, ...muted }}>{safetyCategoryLabel(e)}</div>
+          <div>{trData(dir.siteName(e.siteId))}</div>
+          <div style={{ fontSize: 13, ...muted }}>{trData(safetyCategoryLabel(e))}</div>
         </div>
       ),
     },
-    { title: "Severity", key: "sev", render: (_, e) => <SeverityTag severity={e.severity} /> },
-    { title: "Status", key: "status", render: (_, e) => <StatusTag status={e.status} /> },
+    { title: tr("Severity"), key: "sev", render: (_, e) => <SeverityTag severity={e.severity} /> },
+    { title: tr("Status"), key: "status", render: (_, e) => <StatusTag status={e.status} /> },
     ...(isBreakdown
       ? [
           {
-            title: "Downtime",
+            title: tr("Downtime"),
             key: "down",
             render: (_: unknown, e: SafetyEvent) =>
               e.restoredAt ? (
                 `${downtimeDays(e.failedAt, e.restoredAt)} d`
               ) : (
-                <span style={{ color: token.colorError, whiteSpace: "nowrap" }}>Down {downtimeDays(e.failedAt)} d</span>
+                <span style={{ color: token.colorError, whiteSpace: "nowrap" }}>{tr("Down {downtimeDays} d", { downtimeDays: downtimeDays(e.failedAt) })}</span>
               ),
           },
           {
-            title: "OT to fix",
+            title: tr("OT to fix"),
             key: "ot",
             render: (_: unknown, e: SafetyEvent) => {
               const t = otTotals(e.otEntries);
-              return <span style={{ whiteSpace: "nowrap" }}>{t.people} people · {t.hours} h</span>;
+              return <span style={{ whiteSpace: "nowrap" }}>{tr("{people} people · {hours} h", { people: t.people, hours: t.hours })}</span>;
             },
           },
         ]
       : [
           {
-            title: "People",
+            title: tr("People"),
             key: "inv",
             render: (_: unknown, e: SafetyEvent) => (
               <div style={{ lineHeight: 1.35, maxWidth: 220 }}>
-                <div>{e.involved.map(dir.empName).join(", ") || "—"}</div>
-                {e.informedBy.length ? <div style={{ fontSize: 13, ...muted }}>{e.informedBy.length} saw it</div> : null}
+                <div>{e.involved.map((p) => trData(dir.empName(p))).join(", ") || "—"}</div>
+                {e.informedBy.length ? <div style={{ fontSize: 13, ...muted }}>{tr("{informedByCount} saw it", { informedByCount: e.informedBy.length })}</div> : null}
               </div>
             ),
           },
         ]),
     {
-      title: "Occurred",
+      title: tr("Occurred"),
       key: "when",
       sorter: (a, b) => a.occurredAt.localeCompare(b.occurredAt),
       defaultSortOrder: "descend",
-      render: (_, e) => <span style={{ whiteSpace: "nowrap" }}>{when(e.occurredAt)}</span>,
+      render: (_, e) => <span style={{ whiteSpace: "nowrap" }}>{trData(when(e.occurredAt))}</span>,
     },
   ];
 
@@ -168,22 +169,22 @@ export default function EventsTable({ types, title }: { types: SafetyEventType[]
         style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
       >
         <p style={{ margin: 0, fontSize: 14, maxWidth: 640, ...muted }}>
-          {title}.{" "}
+          {trData(title)}.{" "}
           {isBreakdown
-            ? "Every time a plant stops working — what broke, how long it was down and the overtime it took to fix."
-            : "Every incident and near-miss at every plant, visible to everyone. Open a case to follow it."}
+            ? tr("Every time a plant stops working — what broke, how long it was down and the overtime it took to fix.")
+            : tr("Every incident and near-miss at every plant, visible to everyone. Open a case to follow it.")}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Button icon={<ReloadOutlined />} onClick={() => void reload()} loading={loading} aria-label="Refresh" />
+          <Button icon={<ReloadOutlined />} onClick={() => void reload()} loading={loading} aria-label={tr("Refresh")} />
           {isBreakdown && canSafety(user ?? null, "reportBreakdown") ? (
-            <Link href="/safety/report?type=breakdown"><Button type="primary" icon={<PlusOutlined />}>Log breakdown</Button></Link>
+            <Link href="/safety/report?type=breakdown"><Button type="primary" icon={<PlusOutlined />}>{tr("Log breakdown")}</Button></Link>
           ) : !isBreakdown && canSafety(user ?? null, "reportIncident") ? (
-            <Link href="/safety/report"><Button type="primary" icon={<PlusOutlined />}>Raise safety concern</Button></Link>
+            <Link href="/safety/report"><Button type="primary" icon={<PlusOutlined />}>{tr("Raise safety concern")}</Button></Link>
           ) : null}
         </div>
       </div>
 
-      {error ? <Alert type="warning" showIcon title={`Server unreachable — showing the last saved list (${error})`} /> : null}
+      {error ? <Alert type="warning" showIcon title={tr("Server unreachable — showing the last saved list ({error})", { error: trData(error) })} /> : null}
 
       <div data-anim="intro" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <Segmented<Scope>
@@ -192,25 +193,25 @@ export default function EventsTable({ types, title }: { types: SafetyEventType[]
             setScope(v);
             setStatus(undefined);
           }}
-          options={(["open", "closed", "all"] as Scope[]).map((s) => ({ value: s, label: `${scopeLabel[s]} ${counts[s]}` }))}
+          options={(["open", "closed", "all"] as Scope[]).map((s) => ({ value: s, label: `${tr(scopeLabel[s])} ${counts[s]}` }))}
         />
         <Input
           allowClear
           prefix={<SearchOutlined style={{ color: token.colorTextQuaternary }} />}
-          placeholder="Search title, ID, place or person"
+          placeholder={tr("Search title, ID, place or person")}
           value={text}
           onChange={(e) => setText(e.target.value)}
           style={{ width: 260, maxWidth: "100%" }}
         />
-        <Select allowClear placeholder="All sites" style={{ width: 200 }} value={site} onChange={setSite}
+        <Select allowClear placeholder={tr("All sites")} style={{ width: 200 }} value={site} onChange={setSite}
           options={dir.sites.map((s) => ({ value: s.id, label: s.name }))} />
         {types.length > 1 ? (
-          <Select allowClear placeholder="Any type" style={{ width: 130 }} value={type} onChange={setType}
+          <Select allowClear placeholder={tr("Any type")} style={{ width: 130 }} value={type} onChange={setType}
             options={types.map((t) => ({ value: t, label: SAFETY_TYPE_LABELS[t] }))} />
         ) : null}
-        <Select allowClear placeholder="Any severity" style={{ width: 140 }} value={severity} onChange={setSeverity}
+        <Select allowClear placeholder={tr("Any severity")} style={{ width: 140 }} value={severity} onChange={setSeverity}
           options={(Object.keys(SAFETY_SEVERITY_LABELS) as SafetySeverity[]).map((s) => ({ value: s, label: SAFETY_SEVERITY_LABELS[s] }))} />
-        <Select allowClear placeholder="Any status" style={{ width: 150 }} value={status} onChange={setStatus}
+        <Select allowClear placeholder={tr("Any status")} style={{ width: 150 }} value={status} onChange={setStatus}
           options={SAFETY_STATUSES.filter((s) => (scope === "all" ? true : scope === "open" ? s !== "RESOLVED" && s !== "CLOSED" : s === "RESOLVED" || s === "CLOSED"))
             .map((s) => ({ value: s, label: SAFETY_STATUS_LABELS[s] }))} />
         <DatePicker.RangePicker value={range} onChange={(v) => setRange(v)} allowEmpty={[true, true]} />
@@ -227,7 +228,7 @@ export default function EventsTable({ types, title }: { types: SafetyEventType[]
               pageSize: 20,
               hideOnSinglePage: true,
               showSizeChanger: false,
-              showTotal: (total, [from, to]) => `${from}–${to} of ${total} cases`,
+              showTotal: (total, [from, to]) => tr("{from}–{to} of {total} cases", { from, to, total }),
               style: { padding: "0 16px" },
             }}
             scroll={{ x: "max-content" }}
@@ -241,10 +242,10 @@ export default function EventsTable({ types, title }: { types: SafetyEventType[]
             locale={{
               emptyText:
                 scope === "open" && counts.all
-                  ? "Nothing open. Switch to “All” to see the history."
+                  ? tr("Nothing open. Switch to “All” to see the history.")
                   : isBreakdown
-                    ? "No breakdowns recorded."
-                    : "No cases recorded.",
+                    ? tr("No breakdowns recorded.")
+                    : tr("No cases recorded."),
             }}
           />
         </Panel>

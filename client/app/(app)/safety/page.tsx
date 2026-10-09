@@ -13,6 +13,7 @@ import { safetyKpis } from "@/lib/safety/kpis";
 import { useDirectory, useSafetyEvents, useSessionUser } from "@/lib/safety/hooks";
 import { canSafety } from "@/lib/rbac";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
+import { tr, intlLocale, trData, trCell } from "@/lib/i18n";
 
 export default function SafetyOverviewPage() {
   const { token } = theme.useToken();
@@ -44,38 +45,37 @@ export default function SafetyOverviewPage() {
     <div ref={pageRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div data-anim="intro" style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center" }}>
         <p style={{ margin: 0, fontSize: 14, maxWidth: 640, ...muted }}>
-          Every incident, near-miss and breakdown, big or small, is recorded here and visible to everyone. Plant managers raise
-          safety concerns; open cases keep reminding everyone responsible until the Director closes them.
+          {tr("Every incident, near-miss and breakdown, big or small, is recorded here and visible to everyone. Plant managers raise safety concerns; open cases keep reminding everyone responsible until the Director closes them.")}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Link href="/safety/training"><Button>Safety training</Button></Link>
-          <Link href="/safety/protocols"><Button icon={<BookOutlined />}>Emergency protocols</Button></Link>
+          <Link href="/safety/training"><Button>{tr("Safety training")}</Button></Link>
+          <Link href="/safety/protocols"><Button icon={<BookOutlined />}>{tr("Emergency protocols")}</Button></Link>
           {canConcern ? (
-            <Link href="/safety/report"><Button type="primary" icon={<PlusOutlined />}>Raise safety concern</Button></Link>
+            <Link href="/safety/report"><Button type="primary" icon={<PlusOutlined />}>{tr("Raise safety concern")}</Button></Link>
           ) : canBreakdown ? (
-            <Link href="/safety/report?type=breakdown"><Button type="primary" icon={<PlusOutlined />}>Log breakdown</Button></Link>
+            <Link href="/safety/report?type=breakdown"><Button type="primary" icon={<PlusOutlined />}>{tr("Log breakdown")}</Button></Link>
           ) : null}
         </div>
       </div>
 
-      {error ? <Alert type="warning" showIcon title={`Server unreachable — showing the last saved data (${error})`} /> : null}
+      {error ? <Alert type="warning" showIcon title={tr("Server unreachable — showing the last saved data ({error})", { error: trData(error) })} /> : null}
 
       <div data-anim="intro">
         <NumberRow
           items={[
-            { label: "Open cases", value: k.open, hint: `${k.openCritical} high or critical`, alert: k.openCritical > 0 },
-            { label: "Active emergencies", value: k.activeEmergencies, hint: k.activeEmergencies ? "Acknowledge from the case" : "None", alert: k.activeEmergencies > 0 },
-            { label: "Near-misses, 30 days", value: k.nearMiss30d, hint: "Reporting them prevents injuries" },
-            { label: "Plants down now", value: k.activeBreakdowns, hint: `${k.breakdownOtHours30d} repair OT hours, 30 days`, alert: k.activeBreakdowns > 0 },
-            { label: "Return to work pending", value: k.pendingClearances, hint: "Leave can't close until cleared", alert: k.pendingClearances > 0 },
-            { label: "Days since lost-time injury", value: k.daysSinceLti ?? "—", hint: k.daysSinceLti === null ? "None recorded" : "All plants" },
+            { label: tr("Open cases"), value: k.open, hint: tr("{openCritical} high or critical", { openCritical: k.openCritical }), alert: k.openCritical > 0 },
+            { label: tr("Active emergencies"), value: k.activeEmergencies, hint: k.activeEmergencies ? tr("Acknowledge from the case") : tr("None"), alert: k.activeEmergencies > 0 },
+            { label: tr("Near-misses, 30 days"), value: k.nearMiss30d, hint: tr("Reporting them prevents injuries") },
+            { label: tr("Plants down now"), value: k.activeBreakdowns, hint: tr("{breakdownOtHours30d} repair OT hours, 30 days", { breakdownOtHours30d: k.breakdownOtHours30d }), alert: k.activeBreakdowns > 0 },
+            { label: tr("Return to work pending"), value: k.pendingClearances, hint: tr("Leave can't close until cleared"), alert: k.pendingClearances > 0 },
+            { label: tr("Days since lost-time injury"), value: k.daysSinceLti ?? "—", hint: k.daysSinceLti === null ? tr("None recorded") : tr("All plants") },
           ]}
         />
       </div>
 
       <div data-anim="intro" className="safety-case-grid">
         <div ref={tableRef}>
-          <Section title="Needs attention" extra={<Link href="/safety/incidents">All cases</Link>} flush>
+          <Section title={tr("Needs attention")} extra={<Link href="/safety/incidents">{tr("All cases")}</Link>} flush>
             {open.length ? (
               <Table<SafetyEvent>
                 rowKey="id"
@@ -95,16 +95,16 @@ export default function SafetyOverviewPage() {
                     key: "case",
                     render: (_, e) => (
                       <div style={{ minWidth: 220, lineHeight: 1.35 }}>
-                        <Link href={href(e)} style={{ fontWeight: 500, color: token.colorText }}>{e.title}</Link>
+                        <Link href={href(e)} style={{ fontWeight: 500, color: token.colorText }}>{trData(e.title)}</Link>
                         {e.isEmergency ? (
                           <span style={{ marginLeft: 8, fontSize: 12, color: token.colorError, whiteSpace: "nowrap" }}>
-                            <WarningOutlined /> Emergency
+                            <WarningOutlined />{" "}{tr("Emergency")}
                           </span>
                         ) : null}
                         <div style={{ fontSize: 13, ...muted }}>
-                          <TypeTag type={e.type} /> · {dir.siteName(e.siteId)} ·{" "}
-                          {new Date(e.reportedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                          {e.type === "breakdown" && !e.restoredAt ? ` · down ${downtimeDays(e.failedAt)} d` : ""}
+                          <TypeTag type={e.type} /> · {trData(dir.siteName(e.siteId))} ·{" "}
+                          {new Date(e.reportedAt).toLocaleString(intlLocale(), { dateStyle: "medium", timeStyle: "short" })}
+                          {e.type === "breakdown" && !e.restoredAt ? tr(" · down {downtimeDays} d", { downtimeDays: downtimeDays(e.failedAt) }) : ""}
                         </div>
                       </div>
                     ),
@@ -115,7 +115,7 @@ export default function SafetyOverviewPage() {
               />
             ) : (
               <div style={{ padding: 16 }}>
-                <Quiet>{loading ? "Loading…" : "Nothing open right now."}</Quiet>
+                <Quiet>{loading ? tr("Loading…") : tr("Nothing open right now.")}</Quiet>
               </div>
             )}
           </Section>
@@ -129,24 +129,24 @@ export default function SafetyOverviewPage() {
             scroll={{ x: "max-content" }}
             columns={[
               {
-                title: "Site",
+                title: tr("Site"),
                 dataIndex: "site",
                 render: (name: string, r) => (
                   <div style={{ lineHeight: 1.35 }}>
-                    <div style={{ fontWeight: 500 }}>{name}</div>
-                    <div style={{ fontSize: 13, ...muted }}>{r.location}</div>
+                    <div style={{ fontWeight: 500 }}>{trData(name)}</div>
+                    <div style={{ fontSize: 13, ...muted }}>{trData(r.location)}</div>
                   </div>
                 ),
               },
-              { title: "Open", dataIndex: "open", align: "right" },
+              { title: tr("Open"), dataIndex: "open", render: trCell, align: "right" },
               {
-                title: "Down",
+                title: tr("Down"),
                 dataIndex: "activeBreakdowns",
                 align: "right",
                 render: (v: number) => (v ? <span style={{ color: token.colorError }}>{v}</span> : 0),
               },
               {
-                title: "Since LTI",
+                title: tr("Since LTI"),
                 dataIndex: "daysSinceLti",
                 align: "right",
                 render: (v: number | null) => (v === null ? <span style={muted}>—</span> : `${v} d`),

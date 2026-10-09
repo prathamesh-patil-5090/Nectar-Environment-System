@@ -3,6 +3,7 @@
 import { Avatar, Skeleton, Tag } from "antd";
 import { CheckCircleFilled, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import type { EventAttendee } from "@/lib/training/types";
+import { tr, trData } from "@/lib/i18n";
 
 interface EventAttendeesSectionProps {
   attendees: EventAttendee[] | null;
@@ -33,9 +34,9 @@ export default function EventAttendeesSection({
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-900 m-0 leading-tight">
-              Attendees ({goingCount})
+              {tr("Attendees ({goingCount})", { goingCount })}
             </h2>
-            <div className="text-xs text-slate-500">Colleagues and operators attending this session</div>
+            <div className="text-xs text-slate-500">{tr("Colleagues and operators attending this session")}</div>
           </div>
         </div>
 
@@ -59,10 +60,12 @@ export default function EventAttendeesSection({
           </div>
           <div className="max-w-md">
             <div className="font-semibold text-slate-800 text-sm">
-              Attend to see the full roster
+              {tr("Attend to see the full roster")}
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Join {goingCount > 0 ? `${goingCount} other plant engineers` : "the session"} to see who is going and connect with attendees.
+              {goingCount > 0
+                ? tr("Join {goingCount} other plant engineers to see who is going and connect with attendees.", { goingCount })
+                : tr("Join the session to see who is going and connect with attendees.")}
             </p>
           </div>
           <button
@@ -70,14 +73,14 @@ export default function EventAttendeesSection({
             onClick={onAttendClick}
             className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
           >
-            Attend to View Roster
+            {tr("Attend to View Roster")}
           </button>
         </div>
       ) : loading ? (
         <Skeleton active avatar paragraph={{ rows: 2 }} />
       ) : confirmedAttendees.length === 0 ? (
         <div className="text-center py-6 text-slate-500 text-xs">
-          Nobody has registered yet. Be the first to take a seat!
+          {tr("Nobody has registered yet. Be the first to take a seat!")}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -95,15 +98,15 @@ export default function EventAttendeesSection({
               </Avatar>
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-xs text-slate-900 truncate flex items-center gap-1">
-                  <span>{a.employee.name}</span>
+                  <span>{trData(a.employee.name)}</span>
                   <CheckCircleFilled className="text-emerald-600 text-[10px]" />
                 </div>
                 <div className="text-[11px] text-slate-500 truncate">
-                  {a.employee.designation || "Plant Personnel"}
+                  {a.employee.designation || tr("Plant Personnel")}
                 </div>
                 {a.employee.siteName && (
                   <Tag className="mt-1 text-[10px] leading-tight px-1.5 py-0 border-slate-200 text-slate-600 bg-white">
-                    {a.employee.siteName}
+                    {trData(a.employee.siteName)}
                   </Tag>
                 )}
               </div>

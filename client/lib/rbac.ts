@@ -2,6 +2,9 @@ import type { SessionUser, UserRole } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/auth";
 import { safetyCan, type SafetyAction } from "@/lib/safety/rules";
 import type { SafetyActor } from "@/lib/safety/types";
+import { canIssuePermits, type PermitViewer } from "@/lib/e-permit/rules";
+import type { EPermitActor } from "@/lib/e-permit/types";
+import { E_PERMITS_ENABLED } from "@/lib/e-permit/feature";
 
 export { ROLE_LABELS };
 
@@ -25,8 +28,17 @@ const allow =
 
 const notEmployee: Check = (user) => normalizeRole(user?.role) !== "employee";
 
-/** Org-wide visibility — Director + HR + Safety In-Charge */
-export const canViewAllSites = allow("director", "hr", "safety_incharge");
+/**
+ * Manager tier: Plant Manager (Assistant Manager) and Head of Department (Senior Manager, above the
+ * Plant Manager). Use this instead of `role === "manager"` wherever a manager-stage action is allowed.
+ */
+export function isManagerRole(role: UserRole | undefined): boolean {
+  const r = normalizeRole(role);
+  return r === "manager" || r === "hod";
+}
+
+/** Org-wide visibility — Director + HR + Safety In-Charge + Heads of Department (no single plant) */
+export const canViewAllSites = allow("director", "hr", "safety_incharge", "hod");
 /** New, upcoming and closed plants — Director only */
 export const canViewPlantPipeline = allow("director");
 
@@ -77,6 +89,7 @@ const CATEGORY_RANK: Record<string, number> = {
 /**
  * Can `user` see or act on `employee` as someone in their charge?
  * Never yourself. Director: everyone. HR / Safety In-Charge: everyone below HR.
+ * Heads of Department: everyone below HR, at every plant.
  * Plant roles: only people at their own plant who are junior to them (a Site Manager never sees the Plant Manager).
  */
 export function isInChargeOf(user: SessionUser | null, employee: EmployeeRef | undefined): boolean {
@@ -85,7 +98,7 @@ export function isInChargeOf(user: SessionUser | null, employee: EmployeeRef | u
   const role = normalizeRole(user.role);
   const targetRank = CATEGORY_RANK[employee.employeeCategory ?? ""] ?? 1;
   if (role === "director") return true;
-  if (role === "hr" || role === "safety_incharge") return targetRank < CATEGORY_RANK.hr;
+  if (role === "hr" || role === "safety_incharge" || role === "hod") return targetRank < CATEGORY_RANK.hr;
   const rank = ROLE_RANK[role] ?? 0;
   const site = scopedSiteId(user);
   return Boolean(site) && employee.siteId === site && targetRank < rank;
@@ -103,27 +116,27 @@ export const canViewEmployeeRoster = notEmployee;
 
 // ── Overtime ──────────────────────────────────────────────────────────────
 export const canDownloadOtReports = allow(
-  "director", "manager", "hr", "shift_incharge", "site_incharge", "supervisor",
+  "director", "manager", "hod", "hr", "shift_incharge", "site_incharge", "supervisor",
 );
 export const canDownloadReports = canDownloadOtReports;
 export const canViewOtModule = notEmployee;
-export const canAssignOt = allow("director", "manager");
+export const canAssignOt = allow("director", "manager", "hod");
 
 // ── Leave ─────────────────────────────────────────────────────────────────
-export const canViewLeaveManagement = allow("director", "manager", "hr");
+export const canViewLeaveManagement = allow("director", "manager", "hod", "hr");
 export const canViewLeavePending = notEmployee;
 export const canEnterLeaveForOthers = allow(
-  "director", "manager", "hr", "site_incharge", "shift_incharge", "supervisor",
+  "director", "manager", "hod", "hr", "site_incharge", "shift_incharge", "supervisor",
 );
-export const canSupervisorVerifyLeave = allow("director", "manager", "supervisor", "shift_incharge");
-export const canSiteApproveLeave = allow("director", "manager", "site_incharge", "shift_incharge");
-export const canResolveOtDecisions = allow("director", "manager");
+export const canSupervisorVerifyLeave = allow("director", "manager", "hod", "supervisor", "shift_incharge");
+export const canSiteApproveLeave = allow("director", "manager", "hod", "site_incharge", "shift_incharge");
+export const canResolveOtDecisions = allow("director", "manager", "hod");
 /** Plant manager (or Director acting as manager) after the shift is covered */
-export const canManagerDecideLeave = allow("director", "manager");
+export const canManagerDecideLeave = allow("director", "manager", "hod");
 /** Final leave sign-off — Director only */
 export const canAdminFinalizeLeave = allow("director");
 export const canConfirmLeaveReturn = allow(
-  "director", "manager", "supervisor", "site_incharge", "shift_incharge",
+  "director", "manager", "hod", "supervisor", "site_incharge", "shift_incharge",
 );
 
 /** Soft-withdraw: owner employee, before site approval / escalation. */
@@ -151,22 +164,22 @@ export function canWithdrawLeaveRequest(
 }
 
 // ── Shifts & relievers ────────────────────────────────────────────────────
-export const canManageShifts = allow("director", "manager", "site_incharge", "shift_incharge");
+export const canManageShifts = allow("director", "manager", "hod", "site_incharge", "shift_incharge");
 /** Draft the monthly rotation — Shift In-Charge, Manager, Director */
 export const canGenerateRotation = canManageShifts;
 /** Manager (or Director) first approval of a monthly draft */
-export const canManagerDecideRotation = allow("director", "manager");
+export const canManagerDecideRotation = allow("director", "manager", "hod");
 /** Director final approval — publishes onto the live roster */
 export const canAdminFinalizeRotation = allow("director");
 /** @deprecated Prefer canManagerDecideRotation / canAdminFinalizeRotation */
 export const canPublishRotation = canManagerDecideRotation;
-export const canApproveShiftChanges = allow("director", "manager", "site_incharge", "shift_incharge");
+export const canApproveShiftChanges = allow("director", "manager", "hod", "site_incharge", "shift_incharge");
 export const canManageRelieverPool = allow(
-  "director", "manager", "site_incharge", "shift_incharge", "supervisor",
+  "director", "manager", "hod", "site_incharge", "shift_incharge", "supervisor",
 );
 
 /** Assessment Evaluator — Plant Manager is the primary and only authorized person conducting and scoring in-person practical & oral viva assessments */
-export const canEvaluateAssessments = allow("manager", "director");
+export const canEvaluateAssessments = allow("manager", "hod", "director");
 
 const LEAVE_ACTOR: Partial<Record<UserRole, "supervisor" | "site_incharge" | "hr" | "management" | "director">> = {
   director: "director",
@@ -175,6 +188,7 @@ const LEAVE_ACTOR: Partial<Record<UserRole, "supervisor" | "site_incharge" | "hr
   shift_incharge: "site_incharge",
   supervisor: "supervisor",
   manager: "management",
+  hod: "management",
 };
 
 export function leaveActorRole(
@@ -183,19 +197,19 @@ export function leaveActorRole(
   return LEAVE_ACTOR[normalizeRole(user?.role)] ?? "employee";
 }
 
-export const isElevated = allow("director", "manager");
+export const isElevated = allow("director", "manager", "hod");
 
 // ── Sidebar navigation ────────────────────────────────────────────────────
 /** Sites list in sidebar — plant leads & above (not supervisor) */
 export const canViewSitesNav = allow(
-  "director", "manager", "shift_incharge", "site_incharge", "hr", "safety_incharge",
+  "director", "manager", "hod", "shift_incharge", "site_incharge", "hr", "safety_incharge",
 );
 /**
  * Shifts module in sidebar — SIC / Manager / Director.
  * Supervisors stay out of day-to-day shift planning nav.
  */
-export const canViewShiftsNav = allow("director", "manager", "shift_incharge", "site_incharge");
-export const canResolveRelieverCompetition = allow("director", "manager");
+export const canViewShiftsNav = allow("director", "manager", "hod", "shift_incharge", "site_incharge");
+export const canResolveRelieverCompetition = allow("director", "manager", "hod");
 /** Reliever pool — Supervisor (availability) + SIC + Manager + Director */
 export const canViewRelieverPoolNav = canManageRelieverPool;
 
@@ -244,3 +258,24 @@ export function canSafety(
 export const canViewSafety: Check = (user) => canSafety(user, "view");
 export const canReportSafetyIncident: Check = (user) => canSafety(user, "reportIncident");
 export const canEditSafetyProtocols: Check = (user) => canSafety(user, "editProtocols");
+
+// ── E-Permits ─────────────────────────────────────────────────────────────
+// Thin wrappers over lib/e-permit/rules.ts — the same table the server enforces.
+
+/** Identity sent with every E-Permit write — same person id as Safety ("user:<email>" for HoDs / Director). */
+export const ePermitActorOf = (user: SessionUser | null): EPermitActor | null => safetyActorOf(user);
+
+/** Who is looking, for rule checks. HoDs pass the departments they head or deputise. */
+export function ePermitViewerOf(user: SessionUser | null, departmentIds: string[] = []): PermitViewer | null {
+  const actor = ePermitActorOf(user);
+  if (!actor) return null;
+  return { ...actor, departmentIds };
+}
+
+/** Sidebar entry — everyone who can be concerned with a permit (HR has no part in permits). */
+export const canViewEPermitsNav: Check = (user) =>
+  E_PERMITS_ENABLED && Boolean(user) && normalizeRole(user?.role) !== "hr";
+
+/** Issue form — Supervisor, Shift In-Charge, Plant Manager (plant-scoped). */
+export const canIssueEPermit: Check = (user) =>
+  E_PERMITS_ENABLED && canIssuePermits(ePermitViewerOf(user));

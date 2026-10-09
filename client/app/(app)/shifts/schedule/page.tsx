@@ -7,6 +7,7 @@ import { employees, getSiteName, sites } from "@/lib/mock-data";
 import { TODAY, getPlannedDays, getShiftMasterById } from "@/lib/shift";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText22 } from "@/lib/styles";
+import { tr, trCell, trData } from "@/lib/i18n";
 
 export default function ShiftSchedulePage() {
   const [siteId, setSiteId] = useState<string>();
@@ -25,14 +26,14 @@ export default function ShiftSchedulePage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div style={sSerifText22}>Shift schedule</div>
-        <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>Forward-looking planned shifts (Current → Next → Future).</p>
+        <div style={sSerifText22}>{tr("Shift schedule")}</div>
+        <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>{tr("Forward-looking planned shifts (Current → Next → Future).")}</p>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         <Select
           allowClear
-          placeholder="Site"
+          placeholder={tr("Site")}
           style={{ width: 200 }}
           value={siteId}
           options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -42,7 +43,7 @@ export default function ShiftSchedulePage() {
           allowClear
           showSearch
           optionFilterProp="label"
-          placeholder="Employee"
+          placeholder={tr("Employee")}
           style={{ width: 200 }}
           value={employeeId}
           options={employees.map((e) => ({ value: e.id, label: e.name }))}
@@ -66,37 +67,37 @@ export default function ShiftSchedulePage() {
         scroll={{ x: 900 }}
         style={{ background: nectarColors.white }}
         columns={[
-          { title: "Date", dataIndex: "date", width: 110 },
+          { title: tr("Date"), dataIndex: "date", width: 110 },
           {
-            title: "Employee",
+            title: tr("Employee"),
             dataIndex: "employeeId",
-            render: (id) => employees.find((e) => e.id === id)?.name ?? id,
+            render: (id) => trData(employees.find((e) => e.id === id)?.name ?? id),
           },
-          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
+          { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
           {
-            title: "Planned",
+            title: tr("Planned"),
             dataIndex: "plannedCode",
             render: (c, r) =>
               c === "OFF" ? (
-                <Tag>Weekly Off</Tag>
+                <Tag>{tr("Weekly Off")}</Tag>
               ) : (
-                <Tag color={getShiftMasterById(r.plannedShiftId)?.color}>{c}</Tag>
+                <Tag color={getShiftMasterById(r.plannedShiftId)?.color}>{trData(c)}</Tag>
               ),
           },
-          { title: "Actual", dataIndex: "actualCode", render: (c) => (c ? <Tag>{c}</Tag> : "—") },
+          { title: tr("Actual"), dataIndex: "actualCode", render: (c) => (c ? <Tag>{trData(c)}</Tag> : "—") },
           {
-            title: "Deviation",
+            title: tr("Deviation"),
             key: "dev",
             render: (_, r) =>
               r.actualCode &&
               r.plannedCode !== "OFF" &&
               r.actualCode !== r.plannedCode ? (
-                <Tag color={nectarColors.alert}>Yes</Tag>
+                <Tag color={nectarColors.alert}>{tr("Yes")}</Tag>
               ) : (
-                <Tag>No</Tag>
+                <Tag>{tr("No")}</Tag>
               ),
           },
-          { title: "Status", dataIndex: "status" },
+          { title: tr("Status"), dataIndex: "status", render: trCell },
         ]}
       />
     </div>

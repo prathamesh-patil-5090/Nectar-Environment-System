@@ -17,8 +17,9 @@ import {
   type ReportKind,
 } from "@/lib/overtime";
 import { nectarColors } from "@/lib/theme";
+import { tr, trTable, trData } from "@/lib/i18n";
 
-const REPORTS: { kind: ReportKind; title: string; description: string }[] = [
+const REPORTS: { kind: ReportKind; title: string; description: string }[] = trTable([
   {
     kind: "employee",
     title: "Employee OT Report",
@@ -44,7 +45,7 @@ const REPORTS: { kind: ReportKind; title: string; description: string }[] = [
     description:
       "Executive summary with sites, top employees, reasons, and key observations.",
   },
-];
+]);
 
 export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
   const { message } = App.useApp();
@@ -53,18 +54,17 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
 
   const onDownload = (kind: ReportKind) => {
     if (!allowed) {
-      message.warning("Your role cannot download OT reports.");
+      message.warning(tr("Your role cannot download OT reports."));
       return;
     }
     downloadOtReport(kind, format, filters);
-    message.success("Report download started.");
+    message.success(tr("Report download started."));
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-        Downloads use the same filters as Analysis above. Filenames include
-        period and site when set.
+        {tr("Downloads use the same filters as Analysis above. Filenames include period and site when set.")}
       </p>
 
       <div
@@ -73,7 +73,7 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
           borderRadius: 12, border: "1px solid rgba(28, 68, 99, 0.08)",
         }}
       >
-        <Typography.Text strong>Format</Typography.Text>
+        <Typography.Text strong>{tr("Format")}</Typography.Text>
         <Radio.Group
           value={format}
           onChange={(e) => setFormat(e.target.value)}
@@ -81,7 +81,7 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
           options={[
             {
               label: (
-                <span><FileExcelOutlined /> Excel</span>
+                <span><FileExcelOutlined />{" "}{tr("Excel")}</span>
               ),
               value: "xlsx",
             },
@@ -103,10 +103,10 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {REPORTS.map((r) => (
-          <Card key={r.kind} size="small" title={r.title}>
-            <p style={{ color: nectarColors.muted, minHeight: 48 }}>{r.description}</p>
+          <Card key={r.kind} size="small" title={trData(r.title)}>
+            <p style={{ color: nectarColors.muted, minHeight: 48 }}>{trData(r.description)}</p>
             <Space>
-              <Button type="primary" icon={<DownloadOutlined />} disabled={!allowed} onClick={() => onDownload(r.kind)}>Download report</Button>
+              <Button type="primary" icon={<DownloadOutlined />} disabled={!allowed} onClick={() => onDownload(r.kind)}>{tr("Download report")}</Button>
             </Space>
           </Card>
         ))}
@@ -114,8 +114,7 @@ export default function OtReportsPanel({ filters }: { filters: OtFilters }) {
 
       {!allowed ? (
         <p style={{ color: nectarColors.alert, margin: 0 }}>
-          Site in-charge users can view OT for their site but cannot download
-          management reports. Sign in as Manager or Admin to export.
+          {tr("Site in-charge users can view OT for their site but cannot download management reports. Sign in as Manager or Admin to export.")}
         </p>
       ) : null}
     </div>

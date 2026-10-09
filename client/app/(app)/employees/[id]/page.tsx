@@ -31,11 +31,12 @@ import { getCertificates, getCourseById, useTrainingData } from "@/lib/training/
 import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS, type LeaveStatus, type LeaveType } from "@/lib/leave/types";
 import type { Employee } from "@/lib/types/employee.types";
 import EmployeeTrainingSection from "@/components/training/records/EmployeeTrainingSection";
+import { tr, trTable, translatePersonName, intlLocale, trData } from "@/lib/i18n";
 
 const CARD = "bg-white border border-slate-200 rounded-3xl p-5 sm:p-6";
 const H2 = "m-0 text-lg font-bold text-slate-900";
 
-const CATEGORY_LABEL: Record<string, string> = {
+const CATEGORY_LABEL: Record<string, string> = trTable({
   shift: "Shift employee",
   general: "General shift",
   supervisor: "Site Manager",
@@ -43,8 +44,8 @@ const CATEGORY_LABEL: Record<string, string> = {
   manager: "Plant Manager",
   hr: "HR",
   director: "Director",
-};
-const SHIFT_LABEL: Record<string, string> = { "sh-morning": "Morning", "sh-evening": "Evening", "sh-night": "Night", "sh-general": "General" };
+});
+const SHIFT_LABEL: Record<string, string> = trTable({ "sh-morning": "Morning", "sh-evening": "Evening", "sh-night": "Night", "sh-general": "General" });
 const title = (s?: string) => (s ? s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—");
 const initials = (name: string) => name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
@@ -58,7 +59,7 @@ function tenure(iso?: string) {
   if (months < 0) return undefined;
   const y = Math.floor(months / 12);
   const m = months % 12;
-  return [y && `${y} yr`, m && `${m} mo`].filter(Boolean).join(" ") || "Less than a month";
+  return [y && tr("{y} yr", { y: y }), m && tr("{m} mo", { m: m })].filter(Boolean).join(" ") || tr("Less than a month");
 }
 
 const LEAVE_TONE: Partial<Record<LeaveStatus, string>> = {
@@ -74,7 +75,7 @@ function Fact({ icon, label, children }: { icon: ReactNode; label: string; child
     <div className="flex items-start gap-3 py-2.5">
       <span className="w-8 h-8 shrink-0 rounded-xl bg-[#1C4463]/[0.07] text-[#1C4463] flex items-center justify-center">{icon}</span>
       <div className="min-w-0">
-        <div className="text-xs text-slate-500">{label}</div>
+        <div className="text-xs text-slate-500">{trData(label)}</div>
         <div className="text-sm font-semibold text-slate-900 break-words">{children}</div>
       </div>
     </div>
@@ -91,8 +92,8 @@ function Person({ id, role }: { id?: string; role: string }) {
       <Link href={`/employees/${id}`} className="group flex items-center gap-3 -ml-12">
         <Avatar size={40} className="bg-[#1C4463]! shrink-0">{p.data ? initials(p.data.name) : "…"}</Avatar>
         <span className="min-w-0">
-          <span className="block text-xs text-slate-500">{role}</span>
-          <span className="block text-sm font-semibold text-slate-900 truncate group-hover:underline">{p.data?.name ?? (p.loading ? "Loading…" : id)}</span>
+          <span className="block text-xs text-slate-500">{trData(role)}</span>
+          <span className="block text-sm font-semibold text-slate-900 truncate group-hover:underline">{p.data?.name ? trData(p.data.name) : p.loading ? tr("Loading…") : id}</span>
         </span>
       </Link>
     </li>
@@ -131,9 +132,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     return (
       <Result
         status="404"
-        title="Employee not found"
+        title={tr("Employee not found")}
         subTitle={employee.error ?? undefined}
-        extra={<Button type="primary" onClick={() => router.push("/employees")}>Back to employees</Button>}
+        extra={<Button type="primary" onClick={() => router.push("/employees")}>{tr("Back to employees")}</Button>}
       />
     );
   }
@@ -145,11 +146,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   const paidLeft = balanceEntries.reduce((s, [, n]) => s + n, 0);
 
   const stats: [string, ReactNode][] = [
-    ["With Nectar", tenure(e.joinedAt) ?? "—"],
-    ["Experience", e.yearsExperience ? `${e.yearsExperience} yr` : "—"],
-    ["Skill score", `${e.skillScore ?? 0}%`],
-    ["Valid certificates", validCerts.length],
-    ["Paid leave left", balances.data ? `${paidLeft} days` : "—"],
+    [tr("With Nectar"), tenure(e.joinedAt) ?? "—"],
+    [tr("Experience"), e.yearsExperience ? tr("{yearsExperience} yr", { yearsExperience: e.yearsExperience }) : "—"],
+    [tr("Skill score"), `${e.skillScore ?? 0}%`],
+    [tr("Valid certificates"), validCerts.length],
+    [tr("Paid leave left"), balances.data ? tr("{paidLeft} days", { paidLeft: paidLeft }) : "—"],
   ];
 
   return (
@@ -160,7 +161,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           onClick={() => router.push("/employees")}
           className="self-start inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 bg-transparent cursor-pointer"
         >
-          <ArrowLeftOutlined /> Employees
+          <ArrowLeftOutlined />{" "}{tr("Employees")}
         </button>
       )}
 
@@ -169,35 +170,35 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         <div className="px-5 sm:px-8 py-6 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
           <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0">
             <div className="w-full h-full rounded-3xl bg-[#1C4463] text-white text-3xl font-extrabold flex items-center justify-center">
-              {initials(e.name)}
+              {trData(initials(e.name))}
             </div>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{e.name}</h1>
-              {isSelf && <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#1C4463] text-white">You</span>}
+              <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{trData(e.name)}</h1>
+              {isSelf && <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#1C4463] text-white">{tr("You")}</span>}
             </div>
             <p className="m-0 mt-1 text-slate-600">
-              {e.designation}
-              {site.data ? ` · ${site.data.name}` : ""}
+              {trData(e.designation)}
+              {site.data ? ` · ${trData(site.data.name)}` : ""}
             </p>
             <div className="flex gap-2 flex-wrap mt-3">
               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${e.employmentStatus === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                {e.employmentStatus === "active" ? "Active" : "Inactive"}
+                {e.employmentStatus === "active" ? tr("Active") : tr("Inactive")}
               </span>
               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{CATEGORY_LABEL[e.employeeCategory] ?? title(e.employeeCategory)}</span>
-              {e.employeeType && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{title(e.employeeType)}</span>}
-              {e.otEligible && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">OT eligible</span>}
+              {e.employeeType && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{trData(title(e.employeeType))}</span>}
+              {e.otEligible && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">{tr("OT eligible")}</span>}
             </div>
           </div>
           <div className="flex gap-2">
             {e.email && (
-              <a href={`mailto:${e.email}`} aria-label="Email" className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 bg-white! text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
+              <a href={`mailto:${e.email}`} aria-label={tr("Email")} className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 bg-white! text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
                 <MailOutlined />
               </a>
             )}
             {e.phone && (
-              <a href={`tel:${e.phone.replace(/\s/g, "")}`} aria-label="Call" className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 bg-white! text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
+              <a href={`tel:${e.phone.replace(/\s/g, "")}`} aria-label={tr("Call")} className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 bg-white! text-slate-700! hover:border-[#1C4463] hover:text-[#1C4463]!">
                 <PhoneOutlined />
               </a>
             )}
@@ -208,7 +209,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           {stats.map(([label, value]) => (
             <div key={label} className="px-5 sm:px-6 py-4 border-slate-100 [&:not(:last-child)]:sm:border-r">
               <div className="text-xl font-extrabold text-slate-900">{value}</div>
-              <div className="text-xs text-slate-500">{label}</div>
+              <div className="text-xs text-slate-500">{trData(label)}</div>
             </div>
           ))}
         </div>
@@ -217,39 +218,39 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
       <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
         {/* Left: details */}
         <aside className="flex flex-col gap-6">
-          <section className={CARD} aria-label="Details">
-            <h2 className={H2}>Details</h2>
+          <section className={CARD} aria-label={tr("Details")}>
+            <h2 className={H2}>{tr("Details")}</h2>
             <div className="mt-2 divide-y divide-slate-100">
-              <Fact icon={<IdcardOutlined />} label="Employee ID">{e.id}</Fact>
-              <Fact icon={<MedicineBoxOutlined />} label="Mediclaim ID">
+              <Fact icon={<IdcardOutlined />} label={tr("Employee ID")}>{e.id}</Fact>
+              <Fact icon={<MedicineBoxOutlined />} label={tr("Mediclaim ID")}>
                 <span className="inline-flex items-center gap-2 font-normal text-slate-400">
-                  Not added yet
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">Coming soon</span>
+                  {tr("Not added yet")}
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">{tr("Coming soon")}</span>
                 </span>
               </Fact>
-              <Fact icon={<MailOutlined />} label="Email">{e.email || "—"}</Fact>
-              <Fact icon={<PhoneOutlined />} label="Phone">{e.phone || "—"}</Fact>
-              <Fact icon={<TeamOutlined />} label="Department">{e.department || "—"}</Fact>
-              <Fact icon={<ClockCircleOutlined />} label="Shift">{SHIFT_LABEL[e.shiftId] ?? title(e.shiftId)}</Fact>
-              <Fact icon={<CalendarOutlined />} label="Joined">
-                {e.joinedAt ? new Date(e.joinedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+              <Fact icon={<MailOutlined />} label={tr("Email")}>{e.email || "—"}</Fact>
+              <Fact icon={<PhoneOutlined />} label={tr("Phone")}>{e.phone || "—"}</Fact>
+              <Fact icon={<TeamOutlined />} label={tr("Department")}>{e.department ? trData(e.department) : "—"}</Fact>
+              <Fact icon={<ClockCircleOutlined />} label={tr("Shift")}>{SHIFT_LABEL[e.shiftId] ?? title(e.shiftId)}</Fact>
+              <Fact icon={<CalendarOutlined />} label={tr("Joined")}>
+                {e.joinedAt ? new Date(e.joinedAt).toLocaleDateString(intlLocale(), { day: "numeric", month: "long", year: "numeric" }) : "—"}
               </Fact>
             </div>
           </section>
 
-          <section className={CARD} aria-label="LinkedIn">
+          <section className={CARD} aria-label={tr("LinkedIn")}>
             <div className="flex items-center gap-2">
-              <h2 className={H2}>LinkedIn</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">Coming soon</span>
+              <h2 className={H2}>{tr("LinkedIn")}</h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">{tr("Coming soon")}</span>
             </div>
             <div className="mt-4 flex items-center gap-3">
               <span className="w-11 h-11 shrink-0 rounded-xl bg-[#0A66C2] text-white text-xl flex items-center justify-center">
                 <LinkedinFilled />
               </span>
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-700">Not linked</div>
+                <div className="text-sm font-semibold text-slate-700">{tr("Not linked")}</div>
                 <div className="text-xs text-slate-500">
-                  {isSelf ? "Link your LinkedIn profile to show it here." : "No LinkedIn profile linked."}
+                  {isSelf ? tr("Link your LinkedIn profile to show it here.") : tr("No LinkedIn profile linked.")}
                 </div>
               </div>
             </div>
@@ -257,31 +258,31 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
               <Button
                 block
                 icon={<LinkOutlined />}
-                onClick={() => message.info("LinkedIn linking — coming soon. This feature is under development.")}
+                onClick={() => message.info(tr("LinkedIn linking — coming soon. This feature is under development."))}
                 className="mt-4 rounded-xl!"
               >
-                Link LinkedIn profile
+                {tr("Link LinkedIn profile")}
               </Button>
             )}
           </section>
 
-          <section className={CARD} aria-label="Site">
-            <h2 className={H2}>Site</h2>
+          <section className={CARD} aria-label={tr("Site")}>
+            <h2 className={H2}>{tr("Site")}</h2>
             {site.data ? (
               <Link href={`/sites`} className="mt-3 flex items-center gap-3 rounded-2xl bg-slate-50! border border-slate-100 p-4 hover:border-[#1C4463]">
-                <span className="w-11 h-11 shrink-0 rounded-xl bg-emerald-700 text-white font-bold flex items-center justify-center text-sm">{site.data.plantType}</span>
+                <span className="w-11 h-11 shrink-0 rounded-xl bg-emerald-700 text-white font-bold flex items-center justify-center text-sm">{trData(site.data.plantType)}</span>
                 <span className="min-w-0">
-                  <span className="block font-semibold text-slate-900">{site.data.name}</span>
-                  <span className="block text-xs text-slate-500"><EnvironmentOutlined /> {site.data.location}</span>
+                  <span className="block font-semibold text-slate-900">{trData(site.data.name)}</span>
+                  <span className="block text-xs text-slate-500"><EnvironmentOutlined /> {trData(site.data.location)}</span>
                 </span>
               </Link>
             ) : (
-              <p className="m-0 mt-2 text-sm text-slate-500">{e.siteId ? "Loading…" : "Corporate (all sites)"}</p>
+              <p className="m-0 mt-2 text-sm text-slate-500">{e.siteId ? tr("Loading…") : tr("Corporate (all sites)")}</p>
             )}
           </section>
 
-          <section className={CARD} aria-label="Reporting line">
-            <h2 className={H2}>Reporting line</h2>
+          <section className={CARD} aria-label={tr("Reporting line")}>
+            <h2 className={H2}>{tr("Reporting line")}</h2>
             {e.managerId || e.supervisorId || e.shiftInChargeId ? (
               <ol className="m-0 p-0 list-none mt-4">
                 <Person id={e.managerId} role="Plant Manager" />
@@ -289,19 +290,19 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 {e.shiftInChargeId !== e.supervisorId && e.shiftInChargeId !== e.managerId && <Person id={e.shiftInChargeId} role="Shift In-Charge" />}
               </ol>
             ) : (
-              <p className="m-0 mt-2 text-sm text-slate-500">No one is set above {isSelf ? "you" : e.name.split(" ")[0]}.</p>
+              <p className="m-0 mt-2 text-sm text-slate-500">{isSelf ? tr("No one is set above you.") : tr("No one is set above {name}.", { name: translatePersonName(e.name).split(" ")[0] })}</p>
             )}
           </section>
         </aside>
 
         {/* Right: leave, certificates, training */}
         <main className="flex flex-col gap-6 min-w-0">
-          <section className={CARD} aria-label="Leave">
+          <section className={CARD} aria-label={tr("Leave")}>
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
-              <h2 className={H2}>Leave</h2>
+              <h2 className={H2}>{tr("Leave")}</h2>
               {isSelf && (
                 <Link href="/leave/requests" className="text-sm font-semibold text-emerald-700!">
-                  Apply for leave <RightOutlined className="text-xs" />
+                  {tr("Apply for leave")}{" "}<RightOutlined className="text-xs" />
                 </Link>
               )}
             </div>
@@ -312,31 +313,31 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 {balanceEntries.map(([type, days]) => (
                   <div key={type} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
                     <div className="text-2xl font-extrabold text-slate-900">{days}</div>
-                    <div className="text-xs text-slate-500">{LEAVE_TYPE_LABELS[type] ?? title(type)} left</div>
+                    <div className="text-xs text-slate-500">{tr("{type} left", { type: LEAVE_TYPE_LABELS[type] ?? title(type) })}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="m-0 mt-2 text-sm text-slate-500">No leave balance on record.</p>
+              <p className="m-0 mt-2 text-sm text-slate-500">{tr("No leave balance on record.")}</p>
             )}
 
-            <div className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-500">Recent requests</div>
+            <div className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-500">{tr("Recent requests")}</div>
             {leaves.loading && !leaves.data ? (
               <Skeleton active paragraph={{ rows: 2 }} />
             ) : leaveList.length === 0 ? (
-              <p className="m-0 mt-2 text-sm text-slate-500">No leave requests yet.</p>
+              <p className="m-0 mt-2 text-sm text-slate-500">{tr("No leave requests yet.")}</p>
             ) : (
               <ul className="m-0 p-0 list-none mt-2 divide-y divide-slate-100">
                 {leaveList.slice(0, 4).map((l) => (
                   <li key={l.id}>
                     <Link href={`/leave/requests/${l.id}`} className="group flex items-center gap-3 py-3">
                       <span className="w-11 h-11 shrink-0 rounded-xl bg-[#1C4463]/[0.07] text-[#1C4463] flex flex-col items-center justify-center leading-none">
-                        <span className="text-[10px] font-semibold uppercase">{new Date(l.startDate).toLocaleDateString("en-IN", { month: "short" })}</span>
+                        <span className="text-[10px] font-semibold uppercase">{new Date(l.startDate).toLocaleDateString(intlLocale(), { month: "short" })}</span>
                         <span className="text-base font-extrabold">{new Date(l.startDate).getDate()}</span>
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-slate-900 group-hover:underline">
-                          {LEAVE_TYPE_LABELS[l.leaveType as LeaveType] ?? title(l.leaveType)} leave
+                          {tr("{type} leave", { type: LEAVE_TYPE_LABELS[l.leaveType as LeaveType] ?? title(l.leaveType) })}
                         </span>
                         <span className="block text-xs text-slate-500">
                           {l.startDate}
@@ -353,19 +354,19 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             )}
           </section>
 
-          <section className={CARD} aria-label={isSelf ? "My resume" : "Resume"}>
+          <section className={CARD} aria-label={isSelf ? tr("My resume") : tr("Resume")}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
-                <h2 className={H2}>{isSelf ? "My resume" : "Resume"}</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">Coming soon</span>
+                <h2 className={H2}>{isSelf ? tr("My resume") : tr("Resume")}</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">{tr("Coming soon")}</span>
               </div>
               {isSelf && (
                 <Button
                   icon={<UploadOutlined />}
-                  onClick={() => message.info("Resume upload — coming soon. This feature is under development.")}
+                  onClick={() => message.info(tr("Resume upload — coming soon. This feature is under development."))}
                   className="rounded-xl!"
                 >
-                  Upload resume
+                  {tr("Upload resume")}
                 </Button>
               )}
             </div>
@@ -374,23 +375,23 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <FileTextOutlined />
               </span>
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-700">No resume uploaded</div>
+                <div className="text-sm font-semibold text-slate-700">{tr("No resume uploaded")}</div>
                 <div className="text-xs text-slate-500">
-                  {isSelf ? "You'll be able to upload a PDF or Word resume here soon." : "Resumes will appear here once uploading is available."}
+                  {isSelf ? tr("You'll be able to upload a PDF or Word resume here soon.") : tr("Resumes will appear here once uploading is available.")}
                 </div>
               </div>
             </div>
           </section>
 
-          <section className={CARD} aria-label="Certificates">
+          <section className={CARD} aria-label={tr("Certificates")}>
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
-              <h2 className={H2}>Certificates <span className="font-normal text-slate-400">{certs.length}</span></h2>
+              <h2 className={H2}>{tr("Certificates")}{" "}<span className="font-normal text-slate-400">{certs.length}</span></h2>
               <Link href={isSelf ? "/certifications?mine=1" : "/certifications"} className="text-sm font-semibold text-emerald-700!">
-                See all <RightOutlined className="text-xs" />
+                {tr("See all")}{" "}<RightOutlined className="text-xs" />
               </Link>
             </div>
             {certs.length === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No certificates yet" />
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={tr("No certificates yet")} />
             ) : (
               <ul className="m-0 p-0 list-none mt-4 grid gap-3 sm:grid-cols-2">
                 {certs.map((c) => {
@@ -405,7 +406,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         <div className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2">{course?.title ?? c.courseTitle}</div>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {course?.code ? `${course.code} · ` : ""}
-                          {valid ? `Valid until ${c.expiresAt?.slice(0, 10) ?? "—"}` : `Expired ${c.expiresAt?.slice(0, 10)}`}
+                          {valid ? tr("Valid until {expiresAt}", { expiresAt: c.expiresAt?.slice(0, 10) ?? "—" }) : tr("Expired {expiresAt}", { expiresAt: c.expiresAt?.slice(0, 10) })}
                         </div>
                       </div>
                     </li>
@@ -415,7 +416,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             )}
           </section>
 
-          <section className={CARD} aria-label="Training">
+          <section className={CARD} aria-label={tr("Training")}>
             <EmployeeTrainingSection employeeId={e.id} />
           </section>
 
@@ -425,8 +426,8 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
               className={`${CARD} flex items-center justify-between gap-3 hover:border-[#1C4463]`}
             >
               <span>
-                <span className="block font-bold text-slate-900">Overtime</span>
-                <span className="block text-sm text-slate-500">Open the overtime module for this person&apos;s OT history</span>
+                <span className="block font-bold text-slate-900">{tr("Overtime")}</span>
+                <span className="block text-sm text-slate-500">{tr("Open the overtime module for this person's OT history")}</span>
               </span>
               <RightOutlined className="text-slate-400" />
             </Link>

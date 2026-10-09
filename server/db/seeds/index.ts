@@ -34,6 +34,17 @@ import { SafetyProtocolSchema } from '../schemas/safety-protocol.schema';
 import { LeaderSchema } from '../schemas/leader.schema';
 import { safetyLeadersSeed, safetyProtocolsSeed } from './safety.seed';
 import {
+  departmentsSeed,
+  hodLeadersSeed,
+  permitLocationsSeed,
+  siteEmergencyContactsSeed,
+} from './e-permit.seed';
+import {
+  DepartmentSchema,
+  PermitLocationSchema,
+  SiteEmergencyContactSchema,
+} from '../schemas/e-permit-master.schema';
+import {
   CourseSchema,
   TrainingRecordSchema,
   CertificateSchema,
@@ -189,6 +200,24 @@ async function seed() {
     await LeaderModel.updateOne({ id: l.id }, { $setOnInsert: l }, { upsert: true });
   }
   console.log(`  ✓ Inserted ${safetyProtocolsSeed.length} safety protocols; ensured Safety In-Charge leader row`);
+
+  // 15. E-Permit masters — departments (HoD + deputy), locations, emergency contacts. Permits themselves are never seeded.
+  console.log('[15/15] Seeding E-Permit departments & locations...');
+  const DepartmentModel = mongoose.model('Department', DepartmentSchema, 'departments');
+  const PermitLocationModel = mongoose.model('PermitLocation', PermitLocationSchema, 'permit_locations');
+  const ContactModel = mongoose.model('SiteEmergencyContact', SiteEmergencyContactSchema, 'site_emergency_contacts');
+  await DepartmentModel.deleteMany({});
+  await DepartmentModel.insertMany(departmentsSeed);
+  await PermitLocationModel.deleteMany({});
+  await PermitLocationModel.insertMany(permitLocationsSeed);
+  await ContactModel.deleteMany({});
+  await ContactModel.insertMany(siteEmergencyContactsSeed);
+  for (const l of hodLeadersSeed) {
+    await LeaderModel.updateOne({ id: l.id }, { $setOnInsert: l }, { upsert: true });
+  }
+  console.log(
+    `  ✓ Inserted ${departmentsSeed.length} departments, ${permitLocationsSeed.length} locations, ${siteEmergencyContactsSeed.length} emergency contacts; ensured ${hodLeadersSeed.length} HoD leader rows`,
+  );
 
   console.log('\n────────────────────────────────────────────────────────');
   console.log('🎉 Unified database seeding completed successfully!');

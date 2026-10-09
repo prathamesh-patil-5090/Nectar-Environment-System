@@ -1,9 +1,11 @@
 /**
  * Safety rules — status machine, role permissions, clearance and reminder timing.
  *
- * SHARED FILE: an identical copy lives at client/lib/safety/rules.ts.
- * client/lib/safety/rules-parity.test.ts fails if the two drift — edit both together.
+ * SHARED FILE: logic mirrors server/src/modules/safety/safety-rules.ts.
+ * Display labels on the client are locale-aware (EN / HI / MR).
  */
+
+import { localizedRecord } from "@/lib/i18n/localized";
 
 export type SafetyEventType = "incident" | "near_miss" | "breakdown";
 
@@ -33,6 +35,7 @@ export type SafetyCategory =
 export type SafetyRole =
   | "director"
   | "manager"
+  | "hod"
   | "hr"
   | "site_incharge"
   | "shift_incharge"
@@ -96,6 +99,7 @@ export function normalizeSafetyRole(role?: string): SafetyRole {
   const known: SafetyRole[] = [
     "director",
     "manager",
+    "hod",
     "hr",
     "site_incharge",
     "shift_incharge",
@@ -109,6 +113,7 @@ export function normalizeSafetyRole(role?: string): SafetyRole {
 const ALL_ROLES: SafetyRole[] = [
   "director",
   "manager",
+  "hod",
   "hr",
   "site_incharge",
   "shift_incharge",
@@ -138,33 +143,33 @@ export type SafetyAction =
 export const SAFETY_PERMISSIONS: Record<SafetyAction, SafetyRole[]> = {
   view: ALL_ROLES,
   /** Only the plant manager raises safety concerns (near-miss, injury, fatal injury, death). */
-  reportNearMiss: ["manager"],
-  reportIncident: ["manager"],
+  reportNearMiss: ["manager", "hod"],
+  reportIncident: ["manager", "hod"],
   /** Plant breakdowns are an operations / OT matter, logged by the plant leads. */
-  reportBreakdown: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
+  reportBreakdown: ["director", "manager", "hod", "safety_incharge", "site_incharge", "shift_incharge"],
   comment: ALL_ROLES,
   /**
    * Acknowledge, investigate, corrective actions, edit details — the people responsible for every case:
    * supervisor, shift in-charge, HR, Director and Safety In-charge, plus the manager who raised it.
    */
-  investigate: ["director", "safety_incharge", "manager", "site_incharge", "supervisor", "shift_incharge", "hr"],
+  investigate: ["director", "safety_incharge", "manager", "hod", "site_incharge", "supervisor", "shift_incharge", "hr"],
   /** Mark the case solved — the Director only; it stays open (reminders keep going) until the Director closes it. */
   resolve: ["director"],
   /** Close and reopen — the Director only. Closing is what finishes a case. */
   close: ["director"],
-  clearNonCritical: ["director", "safety_incharge", "manager"],
+  clearNonCritical: ["director", "safety_incharge", "manager", "hod"],
   clearCritical: ["director", "safety_incharge"],
   waiveClearance: ["director"],
-  linkLeave: ["director", "safety_incharge", "manager", "site_incharge", "hr"],
-  startCall: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
-  updateBreakdown: ["director", "manager", "safety_incharge", "site_incharge", "shift_incharge"],
+  linkLeave: ["director", "safety_incharge", "manager", "hod", "site_incharge", "hr"],
+  startCall: ["director", "manager", "hod", "safety_incharge", "site_incharge", "shift_incharge"],
+  updateBreakdown: ["director", "manager", "hod", "safety_incharge", "site_incharge", "shift_incharge"],
   editProtocols: ["director", "safety_incharge"],
   /** The case report PDF — everyone who runs a case, never plain employees. */
-  downloadReport: ["director", "manager", "hr", "site_incharge", "shift_incharge", "safety_incharge", "supervisor"],
+  downloadReport: ["director", "manager", "hod", "hr", "site_incharge", "shift_incharge", "safety_incharge", "supervisor"],
 };
 
-/** Director, HR and Safety In-charge work across every site. */
-export const ORG_WIDE_ROLES: SafetyRole[] = ["director", "hr", "safety_incharge"];
+/** Director, HR, Safety In-charge and Heads of Department work across every site. */
+export const ORG_WIDE_ROLES: SafetyRole[] = ["director", "hr", "safety_incharge", "hod"];
 
 export type SafetyScope = { role?: string; siteId?: string | null };
 
@@ -363,34 +368,39 @@ export function otTotals(entries: { employeeId: string; hours: number }[] = []):
   return { people, hours };
 }
 
-export const SAFETY_STATUS_LABELS: Record<SafetyStatus, string> = {
-  REPORTED: "Reported",
-  ACKNOWLEDGED: "Acknowledged",
-  INVESTIGATING: "Investigating",
-  ACTION_PENDING: "Action pending",
-  RESOLVED: "Solved",
-  CLOSED: "Closed",
-  REOPENED: "Reopened",
-};
+export const SAFETY_STATUS_LABELS: Record<SafetyStatus, string> = localizedRecord(
+  "safety.status",
+  [
+    "REPORTED",
+    "ACKNOWLEDGED",
+    "INVESTIGATING",
+    "ACTION_PENDING",
+    "RESOLVED",
+    "CLOSED",
+    "REOPENED",
+  ] as const,
+);
 
-export const SAFETY_TYPE_LABELS: Record<SafetyEventType, string> = {
-  incident: "Incident",
-  near_miss: "Near-miss",
-  breakdown: "Breakdown",
-};
+export const SAFETY_TYPE_LABELS: Record<SafetyEventType, string> = localizedRecord(
+  "safety.type",
+  ["incident", "near_miss", "breakdown"] as const,
+);
 
-export const SAFETY_CATEGORY_LABELS: Record<SafetyCategory, string> = {
-  first_aid: "First aid",
-  medical: "Medical treatment",
-  lost_time: "Lost-time injury",
-  fatal: "Fatal injury",
-  death: "Death",
-  plant_problem: "Plant problem",
-  fire: "Fire",
-  chemical: "Chemical",
-  electrical: "Electrical",
-  other: "Other",
-};
+export const SAFETY_CATEGORY_LABELS: Record<SafetyCategory, string> = localizedRecord(
+  "safety.category",
+  [
+    "first_aid",
+    "medical",
+    "lost_time",
+    "fatal",
+    "death",
+    "plant_problem",
+    "fire",
+    "chemical",
+    "electrical",
+    "other",
+  ] as const,
+);
 
 /** "Other — {custom hazard}" when the reporter named it, else the plain category label. */
 export function safetyCategoryLabel(ev: { category: SafetyCategory; categoryOther?: string }): string {
@@ -398,9 +408,5 @@ export function safetyCategoryLabel(ev: { category: SafetyCategory; categoryOthe
   return ev.category === "other" && ev.categoryOther?.trim() ? `${base} — ${ev.categoryOther.trim()}` : base;
 }
 
-export const SAFETY_SEVERITY_LABELS: Record<SafetySeverity, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
-};
+export const SAFETY_SEVERITY_LABELS: Record<SafetySeverity, string> =
+  localizedRecord("safety.severity", ["low", "medium", "high", "critical"] as const);

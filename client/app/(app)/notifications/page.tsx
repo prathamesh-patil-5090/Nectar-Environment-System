@@ -9,6 +9,8 @@ import {
   getNotificationsForEmployee,
   markAllRead,
   markNotificationRead,
+  notificationBody,
+  notificationTitle,
   type AppNotification,
 } from "@/lib/notifications";
 import {
@@ -26,15 +28,16 @@ import {
 } from "@/lib/api/training";
 import type { ServerNotification } from "@/lib/training/types";
 import { personIdOf } from "@/lib/training/identity";
+import { tr, trData, trTable, trNode, intlLocale } from "@/lib/i18n";
 
-const kindLabel: Record<AppNotification["kind"], string> = {
+const kindLabel: Record<AppNotification["kind"], string> = trTable({
   leave_consent: "Leave consent",
   leave_decision: "Leave decision",
   ot_assign: "OT assignment",
   shift_message: "Shift In-Charge",
   manager_message: "Manager",
   general: "General",
-};
+});
 
 function NotificationRow({
   item,
@@ -53,15 +56,15 @@ function NotificationRow({
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>
           {!item.read ? (
-            <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>New</Tag>
+            <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>{tr("New")}</Tag>
           ) : null}
-          {item.title}
+          {trData(notificationTitle(item))}
           <Tag style={{ marginLeft: 8 }}>{kindLabel[item.kind]}</Tag>
         </div>
-        <div style={{ fontSize: 13, color: nectarColors.ink }}>{item.body}</div>
-        <div style={{ fontSize: 11, marginTop: 4, color: nectarColors.muted }}>{item.createdAt.slice(0, 16).replace("T", " ")}</div>
+        <div style={{ fontSize: 13, color: nectarColors.ink }}>{trData(notificationBody(item))}</div>
+        <div style={{ fontSize: 11, marginTop: 4, color: nectarColors.muted }}>{trData(item.createdAt.slice(0, 16).replace("T", " "))}</div>
       </div>
-      <Button type="link" onClick={onOpen}>Open</Button>
+      <Button type="link" onClick={onOpen}>{tr("Open")}</Button>
     </div>
   );
 }
@@ -81,14 +84,14 @@ function OtRow({
       }}
     >
       <div>
-        <div style={{ fontWeight: 600 }}>{item.date} · {item.hours}h · <Tag>{item.status}</Tag></div>
-        <div style={{ fontSize: 13, color: nectarColors.muted }}>{item.reason} — assigned by {item.assignedBy}</div>
+        <div style={{ fontWeight: 600 }}>{item.date} · {item.hours}h · <Tag>{trData(item.status)}</Tag></div>
+        <div style={{ fontSize: 13, color: nectarColors.muted }}>{tr("{reason} — assigned by {assignedBy}", { reason: trData(item.reason), assignedBy: trData(item.assignedBy) })}</div>
         {item.notes ? (
-          <div style={{ fontSize: 12, color: nectarColors.muted, marginTop: 4 }}>{item.notes}</div>
+          <div style={{ fontSize: 12, color: nectarColors.muted, marginTop: 4 }}>{trData(item.notes)}</div>
         ) : null}
       </div>
       {item.status === "assigned" ? (
-        <Button type="primary" size="small" onClick={onAck}>Acknowledge</Button>
+        <Button type="primary" size="small" onClick={onAck}>{tr("Acknowledge")}</Button>
       ) : null}
     </div>
   );
@@ -96,12 +99,12 @@ function OtRow({
 
 const serverKindLabel = (kind: string) =>
   kind.startsWith("safety_")
-    ? "Safety"
+    ? tr("Safety")
     : kind.startsWith("event_")
-      ? "Events"
+      ? tr("Events")
       : kind.startsWith("assessment_")
-        ? "Assessment"
-        : "Training";
+        ? tr("Assessment")
+        : tr("Training");
 
 /** Server-side notifications (training, events, flags, certificates). */
 function ServerInbox({ personId }: { personId: string }) {
@@ -114,7 +117,7 @@ function ServerInbox({ personId }: { personId: string }) {
         setRows(r);
         setError(null);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => setError(trData(e.message)));
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,7 +127,7 @@ function ServerInbox({ personId }: { personId: string }) {
   return (
     <div style={sWhitePadR10}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <div style={sSerifText18Mb12}>Training &amp; events</div>
+        <div style={sSerifText18Mb12}>{tr("Training & events")}</div>
         <Button
           size="small"
           onClick={async () => {
@@ -133,15 +136,15 @@ function ServerInbox({ personId }: { personId: string }) {
             changed();
           }}
         >
-          Mark all read
+          {tr("Mark all read")}
         </Button>
       </div>
       {error ? (
-        <Empty description={`Couldn't load: ${error}`} />
+        <Empty description={tr("Couldn't load: {error}", { error: trData(error) })} />
       ) : rows === null ? (
-        <Empty description="Loading…" />
+        <Empty description={tr("Loading…")} />
       ) : rows.length === 0 ? (
-        <Empty description="No training or event notifications" />
+        <Empty description={tr("No training or event notifications")} />
       ) : (
         <Listy
           items={rows}
@@ -155,13 +158,13 @@ function ServerInbox({ personId }: { personId: string }) {
             >
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  {!item.read ? <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>New</Tag> : null}
-                  {item.title}
-                  <Tag style={{ marginLeft: 8 }}>{serverKindLabel(item.kind)}</Tag>
+                  {!item.read ? <Tag color={nectarColors.leaf} style={{ marginRight: 8 }}>{tr("New")}</Tag> : null}
+                  {trData(item.title)}
+                  <Tag style={{ marginLeft: 8 }}>{trData(serverKindLabel(item.kind))}</Tag>
                 </div>
-                <div style={{ fontSize: 13, color: nectarColors.ink, whiteSpace: "pre-wrap" }}>{item.body}</div>
+                <div style={{ fontSize: 13, color: nectarColors.ink, whiteSpace: "pre-wrap" }}>{trData(item.body)}</div>
                 <div style={{ fontSize: 11, marginTop: 4, color: nectarColors.muted }}>
-                  {new Date(item.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
+                  {new Date(item.createdAt).toLocaleString(intlLocale(), { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
                 </div>
               </div>
               <Button
@@ -173,7 +176,7 @@ function ServerInbox({ personId }: { personId: string }) {
                   else void load();
                 }}
               >
-                Open
+                {tr("Open")}
               </Button>
             </div>
           )}
@@ -208,7 +211,7 @@ export default function NotificationsPage() {
         <ServerInbox personId={personId} />
       </div>
     ) : (
-      <Empty description="Notifications require a profile on your login." />
+      <Empty description={tr("Notifications require a profile on your login.")} />
     );
   }
 
@@ -216,8 +219,7 @@ export default function NotificationsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          Leave consent, leave decisions, and OT assignments for your employee
-          record.
+          {tr("Leave consent, leave decisions, and OT assignments for your employee record.")}
         </p>
         <Button
           onClick={() => {
@@ -225,16 +227,16 @@ export default function NotificationsPage() {
             setTick((t) => t + 1);
           }}
         >
-          Mark all read
+          {tr("Mark all read")}
         </Button>
       </div>
 
       <ServerInbox personId={empId} />
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>Inbox</div>
+        <div style={sSerifText18Mb12}>{tr("Inbox")}</div>
         {notifications.length === 0 ? (
-          <Empty description="No notifications yet" />
+          <Empty description={tr("No notifications yet")} />
         ) : (
           <Listy
             items={notifications}
@@ -254,9 +256,9 @@ export default function NotificationsPage() {
       </div>
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>My OT assignments</div>
+        <div style={sSerifText18Mb12}>{tr("My OT assignments")}</div>
         {otAssignments.length === 0 ? (
-          <Empty description="No OT assignments" />
+          <Empty description={tr("No OT assignments")} />
         ) : (
           <Listy
             items={otAssignments}
@@ -266,7 +268,7 @@ export default function NotificationsPage() {
                 item={a}
                 onAck={() => {
                   updateOtAssignmentStatus(a.id, "acknowledged");
-                  message.success("OT assignment acknowledged");
+                  message.success(tr("OT assignment acknowledged"));
                   setTick((t) => t + 1);
                 }}
               />
@@ -274,8 +276,7 @@ export default function NotificationsPage() {
           />
         )}
         <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>
-          Managers assign OT from{" "}
-          <Link href="/overtime/assign">OverTime → Assign / notify</Link>.
+          {trNode("Managers assign OT from {link}.", { link: <Link href="/overtime/assign">{tr("OverTime → Assign / notify")}</Link> })}
         </div>
       </div>
     </div>

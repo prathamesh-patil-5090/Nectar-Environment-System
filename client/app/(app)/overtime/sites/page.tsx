@@ -16,6 +16,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { canDownloadReports } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
+import { tr, trCell, trData } from "@/lib/i18n";
 
 export default function OtSitesPage() {
   const { filters, setFilters, lockedSiteId } = useOtFilters();
@@ -23,23 +24,23 @@ export default function OtSitesPage() {
 
   const columns: ColumnsType<SiteOtRow> = [
     {
-      title: "Site",
+      title: tr("Site"),
       dataIndex: "siteName",
       render: (name, record) => (
-        <Link href={`/overtime/sites/${record.siteId}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{name}</Link>
+        <Link href={`/overtime/sites/${record.siteId}`} style={{ color: nectarColors.leaf, fontWeight: 600 }}>{trData(name)}</Link>
       ),
     },
     {
-      title: "OT Employees",
-      dataIndex: "otEmployees",
+      title: tr("OT Employees"),
+      dataIndex: "otEmployees", render: trCell,
       sorter: (a, b) => a.otEmployees - b.otEmployees,
       defaultSortOrder: "descend",
     },
-    { title: "OT Days", dataIndex: "otDays", sorter: (a, b) => a.otDays - b.otDays },
-    { title: "OT Hours", dataIndex: "otHours", sorter: (a, b) => a.otHours - b.otHours, render: (v) => formatHours(v) },
-    { title: "OT Cost", dataIndex: "otCost", sorter: (a, b) => a.otCost - b.otCost, render: (v) => formatInr(v) },
+    { title: tr("OT Days"), dataIndex: "otDays", render: trCell, sorter: (a, b) => a.otDays - b.otDays },
+    { title: tr("OT Hours"), dataIndex: "otHours", sorter: (a, b) => a.otHours - b.otHours, render: (v) => formatHours(v) },
+    { title: tr("OT Cost"), dataIndex: "otCost", sorter: (a, b) => a.otCost - b.otCost, render: (v) => formatInr(v) },
     {
-      title: "Avg OT/Employee",
+      title: tr("Avg OT/Employee"),
       dataIndex: "avgOtPerEmployee",
       sorter: (a, b) => a.avgOtPerEmployee - b.avgOtPerEmployee,
       render: (v) => formatHours(v),
@@ -50,7 +51,7 @@ export default function OtSitesPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <OtFiltersBar value={filters} onChange={setFilters} lockedSiteId={lockedSiteId} />
       {canDownloadReports(getSession()) ? (
-        <div style={{ display: "flex", justifyContent: "flex-end" }}><Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("site", "xlsx", filters)}>Export</Button></div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}><Button icon={<DownloadOutlined />} onClick={() => downloadOtReport("site", "xlsx", filters)}>{tr("Export")}</Button></div>
       ) : null}
       <Table
         rowKey="siteId"

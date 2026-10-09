@@ -9,6 +9,7 @@ import { useTrainingData } from "@/lib/training/store";
 import type { MentorProfileRecord, TrainingEvent } from "@/lib/training/types";
 import TrainingSubNav from "@/components/training/ui/TrainingSubNav";
 import Cover from "@/components/training/ui/Cover";
+import { tr, trData } from "@/lib/i18n";
 
 type Stats = { upcoming: TrainingEvent[]; hosted: number; learners: number };
 
@@ -21,40 +22,40 @@ function MentorCard({ m, stats }: { m: MentorProfileRecord; stats?: Stats }) {
       className="group flex flex-col bg-white! border border-slate-200 rounded-3xl overflow-hidden hover:border-[#1C4463] hover:shadow-lg transition-all focus-visible:outline-2 focus-visible:outline-emerald-600"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-        <Cover src={m.photoUrl} label={m.name} className="object-[center_20%] transition-transform duration-500 group-hover:scale-[1.03]" />
+        <Cover src={m.photoUrl} label={trData(m.name)} className="object-[center_20%] transition-transform duration-500 group-hover:scale-[1.03]" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 to-transparent px-4 pt-10 pb-3">
-          <div className="text-lg font-bold text-white leading-tight">{m.name}</div>
-          <div className="text-sm text-white/80 truncate">{[m.title, m.department].filter(Boolean).join(" · ")}</div>
+          <div className="text-lg font-bold text-white leading-tight">{trData(m.name)}</div>
+          <div className="text-sm text-white/80 truncate">{[m.title, m.department].filter(Boolean).map((x) => trData(String(x))).join(" · ")}</div>
         </div>
       </div>
       <div className="p-4 flex flex-col gap-3 flex-1">
         {m.specialties.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {m.specialties.slice(0, 3).map((s) => (
-              <Tag key={s} className="m-0! rounded-full!">{s}</Tag>
+              <Tag key={s} className="m-0! rounded-full!">{trData(s)}</Tag>
             ))}
           </div>
         )}
         <div className="grid grid-cols-3 gap-2 text-center">
           {([
-            ["Upcoming", stats?.upcoming.length ?? 0],
-            ["Hosted", stats?.hosted ?? 0],
-            ["Learners", stats?.learners ?? 0],
+            [tr("Upcoming"), stats?.upcoming.length ?? 0],
+            [tr("Hosted"), stats?.hosted ?? 0],
+            [tr("Learners"), stats?.learners ?? 0],
           ] as const).map(([label, value]) => (
             <div key={label} className="rounded-xl bg-slate-50 border border-slate-100 py-1.5">
               <div className="font-extrabold text-slate-900">{value}</div>
-              <div className="text-[11px] text-slate-500">{label}</div>
+              <div className="text-[11px] text-slate-500">{trData(label)}</div>
             </div>
           ))}
         </div>
         <div className="mt-auto text-sm">
           {next ? (
             <>
-              <div className="text-xs font-semibold text-emerald-700">Next · {fmtIst(next.startsAt)}</div>
-              <div className="font-semibold text-slate-900 line-clamp-2">{next.title}</div>
+              <div className="text-xs font-semibold text-emerald-700">{tr("Next · {ist}", { ist: fmtIst(next.startsAt) })}</div>
+              <div className="font-semibold text-slate-900 line-clamp-2">{trData(next.title)}</div>
             </>
           ) : (
-            <div className="text-slate-500">No sessions scheduled right now</div>
+            <div className="text-slate-500">{tr("No sessions scheduled right now")}</div>
           )}
         </div>
       </div>
@@ -92,14 +93,14 @@ export default function MentorsPage() {
       <TrainingSubNav />
 
       <header className="rounded-3xl bg-gradient-to-br from-[#1C4463] to-[#0B1A24] p-6 sm:p-8">
-        <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Mentors</h1>
+        <h1 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{tr("Mentors")}</h1>
         <p className="m-0 mt-1 text-white/70 max-w-2xl">
-          Plant leaders who run live masterclasses on real operating problems. Open a profile to see what they teach and when they&apos;re next on.
+          {tr("Plant leaders who run live masterclasses on real operating problems. Open a profile to see what they teach and when they're next on.")}
         </p>
       </header>
 
       {mentors.error ? (
-        <Alert type="error" showIcon title="Couldn't load mentors" description={mentors.error} action={<Button onClick={mentors.reload}>Try again</Button>} />
+        <Alert type="error" showIcon title={tr("Couldn't load mentors")} description={trData(mentors.error)} action={<Button onClick={mentors.reload}>{tr("Try again")}</Button>} />
       ) : mentors.loading && !mentors.data ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           {Array.from({ length: 4 }, (_, i) => (
@@ -108,7 +109,7 @@ export default function MentorsPage() {
         </div>
       ) : list.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl py-8">
-          <Empty description="No mentors yet" />
+          <Empty description={tr("No mentors yet")} />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">

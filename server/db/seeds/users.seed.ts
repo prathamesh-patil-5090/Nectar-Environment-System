@@ -14,6 +14,8 @@ export type UserSeed = {
   active: boolean;
 };
 
+import { hodUsersSeed } from './e-permit.seed';
+
 const P = 'nectar2026';
 
 export const usersSeed: UserSeed[] = [
@@ -316,4 +318,6 @@ export const usersSeed: UserSeed[] = [
     visibleOnLogin: false,
     active: true,
   },
+  // E-Permit Heads of Department + deputies
+  ...hodUsersSeed,
 ];

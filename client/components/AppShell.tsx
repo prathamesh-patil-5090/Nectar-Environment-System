@@ -40,6 +40,7 @@ import {
   SettingOutlined,
   SafetyOutlined,
   WarningOutlined,
+  FileProtectOutlined,
 } from "@ant-design/icons";
 import { getSession, logout, type SessionUser, type UserRole } from "@/lib/auth";
 import { resetDemoLocalData } from "@/lib/demo-reset";
@@ -54,45 +55,41 @@ import {
   canViewLeaveManagement,
   canViewOtModule,
   canViewEmployeeRoster,
+  canIssueEPermit,
+  canViewEPermitsNav,
   canViewRelieverPoolNav,
   canViewShiftsNav,
   canViewSitesNav,
   normalizeRole,
   roleLabel,
   visibleShiftNavKeys,
+  isManagerRole,
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { hydrateAllStoresFromApi } from "@/lib/sync";
 import { ackSafetyEmergency, getActiveEmergencies } from "@/lib/api/safety";
 import type { SafetyEvent } from "@/lib/safety/types";
 import { safetyActorOf } from "@/lib/rbac";
+import { LanguageSwitcher, translatePersonName, useI18n, tr, trData, intlLocale } from "@/lib/i18n";
 
 const { Header, Sider, Content } = Layout;
 
 const SIDER_COLLAPSED_KEY = "nectar-enviro-sider-collapsed";
 
-const FLYOUT_TITLES: Record<string, string> = {
-  leave: "Leave",
-  shifts: "Shifts",
-  overtime: "OverTime",
-  academy: "Academy",
-  "academic-records": "Academic Records",
-  "reliever-pool": "Reliever Pool",
-  safety: "Safety",
-};
+type TFn = (key: string) => string;
 
 /** HR / Manager / Director see Training, Events + Certifications as records; everyone else as Academy. */
-function academyNavGroup(role: UserRole): NonNullable<MenuProps["items"]>[number] {
-  const isRecords = role === "hr" || role === "manager" || role === "director";
+function academyNavGroup(role: UserRole, t: TFn): NonNullable<MenuProps["items"]>[number] {
+  const isRecords = role === "hr" || isManagerRole(role) || role === "director";
   return {
     key: isRecords ? "academic-records" : "academy",
     icon: <BookOutlined />,
-    label: isRecords ? "Academic Records" : "Academy",
+    label: isRecords ? t("nav.academicRecords") : t("nav.academy"),
     children: [
-      { key: "/training", icon: <ReadOutlined />, label: "Training" },
-      { key: "/training/events", icon: <CalendarOutlined />, label: "Events" },
-      { key: "/training/mentors", icon: <TeamOutlined />, label: "Mentors" },
-      { key: "/certifications", icon: <SafetyCertificateOutlined />, label: "Certifications" },
+      { key: "/training", icon: <ReadOutlined />, label: t("nav.training") },
+      { key: "/training/events", icon: <CalendarOutlined />, label: t("nav.events") },
+      { key: "/training/mentors", icon: <TeamOutlined />, label: t("nav.mentors") },
+      { key: "/certifications", icon: <SafetyCertificateOutlined />, label: t("nav.certifications") },
     ],
   };
 }
@@ -114,9 +111,9 @@ function writeSiderCollapsed(collapsed: boolean) {
   }
 }
 
-function submenuTitleText(label: unknown): string {
+function submenuTitleText(label: unknown, fallback = "Menu"): string {
   if (typeof label === "string") return label;
-  return "Menu";
+  return fallback;
 }
 
 function GsapFlyoutCard({
@@ -140,121 +137,58 @@ function GsapFlyoutCard({
 
   return (
     <div ref={cardRef} className="nectar-sider-flyout-card">
-      <div className="nectar-sider-flyout-title">{title}</div>
+      <div className="nectar-sider-flyout-title">{trData(title)}</div>
       {children}
     </div>
   );
 }
 
-const overtimeChildren = [
-  { key: "/overtime/overview", label: "Overview" },
-  { key: "/overtime/employees", label: "Employees" },
-  { key: "/overtime/sites", label: "Sites" },
-  { key: "/overtime/analysis", label: "Analysis & reports" },
-  { key: "/overtime/decisions", label: "Decisions" },
-];
-
-const leaveChildren = [
-  { key: "/leave", label: "Overview" },
-  { key: "/leave/requests", label: "Requests" },
-  { key: "/leave/lifecycle", label: "Lifecycle / Coverage" },
-  { key: "/leave/management", label: "Management" },
-];
-
-const safetyChildren = [
-  { key: "/safety", label: "Overview" },
-  { key: "/safety/report", label: "Report incident" },
-  { key: "/safety/incidents", label: "Incidents & near-miss" },
-  { key: "/safety/breakdowns", label: "Breakdowns" },
-  { key: "/safety/protocols", label: "Emergency protocols" },
-];
-
-/** Visible to every role — safety records are open to all. */
-const safetyNavItem: NonNullable<MenuProps["items"]>[number] = {
-  key: "safety",
-  icon: <SafetyOutlined />,
-  label: "Safety",
-  children: safetyChildren,
-};
-
-const shiftChildren = [
-  { key: "/shifts", label: "Dashboard" },
-  { key: "/shifts/master", label: "Shift Master" },
-  { key: "/shifts/schedule", label: "Schedule" },
-  { key: "/shifts/rotation", label: "Rotation" },
-  { key: "/shifts/change-requests", label: "Change Requests" },
-  { key: "/shifts/reliever-allocation", label: "Reliever Allocation" },
-  { key: "/shifts/manpower", label: "Manpower + Conflict" },
-  { key: "/shifts/deviations", label: "Deviations" },
-];
-
-// Full nav is built dynamically in AppShell from role (navItemsFiltered)
-
-const pageTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/employees": "Employees",
-  "/sites": "Sites",
-  "/training": "Training",
-  "/reliever-pool": "Reliever Pool",
-  "/reliever-pool/competition": "Reliever Competition",
-  "/leave": "Leave Overview",
-  "/leave/requests": "Leave Requests",
-  "/leave/lifecycle": "Leave · Lifecycle / Coverage",
-  "/leave/management": "Leave · Management",
-  "/shifts": "Shift Rotation",
-  "/shifts/master": "Shift Master",
-  "/shifts/schedule": "Shift Schedule",
-  "/shifts/rotation": "Shift Rotation",
-  "/shifts/change-requests": "Shift Change Requests",
-  "/shifts/reliever-allocation": "Reliever Allocation",
-  "/shifts/manpower": "Manpower + Conflict",
-  "/shifts/deviations": "Shift Deviations",
-  "/overtime/overview": "OT Overview",
-  "/overtime/employees": "Employee OT",
-  "/overtime/sites": "Site OT",
-  "/overtime/analysis": "OT Analysis & Reports",
-  "/overtime/decisions": "OT Decisions",
-  "/overtime/assign": "Assign OT",
-  "/notifications": "Notifications",
-  "/certifications": "Certifications",
-  "/salary": "Salary history",
-  "/meetings": "Meetings",
-  "/safety": "Safety",
-  "/safety/report": "Safety · Report incident",
-  "/safety/incidents": "Safety · Incidents & near-miss",
-  "/safety/breakdowns": "Safety · Breakdowns",
-  "/safety/protocols": "Safety · Emergency protocols",
-  "/safety/training": "Safety · Training",
-};
-
-/** Visible to every role; feature not built yet. */
-const meetingsNavItem: NonNullable<MenuProps["items"]>[number] = {
-  key: "/meetings",
-  icon: <VideoCameraOutlined />,
-  label: (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      Meetings
-      <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
-    </span>
-  ),
-};
-
-const medicalRecordsNavItem: NonNullable<MenuProps["items"]>[number] = {
-  key: "/medical-records",
-  icon: <MedicineBoxOutlined />,
-  label: (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      Medical records
-      <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>Soon</Tag>
-    </span>
-  ),
-};
+const PAGE_TITLE_KEYS = [
+  "/dashboard",
+  "/employees",
+  "/sites",
+  "/training",
+  "/reliever-pool",
+  "/reliever-pool/competition",
+  "/leave",
+  "/leave/requests",
+  "/leave/lifecycle",
+  "/leave/management",
+  "/shifts",
+  "/shifts/master",
+  "/shifts/schedule",
+  "/shifts/rotation",
+  "/shifts/change-requests",
+  "/shifts/reliever-allocation",
+  "/shifts/manpower",
+  "/shifts/deviations",
+  "/overtime/overview",
+  "/overtime/employees",
+  "/overtime/sites",
+  "/overtime/analysis",
+  "/overtime/decisions",
+  "/overtime/assign",
+  "/notifications",
+  "/certifications",
+  "/salary",
+  "/meetings",
+  "/safety",
+  "/safety/report",
+  "/safety/incidents",
+  "/safety/breakdowns",
+  "/safety/protocols",
+  "/safety/training",
+  "/e-permits",
+  "/e-permits/new",
+  "/e-permits/policies",
+] as const;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { token } = theme.useToken();
   const { message } = App.useApp();
+  const { t, pageTitle, locale } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -350,7 +284,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       await ackSafetyEmergency(id, actor);
       setEmergencies((rows) => rows.filter((e) => e.id !== id));
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Could not acknowledge");
+      message.error(err instanceof Error ? trData(err.message) : tr("Could not acknowledge"));
     }
   };
 
@@ -433,11 +367,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/overtime")) extras.push("overtime");
     if (pathname.startsWith("/reliever-pool")) extras.push("reliever-pool");
     if (pathname.startsWith("/safety")) extras.push("safety");
+    if (pathname.startsWith("/e-permits")) extras.push("e-permits");
     if (pathname.startsWith("/shifts") && canViewShiftsNav(user)) {
       extras.push("shifts");
     }
     if (pathname.startsWith("/training") || pathname.startsWith("/certifications")) {
-      const group = academyNavGroup(normalizeRole(user?.role));
+      const group = academyNavGroup(normalizeRole(user?.role), t);
       if (group?.key) extras.push(String(group.key));
     }
     if (!extras.length) return;
@@ -455,7 +390,123 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       });
     });
     return () => cancelAnimationFrame(id);
-  }, [pathname, collapsed, user]);
+  }, [pathname, collapsed, user, t]);
+
+  const shiftChildren = useMemo(
+    () => [
+      { key: "/shifts", label: t("nav.shiftsDashboard") },
+      { key: "/shifts/master", label: t("nav.shiftMaster") },
+      { key: "/shifts/schedule", label: t("nav.schedule") },
+      { key: "/shifts/rotation", label: t("nav.rotation") },
+      { key: "/shifts/change-requests", label: t("nav.changeRequests") },
+      { key: "/shifts/reliever-allocation", label: t("nav.relieverAllocation") },
+      { key: "/shifts/manpower", label: t("nav.manpowerConflict") },
+      { key: "/shifts/deviations", label: t("nav.deviations") },
+    ],
+    [t],
+  );
+
+  const safetyChildren = useMemo(
+    () => [
+      { key: "/safety", label: t("nav.safetyOverview") },
+      { key: "/safety/report", label: t("nav.safetyReport") },
+      { key: "/safety/incidents", label: t("nav.safetyIncidents") },
+      { key: "/safety/breakdowns", label: t("nav.safetyBreakdowns") },
+      { key: "/safety/protocols", label: t("nav.safetyProtocols") },
+    ],
+    [t],
+  );
+
+  const leaveChildren = useMemo(
+    () => [
+      { key: "/leave", label: t("nav.leaveOverview") },
+      { key: "/leave/requests", label: t("nav.leaveRequests") },
+      { key: "/leave/lifecycle", label: t("nav.leaveLifecycle") },
+      { key: "/leave/management", label: t("nav.leaveManagement") },
+    ],
+    [t],
+  );
+
+  const overtimeChildren = useMemo(
+    () => [
+      { key: "/overtime/overview", label: t("nav.otOverview") },
+      { key: "/overtime/employees", label: t("nav.otEmployees") },
+      { key: "/overtime/sites", label: t("nav.otSites") },
+      { key: "/overtime/analysis", label: t("nav.otAnalysis") },
+      { key: "/overtime/decisions", label: t("nav.otDecisions") },
+    ],
+    [t],
+  );
+
+  const safetyNavItem = useMemo(
+    (): NonNullable<MenuProps["items"]>[number] => ({
+      key: "safety",
+      icon: <SafetyOutlined />,
+      label: t("nav.safety"),
+      children: safetyChildren,
+    }),
+    [t, safetyChildren],
+  );
+
+  const ePermitsNavItem = useMemo((): NonNullable<MenuProps["items"]>[number] | null => {
+    if (!canViewEPermitsNav(user)) return null;
+    return {
+      key: "e-permits",
+      icon: <FileProtectOutlined />,
+      label: t("nav.ePermits"),
+      children: [
+        { key: "/e-permits", label: t("nav.ePermitsList") },
+        ...(canIssueEPermit(user) ? [{ key: "/e-permits/new", label: t("nav.ePermitsNew") }] : []),
+        { key: "/e-permits/policies", label: t("nav.ePermitsPolicies") },
+      ],
+    };
+  }, [t, user]);
+
+  const meetingsNavItem = useMemo(
+    (): NonNullable<MenuProps["items"]>[number] => ({
+      key: "/meetings",
+      icon: <VideoCameraOutlined />,
+      label: (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {t("nav.meetings")}
+          <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>
+            {t("app.soon")}
+          </Tag>
+        </span>
+      ),
+    }),
+    [t],
+  );
+
+  const medicalRecordsNavItem = useMemo(
+    (): NonNullable<MenuProps["items"]>[number] => ({
+      key: "/medical-records",
+      icon: <MedicineBoxOutlined />,
+      label: (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {t("nav.medicalRecords")}
+          <Tag color="green" style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: "16px" }}>
+            {t("app.soon")}
+          </Tag>
+        </span>
+      ),
+    }),
+    [t],
+  );
+
+  const flyoutTitles = useMemo(
+    (): Record<string, string> => ({
+      leave: t("nav.leave"),
+      shifts: t("nav.shifts"),
+      overtime: t("nav.overtime"),
+      academy: t("nav.academy"),
+      "academic-records": t("nav.academicRecords"),
+      "reliever-pool": t("nav.relieverPool"),
+      safety: t("nav.safety"),
+      "e-permits": t("nav.ePermits"),
+    }),
+    [t],
+  );
 
   const selectedKey = useMemo(() => {
     // 1. Leave routes
@@ -518,6 +569,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname === "/safety") return "/safety";
 
+    // 3c. E-Permits (a permit's own page maps to the list)
+    if (pathname === "/e-permits/new") return "/e-permits/new";
+    if (pathname.startsWith("/e-permits/policies")) return "/e-permits/policies";
+    if (pathname.startsWith("/e-permits")) return "/e-permits";
+
     // 4. Employee directory vs own profile (own profile is navbar-only)
     if (pathname === "/employees" || pathname.startsWith("/employees/")) {
       return "/employees";
@@ -529,8 +585,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (pathname.startsWith("/training/mentors")) return "/training/mentors";
 
-    // 6. Direct match from pageTitles
-    const match = Object.keys(pageTitles).find(
+    // 6. Direct match from known page keys
+    const match = PAGE_TITLE_KEYS.find(
       (key) =>
         !key.startsWith("/overtime") &&
         !key.startsWith("/leave") &&
@@ -538,7 +594,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         (pathname === key || pathname.startsWith(`${key}/`)),
     );
     return match ?? "/dashboard";
-  }, [pathname]);
+  }, [pathname, shiftChildren, safetyChildren]);
 
   // GSAP: Smooth pop/glow transition when active menu item changes
   useEffect(() => {
@@ -559,68 +615,89 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const headerTitle = useMemo(() => {
     if (pathname.startsWith("/employees/")) {
       const id = pathname.split("/")[2];
-      return getEmployeeById(id)?.name ?? "Employee";
+      return getEmployeeById(id)?.name ?? t("common.employee");
     }
     if (pathname.startsWith("/leave/requests/")) {
-      return "Leave detail";
+      return t("pages./leave/requests");
     }
-    if (pathname.startsWith("/safety/incidents/")) return "Safety · Case";
-    if (pathname.startsWith("/safety/breakdowns/")) return "Safety · Breakdown";
+    if (pathname.startsWith("/safety/incidents/")) return t("pages./safety/incidents");
+    if (pathname.startsWith("/safety/breakdowns/")) return t("pages./safety/breakdowns");
+    if (pathname.startsWith("/e-permits/") && pathname !== "/e-permits/new" && !pathname.startsWith("/e-permits/policies")) {
+      return t("pages./e-permits");
+    }
     if (pathname.startsWith("/training/")) {
-      const section = pathname.split("/")[2];
-      const titles: Record<string, string> = {
-        home: "Training · My learning home",
-        explore: "Training · Explore",
-        course: "Training · Course",
-        learn: "Training · Course player",
-        track: "Training · Specialization",
-        "my-learning": "Training · My Learning",
-        events: "Training · Events",
-        communities: "Training · Community",
-        mentor: "Training · Mentor Studio",
-        mentors: "Training · Mentors",
-        team: "Training · My team",
-      };
-      return titles[section] ?? "Training";
+      return t("nav.training");
     }
     if (pathname.startsWith("/reliever-pool/competition")) {
-      return "Reliever Competition";
+      return t("pages./reliever-pool/competition");
     }
     if (pathname.startsWith("/overtime/employees/")) {
       const id = pathname.split("/")[3];
-      return getEmployeeById(id)?.name
-        ? `OT · ${getEmployeeById(id)!.name}`
-        : "Employee OT";
+      const name = getEmployeeById(id)?.name;
+      return name ? tr("OT · {name}", { name: trData(name) }) : t("pages./overtime/employees");
     }
     if (pathname.startsWith("/overtime/sites/")) {
       const id = pathname.split("/")[3];
-      return getSiteById(id)?.name
-        ? `OT · ${getSiteById(id)!.name}`
-        : "Site OT";
+      const name = getSiteById(id)?.name;
+      return name ? tr("OT · {name}", { name: trData(name) }) : t("pages./overtime/sites");
     }
-    return pageTitles[selectedKey] ?? "Dashboard";
-  }, [pathname, selectedKey]);
+    return pageTitle(selectedKey);
+  }, [pathname, selectedKey, t, pageTitle]);
 
   const navItemsFiltered = useMemo(() => {
     const role = normalizeRole(user?.role);
+    type NavItem = NonNullable<MenuProps["items"]>[number];
+    type NavSection = { key: string; label?: string; items: (NavItem | null | false)[] };
+
+    /** Headed sections when expanded; dividers instead when collapsed (group titles don't fit the icon rail). */
+    const sectioned = (sections: NavSection[]): MenuProps["items"] => {
+      const out: NavItem[] = [];
+      for (const s of sections) {
+        const items = s.items.filter(Boolean) as NavItem[];
+        if (!items.length) continue;
+        if (!s.label) {
+          out.push(...items);
+        } else if (collapsed) {
+          if (out.length) out.push({ type: "divider", key: `${s.key}-divider` });
+          out.push(...items);
+        } else {
+          out.push({ type: "group", key: s.key, label: s.label, children: items });
+        }
+      }
+      return out;
+    };
+
     if (role === "employee") {
-      return [
-        { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+      return sectioned([
+        { key: "home", items: [{ key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") }] },
         {
-          key: "leave",
-          icon: <CalendarOutlined />,
-          label: "Leave",
-          children: [
-            { key: "/leave", label: "Overview" },
-            { key: "/leave/requests", label: "My requests" },
+          key: "grp-my-work",
+          label: t("nav.groupMyWork"),
+          items: [
+            {
+              key: "leave",
+              icon: <CalendarOutlined />,
+              label: t("nav.leave"),
+              children: [
+                { key: "/leave", label: t("nav.leaveOverview") },
+                { key: "/leave/requests", label: t("nav.leaveRequests") },
+              ],
+            },
+            { key: "/salary", icon: <WalletOutlined />, label: t("nav.salary") },
+            academyNavGroup(role, t),
           ],
         },
-        academyNavGroup(role),
-        safetyNavItem,
-        { key: "/salary", icon: <WalletOutlined />, label: "Salary history" },
-        meetingsNavItem,
-        medicalRecordsNavItem,
-      ] as MenuProps["items"];
+        { key: "grp-safety", label: t("nav.groupSafety"), items: [safetyNavItem, ePermitsNavItem] },
+        { key: "grp-more", label: t("nav.groupMore"), items: [meetingsNavItem, medicalRecordsNavItem] },
+      ]);
+    }
+
+    // Heads of Department (and deputies) are not plant staff: permits and safety only.
+    if (role === "hod") {
+      return sectioned([
+        { key: "grp-safety", label: t("nav.groupSafety"), items: [ePermitsNavItem, safetyNavItem] },
+        { key: "grp-collab", label: t("nav.groupCollab"), items: [meetingsNavItem] },
+      ]);
     }
 
     const leaveKids = leaveChildren.filter((c) => {
@@ -640,57 +717,70 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ? shiftChildren.filter((c) => shiftKeys.includes(c.key))
       : [];
 
-    const items: MenuProps["items"] = [
-      { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-      ...(canViewEmployeeRoster(user)
-        ? [{ key: "/employees", icon: <TeamOutlined />, label: "Employees" }]
-        : []),
-    ];
-
-    if (canViewSitesNav(user)) {
-      items.push({ key: "/sites", icon: <EnvironmentOutlined />, label: "Sites" });
-    }
-
-    items.push(academyNavGroup(role));
-
-    if (canViewShiftsNav(user) && shiftKids.length) {
-      items.push({ key: "shifts", icon: <ScheduleOutlined />, label: "Shifts", children: shiftKids });
-    }
-
-    if (canViewRelieverPoolNav(user)) {
-      items.push({
-        key: "reliever-pool",
-        icon: <ClusterOutlined />,
-        label: "Reliever Pool",
-        children: [
-          { key: "/reliever-pool", label: "Pool" },
-          { key: "/reliever-pool/competition", label: "Competition" },
+    return sectioned([
+      { key: "home", items: [{ key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") }] },
+      {
+        key: "grp-people",
+        label: t("nav.groupPeople"),
+        items: [
+          canViewEmployeeRoster(user) && { key: "/employees", icon: <TeamOutlined />, label: t("nav.employees") },
+          academyNavGroup(role, t),
+          medicalRecordsNavItem,
         ],
-      });
-    }
-
-    items.push({ key: "leave", icon: <CalendarOutlined />, label: "Leave", children: leaveKids });
-
-    if (canViewOtModule(user)) {
-      items.push({
-        key: "overtime",
-        icon: <ClockCircleOutlined />,
-        label: "OverTime",
-        children: [
-          ...overtimeChildren,
-          ...(canAssignOt(user)
-            ? [{ key: "/overtime/assign", label: "Assign / notify" }]
-            : []),
+      },
+      {
+        key: "grp-workforce",
+        label: t("nav.groupWorkforce"),
+        items: [
+          canViewSitesNav(user) && { key: "/sites", icon: <EnvironmentOutlined />, label: t("nav.sites") },
+          canViewShiftsNav(user) && shiftKids.length > 0 && {
+            key: "shifts", icon: <ScheduleOutlined />, label: t("nav.shifts"), children: shiftKids,
+          },
+          canViewRelieverPoolNav(user) && {
+            key: "reliever-pool",
+            icon: <ClusterOutlined />,
+            label: t("nav.relieverPool"),
+            children: [
+              { key: "/reliever-pool", label: t("nav.relieverPool") },
+              { key: "/reliever-pool/competition", label: t("nav.competition") },
+            ],
+          },
         ],
-      });
-    }
-
-    items.push(safetyNavItem);
-    items.push(meetingsNavItem);
-    items.push(medicalRecordsNavItem);
-
-    return items;
-  }, [user]);
+      },
+      {
+        key: "grp-time-pay",
+        label: t("nav.groupTimePay"),
+        items: [
+          { key: "leave", icon: <CalendarOutlined />, label: t("nav.leave"), children: leaveKids },
+          canViewOtModule(user) && {
+            key: "overtime",
+            icon: <ClockCircleOutlined />,
+            label: t("nav.overtime"),
+            children: [
+              ...overtimeChildren,
+              ...(canAssignOt(user)
+                ? [{ key: "/overtime/assign", label: t("pages./overtime/assign") }]
+                : []),
+            ],
+          },
+        ],
+      },
+      { key: "grp-safety", label: t("nav.groupSafety"), items: [safetyNavItem, ePermitsNavItem] },
+      { key: "grp-collab", label: t("nav.groupCollab"), items: [meetingsNavItem] },
+    ]);
+  }, [
+    user,
+    t,
+    collapsed,
+    leaveChildren,
+    shiftChildren,
+    overtimeChildren,
+    safetyNavItem,
+    ePermitsNavItem,
+    meetingsNavItem,
+    medicalRecordsNavItem,
+    locale,
+  ]);
 
   const profileHref = user?.employeeId
     ? `/employees/${user.employeeId}`
@@ -701,16 +791,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const userMenu: MenuProps["items"] = [
     ...(profileHref
       ? [
-          { key: "my-profile", icon: <UserOutlined />, label: "My Profile", onClick: () => router.push(profileHref) },
+          { key: "my-profile", icon: <UserOutlined />, label: t("nav.myProfile"), onClick: () => router.push(profileHref) },
           { type: "divider" as const },
         ]
       : []),
-    { key: "settings", icon: <SettingOutlined />, label: "Settings", onClick: () => setSettingsOpen(true) },
-    { key: "role", label: `Role: ${roleLabel(user?.role)}`, disabled: true },
+    { key: "settings", icon: <SettingOutlined />, label: t("app.settings"), onClick: () => setSettingsOpen(true) },
+    { key: "role", label: `${t("common.role")}: ${roleLabel(user?.role)}`, disabled: true },
     {
       key: "logout",
       icon: <LogoutOutlined />,
-      label: "Log out",
+      label: t("app.logout"),
       onClick: () => {
         logout();
         router.replace("/login");
@@ -764,12 +854,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 lineHeight: 1.2, fontWeight: 600, whiteSpace: "nowrap",
               }}
             >
-              Nectar Enviro
+              {t("app.name")}
             </div>
             <div
               style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: "0.02em", whiteSpace: "nowrap" }}
             >
-              Ops Console
+              {t("app.tagline")}
             </div>
           </div>
         </Link>
@@ -778,8 +868,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             ref={toggleBtnRef}
             type="button"
             className="nectar-sider-toggle"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? tr("Expand sidebar") : tr("Collapse sidebar")}
+            title={collapsed ? tr("Expand sidebar") : tr("Collapse sidebar")}
             onClick={handleToggleCollapse}
           >
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -809,12 +899,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const path = info.keys ?? [];
             const key = String(path[path.length - 1] ?? path[0] ?? "");
             const title =
-              FLYOUT_TITLES[key] ??
+              flyoutTitles[key] ??
               submenuTitleText(
                 (info.item as { label?: unknown } | undefined)?.label,
+                t("app.menu"),
               );
             return (
-              <GsapFlyoutCard title={title}>{node as ReactElement}</GsapFlyoutCard>
+              <GsapFlyoutCard title={trData(title)}>{node as ReactElement}</GsapFlyoutCard>
             );
           }}
           onClick={({ key }) => {
@@ -829,11 +920,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               return;
             }
             if (key === "/meetings") {
-              message.info("Meetings — coming soon. This feature is under development.");
+              message.info(tr("Meetings — coming soon. This feature is under development."));
               return;
             }
             if (key === "/medical-records") {
-              message.info("Medical records — coming soon. This feature is under development.");
+              message.info(tr("Medical records — coming soon. This feature is under development."));
               return;
             }
             router.push(key);
@@ -856,15 +947,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               level={4}
               style={{ margin: 0, fontFamily: "var(--font-fraunces), Georgia, serif", color: nectarColors.ink }}
             >
-              {headerTitle}
+              {trData(headerTitle)}
             </Typography.Title>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <LanguageSwitcher variant="compact" />
             {user?.employeeId ? (
               <button
                 type="button"
-                aria-label="Notifications"
+                aria-label={t("nav.notifications")}
                 onClick={() => router.push("/notifications")}
                 style={{
                   border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center",
@@ -883,7 +975,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <Avatar size="small" icon={<UserOutlined />} style={{ background: nectarColors.leaf }} />
-                <span style={{ color: nectarColors.ink, fontSize: 14 }}>{user?.name}</span>
+                <span style={{ color: nectarColors.ink, fontSize: 14 }}>
+                  {translatePersonName(user?.name)}
+                </span>
               </button>
             </Dropdown>
           </div>
@@ -903,18 +997,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
                 <WarningOutlined style={{ fontSize: 20 }} />
                 <div style={{ minWidth: 0 }}>
-                  <strong>EMERGENCY: {e.title}</strong>
-                  <div style={{ fontSize: 12 }}>{e.location ? `${e.location} · ` : ""}reported by {e.reportedBy.name} · {new Date(e.reportedAt).toLocaleTimeString("en-IN", { timeStyle: "short" })}</div>
+                  <strong>{tr("EMERGENCY: {title}", { title: trData(e.title) })}</strong>
+                  <div style={{ fontSize: 12 }}>{e.location ? `${trData(e.location)} · ` : ""}{tr("reported by {name}", { name: translatePersonName(e.reportedBy.name) })} · {new Date(e.reportedAt).toLocaleTimeString(intlLocale(), { timeStyle: "short" })}</div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <Link href={`/safety/incidents/${e.id}`}>View</Link>
+                <Link href={`/safety/incidents/${e.id}`}>{t("common.view")}</Link>
                 <button
                   type="button"
                   onClick={() => void acknowledgeEmergency(e.id)}
                   style={{ background: "#C62828", color: "#fff", border: 0, borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}
                 >
-                  Acknowledge
+                  {t("common.acknowledge")}
                 </button>
               </div>
             </div>
@@ -924,21 +1018,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </Layout>
 
       <Modal
-        title="Settings"
+        title={t("settings.title")}
         open={settingsOpen}
         onCancel={() => setSettingsOpen(false)}
-        okText="Reset demo data"
+        okText={t("settings.resetDemo")}
         okButtonProps={{ danger: true }}
+        cancelText={t("common.cancel")}
         onOk={() => {
           resetDemoLocalData();
           setSettingsOpen(false);
           window.location.reload();
         }}
       >
+        <LanguageSwitcher variant="full" style={{ marginBottom: 16 }} />
+        <p style={{ margin: "0 0 8px", color: nectarColors.muted, fontSize: 13 }}>
+          {t("settings.languageHint")}
+        </p>
         <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-          Clear leave, shift, reliever, OT assign, notification, and training
-          edits saved in this browser. Built-in demo records come back. Your
-          login stays signed in.
+          {t("settings.resetDemoHint")}
         </p>
       </Modal>
     </Layout>

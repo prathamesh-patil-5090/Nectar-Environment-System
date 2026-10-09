@@ -7,6 +7,7 @@ import type { SafetyProtocol } from "@/lib/safety/types";
 import { KNOWN_PROTOCOL_CATEGORIES, categoryKey, categoryMeta } from "./protocol-meta";
 import { nectarColors } from "@/lib/theme";
 import styles from "./protocols.module.css";
+import { tr, trTable, trData } from "@/lib/i18n";
 
 type Contact = { label: string; phone: string };
 type Values = {
@@ -18,11 +19,11 @@ type Values = {
   siteIds: string[];
 };
 
-const QUICK_CONTACTS: Contact[] = [
+const QUICK_CONTACTS: Contact[] = trTable([
   { label: "Emergency (all services)", phone: "112" },
   { label: "Ambulance", phone: "108" },
   { label: "Fire brigade", phone: "101" },
-];
+]);
 
 const blank: Values = { title: "", category: "", summary: "", steps: ["", ""], emergencyContacts: [QUICK_CONTACTS[0]], siteIds: [] };
 
@@ -74,9 +75,9 @@ export default function ProtocolEditor({
   const requestClose = () => {
     if (!form.isFieldsTouched()) return onClose();
     modal.confirm({
-      title: "Discard changes?",
-      content: "Your edits to this protocol will be lost.",
-      okText: "Discard",
+      title: tr("Discard changes?"),
+      content: tr("Your edits to this protocol will be lost."),
+      okText: tr("Discard"),
       okButtonProps: { danger: true },
       onOk: onClose,
     });
@@ -101,40 +102,40 @@ export default function ProtocolEditor({
       open={open}
       onClose={requestClose}
       size="min(600px, 100vw)"
-      title={protocol ? `Edit · ${protocol.title}` : "New emergency protocol"}
+      title={protocol ? tr("Edit · {title}", { title: trData(protocol.title) }) : tr("New emergency protocol")}
       destroyOnHidden
       rootClassName={styles.tokens}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>
-            {protocol ? `Saving creates version ${protocol.version + 1}` : "Visible to everyone once saved"}
+            {protocol ? tr("Saving creates version {version}", { version: protocol.version + 1 }) : tr("Visible to everyone once saved")}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <Button onClick={requestClose}>Cancel</Button>
+            <Button onClick={requestClose}>{tr("Cancel")}</Button>
             <Button type="primary" loading={saving} onClick={() => form.submit()}>
-              {protocol ? "Save changes" : "Publish protocol"}
+              {protocol ? tr("Save changes") : tr("Publish protocol")}
             </Button>
           </div>
         </div>
       }
     >
       <Form<Values> key={formKey} form={form} layout="vertical" initialValues={initial} onFinish={submit} requiredMark="optional">
-        <Form.Item name="title" label="Title" rules={[{ required: true, whitespace: true, message: "Give the protocol a title" }, { max: 200 }]}>
-          <Input placeholder="e.g. Chlorine gas leak" />
+        <Form.Item name="title" label={tr("Title")} rules={[{ required: true, whitespace: true, message: tr("Give the protocol a title") }, { max: 200 }]}>
+          <Input placeholder={tr("e.g. Chlorine gas leak")} />
         </Form.Item>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 12 }}>
-          <Form.Item name="category" label="Category" rules={[{ required: true, whitespace: true, message: "Pick or type a category" }]}>
-            <AutoComplete options={categoryOptions} placeholder="fire, chemical, electrical…" filterOption={(input, opt) => String(opt?.value ?? "").toLowerCase().includes(input.toLowerCase())} />
+          <Form.Item name="category" label={tr("Category")} rules={[{ required: true, whitespace: true, message: tr("Pick or type a category") }]}>
+            <AutoComplete options={categoryOptions} placeholder={tr("fire, chemical, electrical…")} filterOption={(input, opt) => String(opt?.value ?? "").toLowerCase().includes(input.toLowerCase())} />
           </Form.Item>
-          <Form.Item name="siteIds" label="Applies to" tooltip="Leave empty for all sites">
-            <Select mode="multiple" allowClear placeholder="All sites" options={sites.map((s) => ({ value: s.id, label: s.name }))} />
+          <Form.Item name="siteIds" label={tr("Applies to")} tooltip={tr("Leave empty for all sites")}>
+            <Select mode="multiple" allowClear placeholder={tr("All sites")} options={sites.map((s) => ({ value: s.id, label: s.name }))} />
           </Form.Item>
         </div>
-        <Form.Item name="summary" label="Key message" tooltip="The one thing people must remember — shown above the steps">
-          <Input.TextArea rows={2} maxLength={300} showCount placeholder="e.g. Cut the power first — never touch a person still in contact" />
+        <Form.Item name="summary" label={tr("Key message")} tooltip={tr("The one thing people must remember — shown above the steps")}>
+          <Input.TextArea rows={2} maxLength={300} showCount placeholder={tr("e.g. Cut the power first — never touch a person still in contact")} />
         </Form.Item>
 
-        <div className={styles.sectionTitle}>Steps — in the order to do them</div>
+        <div className={styles.sectionTitle}>{tr("Steps — in the order to do them")}</div>
         <Form.List
           name="steps"
           rules={[
@@ -151,30 +152,30 @@ export default function ProtocolEditor({
                 <div key={field.key} className={styles.stepRow}>
                   <span className={styles.stepRowNo}>{i + 1}</span>
                   <Form.Item name={field.name} style={{ marginBottom: 0 }}>
-                    <Input.TextArea autoSize={{ minRows: 1, maxRows: 5 }} maxLength={1000} placeholder={i === 0 ? "First thing to do" : "Next step"} />
+                    <Input.TextArea autoSize={{ minRows: 1, maxRows: 5 }} maxLength={1000} placeholder={i === 0 ? tr("First thing to do") : tr("Next step")} />
                   </Form.Item>
                   <div className={styles.stepRowTools}>
-                    <Tooltip title="Move up">
-                      <Button size="small" type="text" icon={<ArrowUpOutlined />} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Move step ${i + 1} up`} />
+                    <Tooltip title={tr("Move up")}>
+                      <Button size="small" type="text" icon={<ArrowUpOutlined />} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={tr("Move step {n} up", { n: i + 1 })} />
                     </Tooltip>
-                    <Tooltip title="Move down">
-                      <Button size="small" type="text" icon={<ArrowDownOutlined />} disabled={i === fields.length - 1} onClick={() => move(i, i + 1)} aria-label={`Move step ${i + 1} down`} />
+                    <Tooltip title={tr("Move down")}>
+                      <Button size="small" type="text" icon={<ArrowDownOutlined />} disabled={i === fields.length - 1} onClick={() => move(i, i + 1)} aria-label={tr("Move step {n} down", { n: i + 1 })} />
                     </Tooltip>
-                    <Tooltip title="Remove">
-                      <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={fields.length === 1} onClick={() => remove(field.name)} aria-label={`Remove step ${i + 1}`} />
+                    <Tooltip title={tr("Remove")}>
+                      <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={fields.length === 1} onClick={() => remove(field.name)} aria-label={tr("Remove step {n}", { n: i + 1 })} />
                     </Tooltip>
                   </div>
                 </div>
               ))}
               <Form.ErrorList errors={errors} />
               <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add("")} style={{ marginBottom: 20 }}>
-                Add step
+                {tr("Add step")}
               </Button>
             </>
           )}
         </Form.List>
 
-        <div className={styles.sectionTitle}>Who to call</div>
+        <div className={styles.sectionTitle}>{tr("Who to call")}</div>
         <Form.List name="emergencyContacts">
           {(fields, { add, remove }) => {
             const current: Contact[] = form.getFieldValue("emergencyContacts") ?? [];
@@ -183,25 +184,25 @@ export default function ProtocolEditor({
               <>
                 {fields.map((field) => (
                   <div key={field.key} className={styles.contactRow}>
-                    <Form.Item name={[field.name, "label"]} rules={[{ required: true, whitespace: true, message: "Who is this?" }]}>
-                      <Input placeholder="e.g. Plant manager (night)" maxLength={100} />
+                    <Form.Item name={[field.name, "label"]} rules={[{ required: true, whitespace: true, message: tr("Who is this?") }]}>
+                      <Input placeholder={tr("e.g. Plant manager (night)")} maxLength={100} />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, "phone"]}
                       rules={[
-                        { required: true, message: "Number" },
-                        { pattern: /^[0-9+\-\s()]{3,20}$/, message: "Digits, +, - or spaces only" },
+                        { required: true, message: tr("Number") },
+                        { pattern: /^[0-9+\-\s()]{3,20}$/, message: tr("Digits, +, - or spaces only") },
                       ]}
                     >
-                      <Input placeholder="Number" inputMode="tel" maxLength={20} />
+                      <Input placeholder={tr("Number")} inputMode="tel" maxLength={20} />
                     </Form.Item>
-                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} aria-label="Remove contact" />
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} aria-label={tr("Remove contact")} />
                   </div>
                 ))}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  <Button icon={<PlusOutlined />} onClick={() => add({ label: "", phone: "" })}>Add contact</Button>
+                  <Button icon={<PlusOutlined />} onClick={() => add({ label: "", phone: "" })}>{tr("Add contact")}</Button>
                   {missing.map((q) => (
-                    <Button key={q.phone} type="dashed" onClick={() => add(q)}>+ {q.phone} {q.label}</Button>
+                    <Button key={q.phone} type="dashed" onClick={() => add(q)}>+ {q.phone} {trData(q.label)}</Button>
                   ))}
                 </div>
               </>

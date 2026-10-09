@@ -13,6 +13,7 @@ import type { Community, TrainingEvent } from "@/lib/training/types";
 import { EventImageCard, communityCoverUrl } from "@/components/training/ui/EventCard";
 import styles from "@/components/training/ui/training.module.css";
 import TrainingSubNav from "@/components/training/ui/TrainingSubNav";
+import { tr, intlLocale, trData } from "@/lib/i18n";
 
 /** Background refresh so counts, RSVPs and new events stay current. */
 const REFRESH_MS = 30_000;
@@ -21,9 +22,9 @@ const istDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { time
 const dayLabel = (key: string) => {
   const today = istDay(new Date().toISOString());
   const tomorrow = istDay(new Date(Date.now() + 86400000).toISOString());
-  if (key === today) return "Today";
-  if (key === tomorrow) return "Tomorrow";
-  return new Date(`${key}T12:00:00+05:30`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  if (key === today) return tr("Today");
+  if (key === tomorrow) return tr("Tomorrow");
+  return new Date(`${key}T12:00:00+05:30`).toLocaleDateString(intlLocale(), { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 };
 
 function CommunityThumb({ c }: { c: Community }) {
@@ -37,7 +38,7 @@ function CommunityThumb({ c }: { c: Community }) {
   );
 }
 
-const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const WEEKDAYS = [tr("Su"), tr("Mo"), tr("Tu"), tr("We"), tr("Th"), tr("Fr"), tr("Sa")];
 
 /** Month grid: days with the viewer's registrations are highlighted and jump to that day in the list; today is ringed. */
 function MiniCalendar({ eventsByDay }: { eventsByDay: Map<string, TrainingEvent[]> }) {
@@ -54,18 +55,18 @@ function MiniCalendar({ eventsByDay }: { eventsByDay: Map<string, TrainingEvent[
         <div>
           <div className="text-lg font-bold text-slate-900 leading-tight">{month.format("MMMM YYYY")}</div>
           <div className="text-xs text-slate-500">
-            {monthTotal ? `${monthTotal} registered event${monthTotal === 1 ? "" : "s"} this month` : "No registrations this month"}
+            {monthTotal ? (monthTotal === 1 ? tr("1 registered event this month") : tr("{monthTotal} registered events this month", { monthTotal })) : tr("No registrations this month")}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button type="text" shape="circle" size="small" icon={<LeftOutlined />} aria-label="Previous month" onClick={() => setMonth((m) => m.subtract(1, "month"))} />
-          <Button type="text" size="small" className="text-xs font-semibold" onClick={() => setMonth(dayjs().startOf("month"))}>Today</Button>
-          <Button type="text" shape="circle" size="small" icon={<RightOutlined />} aria-label="Next month" onClick={() => setMonth((m) => m.add(1, "month"))} />
+          <Button type="text" shape="circle" size="small" icon={<LeftOutlined />} aria-label={tr("Previous month")} onClick={() => setMonth((m) => m.subtract(1, "month"))} />
+          <Button type="text" size="small" className="text-xs font-semibold" onClick={() => setMonth(dayjs().startOf("month"))}>{tr("Today")}</Button>
+          <Button type="text" shape="circle" size="small" icon={<RightOutlined />} aria-label={tr("Next month")} onClick={() => setMonth((m) => m.add(1, "month"))} />
         </div>
       </div>
 
       <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-slate-400 mb-1">
-        {WEEKDAYS.map((w) => <div key={w} className="py-1">{w}</div>)}
+        {WEEKDAYS.map((w) => <div key={w} className="py-1">{trData(w)}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-y-1 text-center">
         {days.map((d) => {
@@ -78,7 +79,7 @@ function MiniCalendar({ eventsByDay }: { eventsByDay: Map<string, TrainingEvent[
               <button
                 type="button"
                 disabled={!count}
-                title={count ? `${count} event${count === 1 ? "" : "s"}` : undefined}
+                title={count ? (count === 1 ? tr("1 event") : tr("{count} events", { count })) : undefined}
                 onClick={() => document.getElementById(`day-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
                 className={[
                   "relative w-9 h-9 rounded-full text-sm flex items-center justify-center transition-colors",
@@ -192,10 +193,10 @@ export default function EventsPage() {
       <TrainingSubNav />
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#0B1A24" }}>Events</h1>
-          <p style={{ margin: "4px 0 0", color: "#4A6375" }}>Live masterclasses online, and seminars at the plants.</p>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#0B1A24" }}>{tr("Events")}</h1>
+          <p style={{ margin: "4px 0 0", color: "#4A6375" }}>{tr("Live masterclasses online, and seminars at the plants.")}</p>
         </div>
-        {isMentor && <Button type="primary" onClick={() => router.push("/training/mentor?new=1")}>Create event</Button>}
+        {isMentor && <Button type="primary" onClick={() => router.push("/training/mentor?new=1")}>{tr("Create event")}</Button>}
       </header>
 
       <div className={styles.twoCol}>
@@ -205,25 +206,25 @@ export default function EventsPage() {
               value={view}
               onChange={(v) => setParam("view", v === "upcoming" ? null : String(v))}
               options={[
-                { value: "upcoming", label: "Upcoming" },
-                { value: "going", label: "Going" },
-                { value: "past", label: "Past" },
-                ...(isMentor ? [{ value: "hosting", label: "Hosting" }] : []),
+                { value: "upcoming", label: tr("Upcoming") },
+                { value: "going", label: tr("Going") },
+                { value: "past", label: tr("Past") },
+                ...(isMentor ? [{ value: "hosting", label: tr("Hosting") }] : []),
               ]}
             />
-            <Select allowClear placeholder="Format" value={format || undefined} onChange={(v) => setParam("format", v ?? null)} style={{ width: 130 }} options={[{ value: "online", label: "Online" }, { value: "in_person", label: "At a plant" }]} />
-            <Select allowClear placeholder="Community" value={communityId || undefined} onChange={(v) => setParam("community", v ?? null)} style={{ width: 200 }} options={(communities.data ?? []).map((c) => ({ value: c.id, label: c.name }))} />
-            <Select allowClear placeholder="Host" value={hostId || undefined} onChange={(v) => setParam("host", v ?? null)} style={{ width: 180 }} options={hosts.map(([value, label]) => ({ value, label }))} />
-            {topic && <Tag closable onClose={() => setParam("topic", null)}>Topic: {topic}</Tag>}
+            <Select allowClear placeholder={tr("Format")} value={format || undefined} onChange={(v) => setParam("format", v ?? null)} style={{ width: 130 }} options={[{ value: "online", label: tr("Online") }, { value: "in_person", label: tr("At a plant") }]} />
+            <Select allowClear placeholder={tr("Community")} value={communityId || undefined} onChange={(v) => setParam("community", v ?? null)} style={{ width: 200 }} options={(communities.data ?? []).map((c) => ({ value: c.id, label: c.name }))} />
+            <Select allowClear placeholder={tr("Host")} value={hostId || undefined} onChange={(v) => setParam("host", v ?? null)} style={{ width: 180 }} options={hosts.map(([value, label]) => ({ value, label }))} />
+            {topic && <Tag closable onClose={() => setParam("topic", null)}>{tr("Topic: {topic}", { topic: trData(topic) })}</Tag>}
           </div>
 
           {events.error ? (
-            <Alert type="error" showIcon title="Couldn't load events" description={events.error} action={<Button onClick={events.reload}>Try again</Button>} />
+            <Alert type="error" showIcon title={tr("Couldn't load events")} description={trData(events.error)} action={<Button onClick={events.reload}>{tr("Try again")}</Button>} />
           ) : events.loading && !events.data ? (
             <Skeleton active />
           ) : groups.length === 0 ? (
             <div className={styles.panel}>
-              <Empty description={view === "going" ? "You haven't registered for any events" : view === "hosting" ? "You aren't hosting any events" : "No events found"} />
+              <Empty description={view === "going" ? tr("You haven't registered for any events") : view === "hosting" ? tr("You aren't hosting any events") : tr("No events found")} />
             </div>
           ) : (
             // One grid, cards flow left to right in date order; the first card of each day is the calendar's scroll target
@@ -239,19 +240,19 @@ export default function EventsPage() {
           )}
         </div>
 
-        <aside aria-label="Calendar and communities" className="flex flex-col gap-4">
+        <aside aria-label={tr("Calendar and communities")} className="flex flex-col gap-4">
           <MiniCalendar eventsByDay={registeredByDay} />
 
           <div className="bg-white border border-slate-200 rounded-3xl p-5">
             <div className="flex items-baseline justify-between mb-2">
               <h2 className="m-0 text-lg font-bold text-slate-900">
-                Your communities <span className="font-normal text-slate-500 ml-1">{myCommunities.length}</span>
+                {tr("Your communities")}{" "}<span className="font-normal text-slate-500 ml-1">{myCommunities.length}</span>
               </h2>
             </div>
             {communities.loading && !communities.data ? (
               <Skeleton active />
             ) : myCommunities.length === 0 ? (
-              <p className="m-0 text-sm text-slate-500">You haven&apos;t joined any communities yet.</p>
+              <p className="m-0 text-sm text-slate-500">{tr("You haven't joined any communities yet.")}</p>
             ) : (
               <ul className="m-0 p-0 list-none divide-y divide-slate-100">
                 {myCommunities.map((c) => (
@@ -259,8 +260,8 @@ export default function EventsPage() {
                     <Link href={`/training/communities/${c.slug}`} className="group flex items-center gap-4 py-3">
                       <CommunityThumb c={c} />
                       <div className="min-w-0">
-                        <div className="font-bold text-slate-900 leading-snug line-clamp-2 group-hover:underline">{c.name}</div>
-                        <div className="text-xs text-slate-500">{c.memberCount} members</div>
+                        <div className="font-bold text-slate-900 leading-snug line-clamp-2 group-hover:underline">{trData(c.name)}</div>
+                        <div className="text-xs text-slate-500">{tr("{memberCount} members", { memberCount: c.memberCount })}</div>
                       </div>
                     </Link>
                   </li>
@@ -271,19 +272,19 @@ export default function EventsPage() {
 
           {otherCommunities.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-3xl p-5">
-              <h2 className="m-0 mb-2 text-base font-bold text-slate-900">Discover communities</h2>
+              <h2 className="m-0 mb-2 text-base font-bold text-slate-900">{tr("Discover communities")}</h2>
               <ul className="m-0 p-0 list-none divide-y divide-slate-100">
                 {otherCommunities.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 py-2.5">
                     <Link href={`/training/communities/${c.slug}`} className="group flex items-center gap-3 min-w-0 flex-1">
                       <CommunityThumb c={c} />
                       <div className="min-w-0">
-                        <div className="font-semibold text-sm text-slate-900 leading-snug line-clamp-2 group-hover:underline">{c.name}</div>
-                        <div className="text-xs text-slate-500">{c.memberCount} members</div>
+                        <div className="font-semibold text-sm text-slate-900 leading-snug line-clamp-2 group-hover:underline">{trData(c.name)}</div>
+                        <div className="text-xs text-slate-500">{tr("{memberCount} members", { memberCount: c.memberCount })}</div>
                       </div>
                     </Link>
                     <Button size="small" type="primary" onClick={() => toggleCommunity(c.slug, false)} icon={<RightOutlined />} iconPlacement="end">
-                      Join
+                      {tr("Join")}
                     </Button>
                   </li>
                 ))}

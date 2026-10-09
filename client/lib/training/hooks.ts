@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSession, type SessionUser } from "@/lib/auth";
-import { normalizeRole } from "@/lib/rbac";
+import { isManagerRole, normalizeRole } from "@/lib/rbac";
 import { getMentors } from "@/lib/api/training";
 import { personIdOf } from "./identity";
 
+import { intlLocale } from "@/lib/i18n/phrases";
 /** Run an async loader; re-runs when deps change. No fallback data: errors surface as `error`. */
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | undefined>(undefined);
@@ -59,7 +60,7 @@ export function useViewer(): Viewer {
     session,
     personId: personIdOf(session),
     role,
-    isRecords: role === "hr" || role === "manager" || role === "director",
+    isRecords: role === "hr" || isManagerRole(role) || role === "director",
   };
 }
 
@@ -90,27 +91,27 @@ export function useIsMentor(personId?: string): boolean {
 /** "Thu, 8 Oct · 15:00" in IST */
 export function fmtIst(iso: string, withYear = false): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString("en-IN", {
+  const date = d.toLocaleDateString(intlLocale(), {
     timeZone: "Asia/Kolkata",
     weekday: "short",
     day: "numeric",
     month: "short",
     ...(withYear ? { year: "numeric" } : {}),
   });
-  const time = d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+  const time = d.toLocaleTimeString(intlLocale(), { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
   return `${date} · ${time}`;
 }
 
 export function fmtTimeRange(startIso: string, endIso: string): string {
   const t = (iso: string) =>
-    new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+    new Date(iso).toLocaleTimeString(intlLocale(), { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
   return `${fmtIst(startIso)} – ${t(endIso)} IST`;
 }
 
 export function dayParts(iso: string): { month: string; day: string } {
   const d = new Date(iso);
   return {
-    month: d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", month: "short" }),
-    day: d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric" }),
+    month: d.toLocaleDateString(intlLocale(), { timeZone: "Asia/Kolkata", month: "short" }),
+    day: d.toLocaleDateString(intlLocale(), { timeZone: "Asia/Kolkata", day: "numeric" }),
   };
 }

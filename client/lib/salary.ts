@@ -1,5 +1,6 @@
 import { employees, getEmployeeById } from "@/lib/mock-data";
 
+import { intlLocale } from "@/lib/i18n/phrases";
 export type SalaryPayment = {
   id: string;
   employeeId: string;
@@ -96,7 +97,7 @@ export function formatInrAmount(n: number): string {
 
 export function salaryMonthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-IN", {
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleString(intlLocale(), {
     month: "long",
     year: "numeric",
     timeZone: "UTC",

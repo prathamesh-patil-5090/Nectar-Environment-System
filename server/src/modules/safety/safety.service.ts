@@ -25,6 +25,7 @@ import {
   LeaveRequestDocument,
 } from '../../../db/schemas/leave-request.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { EPermitsService } from '../e-permits/e-permits.service';
 import {
   SAFETY_CATEGORY_LABELS,
   SAFETY_STATUSES,
@@ -83,6 +84,7 @@ export class SafetyService {
     @InjectModel(Leader.name) private leaderModel: Model<LeaderDocument>,
     @InjectModel(LeaveRequest.name) private leaveModel: Model<LeaveRequestDocument>,
     private readonly notifications: NotificationsService,
+    private readonly ePermits: EPermitsService,
   ) {}
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -343,6 +345,8 @@ export class SafetyService {
 
     const what = `${SAFETY_CATEGORY_LABELS[category]}${categoryOther ? ` — ${categoryOther}` : ''} · ${severity}`;
     if (isEmergency) {
+      // Permits are not valid in an emergency: stop all permitted work at the site until the Authoriser re-validates
+      await this.ePermits.suspendAllAtSite(siteId, actor, `Safety emergency: ${title}`).catch(() => undefined);
       await this.notify(created.emergencyRecipients, actor.id, 'safety_emergency', `EMERGENCY: ${title}`,
         `${what}. Reported by ${actor.name}${created.location ? ` at ${created.location}` : ''}. Open and acknowledge.`, created);
     } else {

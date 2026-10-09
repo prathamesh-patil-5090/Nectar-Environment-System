@@ -22,6 +22,7 @@ import { personIdOf } from "@/lib/training/identity";
 import { NECTAR_LNI_COMPETENCIES, type NectarLniItem } from "@/lib/training/data";
 import { nectarColors } from "@/lib/theme";
 import { sText11SemiboldColorBgR6Border, sWhiteR14BorderShadow } from "@/lib/styles";
+import { tr, translatePersonName, trData } from "@/lib/i18n";
 
 interface LniMatrixViewProps {
   siteScope?: string;
@@ -31,10 +32,10 @@ interface LniMatrixViewProps {
 type ScoreKey = "skillMapScorePct" | "writtenScorePct" | "practicalScorePct" | "oralScorePct";
 
 const PENDING_TAG = (
-  <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>Pending</Tag>
+  <Tag color="default" style={{ borderRadius: 6, fontWeight: 500, fontSize: 11, color: "#64748B" }}>{tr("Pending")}</Tag>
 );
 const PENDING_EXAM_TAG = (
-  <Tag color="orange" style={sText11SemiboldColorBgR6Border}>Pending Exam</Tag>
+  <Tag color="orange" style={sText11SemiboldColorBgR6Border}>{tr("Pending Exam")}</Tag>
 );
 
 /** Assessment score column: green when >= 70%, else failColor; "pending" tag when not taken. */
@@ -111,32 +112,32 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
 
   const columns: ColumnsType<LearningNeedRecord> = [
     {
-      title: "Employee",
+      title: tr("Employee"),
       key: "employee",
       render: (_, r) => {
         const emp = getEmployeeById(r.employeeId);
         return (
           <div>
             <div style={{ fontWeight: 600, color: nectarColors.ink, fontSize: 13 }}>{emp?.name ?? r.employeeId}</div>
-            <div style={{ fontSize: 11, color: nectarColors.muted }}>{emp?.designation ?? "Operator"} · {emp?.siteId?.toUpperCase() ?? "Plant"}</div>
+            <div style={{ fontSize: 11, color: nectarColors.muted }}>{emp?.designation ?? tr("Operator")} · {emp?.siteId?.toUpperCase() ?? tr("Plant")}</div>
           </div>
         );
       },
     },
     {
-      title: "Competency Domain",
+      title: tr("Competency Domain"),
       dataIndex: "competencyAreaName",
       key: "competencyAreaName",
       render: (t) => (
         <span style={{ fontWeight: 500, fontSize: 13, color: nectarColors.ink }}>{t}</span>
       ),
     },
-    scoreColumn("1. Skill Map", "skillMapScorePct", "#D97706", PENDING_TAG),
-    scoreColumn("2. Written", "writtenScorePct", "#D97706", PENDING_EXAM_TAG),
-    scoreColumn("3. Practical", "practicalScorePct", "#DC2626", PENDING_TAG),
-    scoreColumn("4. Oral Viva", "oralScorePct", "#D97706", PENDING_TAG),
+    scoreColumn(tr("1. Skill Map"), "skillMapScorePct", "#D97706", PENDING_TAG),
+    scoreColumn(tr("2. Written"), "writtenScorePct", "#D97706", PENDING_EXAM_TAG),
+    scoreColumn(tr("3. Practical"), "practicalScorePct", "#DC2626", PENDING_TAG),
+    scoreColumn(tr("4. Oral Viva"), "oralScorePct", "#D97706", PENDING_TAG),
     {
-      title: "Level",
+      title: tr("Level"),
       dataIndex: "currentLevel",
       key: "currentLevel",
       align: "center",
@@ -148,7 +149,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
       },
     },
     {
-      title: "AI Gap Analysis & Disconnect Insight",
+      title: tr("AI Gap Analysis & Disconnect Insight"),
       dataIndex: "aiInsight",
       key: "aiInsight",
       render: (insight: string, r) => (
@@ -160,20 +161,20 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
         >
           <div style={{ display: "flex", alignItems: "center", gap: 5, color: nectarColors.leaf, fontWeight: 600, marginBottom: 3 }}>
             <RobotOutlined style={{ fontSize: 12 }} />
-            <span>AI Reasoning Layer (Claude 3.5 Sonnet)</span>
+            <span>{tr("AI Reasoning Layer (Claude 3.5 Sonnet)")}</span>
           </div>
-          <div>{insight}</div>
+          <div>{trData(insight)}</div>
           {r.recommendedCourseTitle && (
             <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, color: nectarColors.muted }}>Target Refresher:</span>
-              <Tag color="geekblue" style={{ fontSize: 10, borderRadius: 6, margin: 0 }}>{r.recommendedCourseTitle}</Tag>
+              <span style={{ fontSize: 11, color: nectarColors.muted }}>{tr("Target Refresher:")}</span>
+              <Tag color="geekblue" style={{ fontSize: 10, borderRadius: 6, margin: 0 }}>{trData(r.recommendedCourseTitle)}</Tag>
             </div>
           )}
         </div>
       ),
     },
     {
-      title: "Action",
+      title: tr("Action"),
       key: "action",
       align: "center",
       render: (_, r) => {
@@ -181,7 +182,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
         if (!course || !onOpenCourse) return null;
         if (r.writtenScorePct === null) {
           return (
-            <Tag color="volcano" style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>Awaiting Written</Tag>
+            <Tag color="volcano" style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{tr("Awaiting Written")}</Tag>
           );
         }
         return (
@@ -192,7 +193,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
             onClick={() => onOpenCourse(course)}
             style={{ color: nectarColors.leaf, fontWeight: 600 }}
           >
-            Launch Refresher
+            {tr("Launch Refresher")}
           </Button>
         );
       },
@@ -211,7 +212,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
               label: (
                 <div style={{ padding: "4px 8px", display: "flex", alignItems: "center", gap: 8 }}>
                   <FileTextOutlined />
-                  <span style={{ fontWeight: 600 }}>Diagnostic Sheet (Nectar Legacy Format)</span>
+                  <span style={{ fontWeight: 600 }}>{tr("Diagnostic Sheet (Nectar Legacy Format)")}</span>
                 </div>
               ),
               value: "legacy_sheet",
@@ -220,7 +221,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
               label: (
                 <div style={{ padding: "4px 8px", display: "flex", alignItems: "center", gap: 8 }}>
                   <AppstoreOutlined />
-                  <span style={{ fontWeight: 600 }}>Multi-Operator Competency Ledger</span>
+                  <span style={{ fontWeight: 600 }}>{tr("Multi-Operator Competency Ledger")}</span>
                 </div>
               ),
               value: "synthesis_ledger",
@@ -232,14 +233,14 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {activeTab === "legacy_sheet" && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>Operator Sheet:</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>{tr("Operator Sheet:")}</span>
               <Select
                 value={selectedEmp?.id}
                 onChange={(val) => setSelectedEmpId(val)}
                 style={{ width: 220 }}
                 options={availableEmployees.map((e) => ({
                   value: e.id,
-                  label: `${e.name} (${e.siteId?.toUpperCase()})`,
+                  label: `${trData(e.name)} (${e.siteId?.toUpperCase()})`,
                 }))}
               />
             </div>
@@ -247,16 +248,16 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
 
           {activeTab === "synthesis_ledger" && !siteScope && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>Plant:</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: nectarColors.muted }}>{tr("Plant:")}</span>
               <Select
                 value={plantFilter}
                 onChange={(v) => setPlantFilter(v)}
                 style={{ width: 140 }}
                 options={[
-                  { value: "all", label: "All Plants" },
-                  { value: "s-etp", label: "ETP Plant" },
-                  { value: "s-ro", label: "RO Plant" },
-                  { value: "s-mee", label: "MEE Plant" },
+                  { value: "all", label: tr("All Plants") },
+                  { value: "s-etp", label: tr("ETP Plant") },
+                  { value: "s-ro", label: tr("RO Plant") },
+                  { value: "s-mee", label: tr("MEE Plant") },
                 ]}
               />
             </div>
@@ -264,10 +265,10 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
 
           <Tag color="cyan" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, fontWeight: 600 }}>
             {selectedEmp?.siteId === "s-ro"
-              ? "Assessor: Priya Iyer (Plant Manager)"
+              ? tr("Assessor: Priya Iyer (Plant Manager)")
               : selectedEmp?.siteId === "s-mee"
-              ? "Assessor: Sameer Joshi (Plant Manager)"
-              : "Assessor: Rajesh Kulkarni (Plant Manager)"}
+              ? tr("Assessor: Sameer Joshi (Plant Manager)")
+              : tr("Assessor: Rajesh Kulkarni (Plant Manager)")}
           </Tag>
         </div>
       </div>
@@ -284,12 +285,12 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
           <div style={{ padding: "18px 24px", borderBottom: "1.5px solid #1C4463", textAlign: "center", background: "#FFFFFF" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <div style={{ textAlign: "left" }}>
-                <span style={{ fontSize: 20, fontWeight: 900, color: "#1C4463", letterSpacing: 1 }}>nėctar</span>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: "#64748B" }}>ENVIRO INDIA PVT. LTD.</div>
+                <span style={{ fontSize: 20, fontWeight: 900, color: "#1C4463", letterSpacing: 1 }}>{tr("nėctar")}</span>
+                <div style={{ fontSize: 9.5, fontWeight: 700, color: "#64748B" }}>{tr("ENVIRO INDIA PVT. LTD.")}</div>
               </div>
               <Tag color="blue" style={{ fontWeight: 700 }}>NEIPL-FORM-LNI-2026</Tag>
             </div>
-            <h2 style={{ margin: "2px 0 6px", fontSize: 22, fontWeight: 800, color: "#0F172A", letterSpacing: 0.5 }}>LEARNING NEED IDENTIFICATION</h2>
+            <h2 style={{ margin: "2px 0 6px", fontSize: 22, fontWeight: 800, color: "#0F172A", letterSpacing: 0.5 }}>{tr("LEARNING NEED IDENTIFICATION")}</h2>
 
             {/* Metadata Table */}
             <div
@@ -299,15 +300,15 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                 textAlign: "left",
               }}
             >
-              <div><strong>Name :</strong> {selectedEmp?.name ?? "—"}</div>
-              <div><strong>Date :</strong> {new Date().toLocaleDateString("en-GB")}</div>
-              <div><strong>EC No :</strong> {selectedEmp?.id?.toUpperCase() ?? "—"}</div>
+              <div><strong>{tr("Name :")}</strong> {selectedEmp?.name ?? "—"}</div>
+              <div><strong>{tr("Date :")}</strong> {new Date().toLocaleDateString("en-GB")}</div>
+              <div><strong>{tr("EC No :")}</strong> {selectedEmp?.id?.toUpperCase() ?? "—"}</div>
               <div>
-                <strong>Assessed by :</strong>{" "}
+                <strong>{tr("Assessed by :")}</strong>{" "}
                 {getSite(selectedEmp?.siteId)?.managerName ?? "—"}
               </div>
-              <div><strong>Desig :</strong> {selectedEmp?.designation ?? "—"}</div>
-              <div><strong>Department :</strong> Plant Operations & Environmental Services</div>
+              <div><strong>{tr("Desig :")}</strong> {selectedEmp?.designation ?? "—"}</div>
+              <div><strong>{tr("Department :")}</strong>{" "}{tr("Plant Operations & Environmental Services")}</div>
             </div>
           </div>
 
@@ -315,12 +316,12 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
               <tr style={{ background: "#F1F5F9", color: "#1E293B", borderBottom: "1.5px solid #1C4463", textAlign: "left" }}>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 60, textAlign: "center" }}>S.No.</th>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140 }}>Section</th>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1" }}>Competency Area</th>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 220, textAlign: "center" }}>Current Level (Low/Med/High)</th>
-                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140, textAlign: "center" }}>Training Required</th>
-                <th style={{ padding: "10px 14px", width: 150, textAlign: "center" }}>Action</th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 60, textAlign: "center" }}>{tr("S.No.")}</th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140 }}>{tr("Section")}</th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1" }}>{tr("Competency Area")}</th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 220, textAlign: "center" }}>{tr("Current Level (Low/Med/High)")}</th>
+                <th style={{ padding: "10px 14px", borderRight: "1px solid #CBD5E1", width: 140, textAlign: "center" }}>{tr("Training Required")}</th>
+                <th style={{ padding: "10px 14px", width: 150, textAlign: "center" }}>{tr("Action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -339,8 +340,8 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                     }}
                   >
                     <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, color: "#64748B", borderRight: "1px solid #E2E8F0" }}>{item.sNo}</td>
-                    <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1C4463", borderRight: "1px solid #E2E8F0" }}>{item.section}</td>
-                    <td style={{ padding: "8px 12px", color: "#1E293B", borderRight: "1px solid #E2E8F0" }}>{item.competencyArea}</td>
+                    <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1C4463", borderRight: "1px solid #E2E8F0" }}>{trData(item.section)}</td>
+                    <td style={{ padding: "8px 12px", color: "#1E293B", borderRight: "1px solid #E2E8F0" }}>{trData(item.competencyArea)}</td>
                     <td style={{ padding: "8px 12px", textAlign: "center", borderRight: "1px solid #E2E8F0" }}>
                       <div style={{ display: "inline-flex", gap: 4 }}>
                         <Button
@@ -350,7 +351,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                           onClick={() => handleLevelChange(item.sNo, "LOW")}
                           style={{ fontSize: 11, fontWeight: 700, padding: "0 8px", height: 24 }}
                         >
-                          LOW
+                          {tr("LOW")}
                         </Button>
                         <Button
                           size="small"
@@ -361,7 +362,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                             ...(isMed ? { background: "#D97706", borderColor: "#D97706" } : {}),
                           }}
                         >
-                          MED
+                          {tr("MED")}
                         </Button>
                         <Button
                           size="small"
@@ -372,7 +373,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                             ...(isHigh ? { background: "#16A34A", borderColor: "#16A34A" } : {}),
                           }}
                         >
-                          HIGH
+                          {tr("HIGH")}
                         </Button>
                       </div>
                     </td>
@@ -381,7 +382,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                         color={isTrainingReq ? "volcano" : "success"}
                         style={{ fontWeight: 800, fontSize: 12, borderRadius: 6, minWidth: 50, textAlign: "center" }}
                       >
-                        {item.trainingRequired}
+                        {trData(item.trainingRequired)}
                       </Tag>
                     </td>
                     <td style={{ padding: "8px 12px", textAlign: "center" }}>
@@ -402,7 +403,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                                   source: "lni",
                                   dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
                                 });
-                                message.success(`Assigned to ${selectedEmp?.name ?? "the employee"}, due in 14 days.`);
+                                message.success(tr("Assigned to {name}, due in 14 days.", { name: selectedEmp?.name ?? tr("the employee") }));
                               } catch (err) {
                                 message.error((err as Error).message);
                                 return;
@@ -413,7 +414,7 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                           }}
                           style={{ fontSize: 11, fontWeight: 700, color: "#1C4463" }}
                         >
-                          Assign Module
+                          {tr("Assign Module")}
                         </Button>
                       ) : (
                         <span style={{ fontSize: 11, color: "#94A3B8" }}>—</span>
@@ -433,9 +434,9 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
             }}
           >
             <div style={{ fontSize: 12.5, color: "#475569" }}>
-              <strong>Summary:</strong> {lniItems.filter((i) => i.trainingRequired === "Yes").length} of 20 competencies require training intervention for {selectedEmp?.name}.
+              <strong>{tr("Summary:")}</strong> {tr("{count} of 20 competencies require training intervention for {name}.", { count: lniItems.filter((i) => i.trainingRequired === "Yes").length, name: translatePersonName(selectedEmp?.name) })}
             </div>
-            <Tag color="green" style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px" }}>Manager Assessor Sign-off: Verified</Tag>
+            <Tag color="green" style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px" }}>{tr("Manager Assessor Sign-off: Verified")}</Tag>
           </div>
         </div>
       ) : (
@@ -457,26 +458,26 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                     color: "#FFFFFF",
                   }}
                 >
-                  Learning Need Identification (LNI) & AI Gap Analysis
+                  {tr("Learning Need Identification (LNI) & AI Gap Analysis")}
                 </h2>
               </div>
               <p style={{ margin: "6px 0 0", color: "rgba(255, 255, 255, 0.78)", fontSize: 13, maxWidth: 680 }}>
-                Continuous synthesis of 4-tier assessment scores. Automatically correlates written theory vs. practical plant maneuvering to highlight operational blind spots before safety incidents occur.
+                {tr("Continuous synthesis of 4-tier assessment scores. Automatically correlates written theory vs. practical plant maneuvering to highlight operational blind spots before safety incidents occur.")}
               </p>
             </div>
 
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#38BDF8" }}>{filtered.filter((r) => r.currentLevel === "HIGH").length}</div>
-                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Autonomous</div>
+                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>{tr("Autonomous")}</div>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#FDE68A" }}>{filtered.filter((r) => r.currentLevel === "MED").length}</div>
-                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Supervised</div>
+                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>{tr("Supervised")}</div>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.1)", borderRadius: 10, padding: "8px 16px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#FCA5A5" }}>{filtered.filter((r) => r.currentLevel === "LOW").length}</div>
-                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>Intervention</div>
+                <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>{tr("Intervention")}</div>
               </div>
             </div>
           </div>
@@ -488,12 +489,12 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                 justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
               }}
             >
-              <div style={{ fontWeight: 600, fontSize: 15, color: nectarColors.ink }}>Plant Manpower Competency Ledger</div>
+              <div style={{ fontWeight: 600, fontSize: 15, color: nectarColors.ink }}>{tr("Plant Manpower Competency Ledger")}</div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Input
                   prefix={<SearchOutlined style={{ color: nectarColors.muted }} />}
-                  placeholder="Search employee, domain, or AI insight..."
+                  placeholder={tr("Search employee, domain, or AI insight...")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   allowClear
@@ -504,10 +505,10 @@ export default function LniMatrixView({ siteScope, onOpenCourse }: LniMatrixView
                   onChange={(v) => setLevelFilter(v)}
                   style={{ width: 120 }}
                   options={[
-                    { value: "all", label: "All Levels" },
-                    { value: "high", label: "High Level" },
-                    { value: "med", label: "Med Level" },
-                    { value: "low", label: "Low Level" },
+                    { value: "all", label: tr("All Levels") },
+                    { value: "high", label: tr("High Level") },
+                    { value: "med", label: tr("Med Level") },
+                    { value: "low", label: tr("Low Level") },
                   ]}
                 />
               </div>

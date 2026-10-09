@@ -4,6 +4,7 @@ import { SafetyController } from './safety.controller';
 import { SafetyService } from './safety.service';
 import { SafetyScheduler } from './safety.scheduler';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { EPermitsModule } from '../e-permits/e-permits.module';
 import { SafetyEvent, SafetyEventSchema } from '../../../db/schemas/safety-event.schema';
 import { SafetyProtocol, SafetyProtocolSchema } from '../../../db/schemas/safety-protocol.schema';
 import { Employee, EmployeeSchema } from '../../../db/schemas/employee.schema';
@@ -13,6 +14,8 @@ import { LeaveRequest, LeaveRequestSchema } from '../../../db/schemas/leave-requ
 @Module({
   imports: [
     NotificationsModule,
+    // A safety emergency stops all permitted work at the site
+    EPermitsModule,
     MongooseModule.forFeature([
       { name: SafetyEvent.name, schema: SafetyEventSchema },
       { name: SafetyProtocol.name, schema: SafetyProtocolSchema },

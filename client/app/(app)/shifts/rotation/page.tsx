@@ -47,6 +47,7 @@ import {
 } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText18Mb12, sSerifText22, sWhitePadR10 } from "@/lib/styles";
+import { tr, trNode, trData, translatePersonName, trCell, trEnum } from "@/lib/i18n";
 
 const SHIFT_OPTIONS: ShiftCode[] = ["A", "B", "C", "G", "OFF"];
 
@@ -123,7 +124,7 @@ export default function ShiftRotationPage() {
   const groupOptions = useMemo(() => {
     void tick;
     const set = new Set(getRotationRows(wizSite).map((r) => r.groupId));
-    return [...set].sort().map((g) => ({ value: g, label: g }));
+    return [...set].sort().map((g) => ({ value: g, label: trData(g) }));
   }, [wizSite, tick]);
 
   const monthKey = wizMonth.format("YYYY-MM");
@@ -207,12 +208,12 @@ export default function ShiftRotationPage() {
         groupIds: groupIds.length ? groupIds : undefined,
         assignments,
       });
-      message.success("Monthly draft submitted for Manager review.");
+      message.success(tr("Monthly draft submitted for Manager review."));
       setWizardOpen(false);
       setSiteId(wizSite);
       refresh();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Could not submit draft");
+      message.error(err instanceof Error ? trData(err.message) : tr("Could not submit draft"));
     }
   };
 
@@ -287,9 +288,9 @@ export default function ShiftRotationPage() {
       title:
         outcome === "approved"
           ? stage === "manager"
-            ? "Approve and send to Director"
-            : "Approve and publish live"
-          : "Reject draft",
+            ? tr("Approve and send to Director")
+            : tr("Approve and publish live")
+          : tr("Reject draft"),
       width: 480,
       content: (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -297,11 +298,11 @@ export default function ShiftRotationPage() {
             <Alert
               type="warning"
               showIcon
-              message="Publish blockers"
+              message={tr("Publish blockers")}
               description={
                 <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
                   {publishGate.reasons.slice(0, 5).map((r) => (
-                    <li key={r}>{r}</li>
+                    <li key={r}>{trData(r)}</li>
                   ))}
                 </ul>
               }
@@ -309,7 +310,7 @@ export default function ShiftRotationPage() {
           ) : null}
           <Input.TextArea
             rows={3}
-            placeholder="Remark (required)"
+            placeholder={tr("Remark (required)")}
             onChange={(e) => {
               remark = e.target.value;
             }}
@@ -322,13 +323,12 @@ export default function ShiftRotationPage() {
                 acknowledgeOt = e.target.checked;
               }}
             >
-              Accept OT for uncovered shift gaps (Director remark clears soft
-              policy flags)
+              {tr("Accept OT for uncovered shift gaps (Director remark clears soft policy flags)")}
             </Checkbox>
           ) : null}
         </div>
       ),
-      okText: outcome === "approved" ? "Confirm approve" : "Confirm reject",
+      okText: outcome === "approved" ? tr("Confirm approve") : tr("Confirm reject"),
       okButtonProps: { danger: outcome === "rejected" },
       onOk: () => {
         try {
@@ -337,8 +337,8 @@ export default function ShiftRotationPage() {
             managerDecideRotation(preview.id, { by, remark, outcome });
             message.success(
               outcome === "approved"
-                ? "Sent to Director for final approval."
-                : "Draft rejected.",
+                ? tr("Sent to Director for final approval.")
+                : tr("Draft rejected."),
             );
           } else {
             adminDecideRotation(preview.id, {
@@ -350,14 +350,14 @@ export default function ShiftRotationPage() {
             });
             message.success(
               outcome === "approved"
-                ? "Published to the live roster."
-                : "Draft rejected by Director.",
+                ? tr("Published to the live roster.")
+                : tr("Draft rejected by Director."),
             );
           }
           setReviewPreview(null);
           refresh();
         } catch (err) {
-          message.error(err instanceof Error ? err.message : "Decision failed");
+          message.error(err instanceof Error ? trData(err.message) : tr("Decision failed"));
           return Promise.reject(err);
         }
       },
@@ -367,30 +367,28 @@ export default function ShiftRotationPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div style={sSerifText22}>Employee rotation schedule</div>
+        <div style={sSerifText22}>{tr("Employee rotation schedule")}</div>
         <p style={{ margin: "6px 0 0", color: nectarColors.muted }}>
-          Pattern: <strong>{ACTIVE_PATTERN.name}</strong> —{" "}
-          {ACTIVE_PATTERN.description}. Shift In-Charge builds a monthly draft →
-          Manager reviews (must view first) → Director approves with remarks to
-          publish to the live roster (Schedule).
+          {tr("Pattern:")}{" "}<strong>{trData(ACTIVE_PATTERN.name)}</strong> — {trData(ACTIVE_PATTERN.description)}.{" "}
+          {tr("Shift In-Charge builds a monthly draft → Manager reviews (must view first) → Director approves with remarks to publish to the live roster (Schedule).")}
         </p>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Select
           allowClear={!locked}
-          placeholder="Site"
+          placeholder={tr("Site")}
           style={{ width: 220 }}
           value={siteId}
           options={sites.map((s) => ({ value: s.id, label: s.name }))}
           onChange={setSiteId}
           disabled={Boolean(locked)}
         />
-        <Button type="primary" disabled={!canGenerate} onClick={openWizard}>Build monthly schedule</Button>
+        <Button type="primary" disabled={!canGenerate} onClick={openWizard}>{tr("Build monthly schedule")}</Button>
         {!canGenerate ? (
-          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>Drafting requires Shift In-Charge or Manager</span>
+          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>{tr("Drafting requires Shift In-Charge or Manager")}</span>
         ) : (
-          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>After submit: Manager → Director (view required before decide)</span>
+          <span style={{ fontSize: 12, color: nectarColors.muted, alignSelf: "center" }}>{tr("After submit: Manager → Director (view required before decide)")}</span>
         )}
       </div>
 
@@ -400,44 +398,44 @@ export default function ShiftRotationPage() {
         pagination={{ pageSize: 10 }}
         style={{ background: nectarColors.white }}
         columns={[
-          { title: "Employee", dataIndex: "employeeName" },
-          { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
-          { title: "Role", dataIndex: "groupId" },
+          { title: tr("Employee"), dataIndex: "employeeName", render: trCell },
+          { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+          { title: tr("Role"), dataIndex: "groupId", render: trCell },
           {
-            title: "Current",
+            title: tr("Current"),
             dataIndex: "currentCode",
             render: (c) => (
-              <Tag color={getShiftByCode(c)?.color}>{c}</Tag>
+              <Tag color={getShiftByCode(c)?.color}>{trData(c)}</Tag>
             ),
           },
           {
-            title: "Next",
+            title: tr("Next"),
             dataIndex: "nextCode",
             render: (c) => (
-              <Tag color={getShiftByCode(c)?.color}>{c}</Tag>
+              <Tag color={getShiftByCode(c)?.color}>{trData(c)}</Tag>
             ),
           },
-          { title: "Effective", dataIndex: "effectiveDate" },
+          { title: tr("Effective"), dataIndex: "effectiveDate" },
         ]}
       />
 
       <div style={sWhitePadR10}>
-        <div style={sSerifText18Mb12}>Drafts pending publish</div>
+        <div style={sSerifText18Mb12}>{tr("Drafts pending publish")}</div>
         <Table
           rowKey="id"
           size="small"
           pagination={false}
           dataSource={previews}
           columns={[
-            { title: "Label", key: "label", render: (_, r) => r.label ?? `${r.fromDate} → ${r.toDate}` },
-            { title: "From", dataIndex: "fromDate" },
-            { title: "To", dataIndex: "toDate" },
-            { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
-            { title: "Employees", dataIndex: "employeesAffected" },
-            { title: "Pattern", key: "pat", render: (_, r) => r.patternId ?? "—" },
-            { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag> },
+            { title: tr("Label"), key: "label", render: (_, r) => r.label ?? `${r.fromDate} → ${r.toDate}` },
+            { title: tr("From"), dataIndex: "fromDate" },
+            { title: tr("To"), dataIndex: "toDate" },
+            { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+            { title: tr("Employees"), dataIndex: "employeesAffected", render: trCell },
+            { title: tr("Pattern"), key: "pat", render: (_, r) => r.patternId ?? "—" },
+            { title: tr("Status"), dataIndex: "status", render: (s: string) => <Tag>{trEnum(s)}</Tag> },
             {
-              title: "Action",
+              title: tr("Action"),
               key: "act",
               render: (_, r) => {
                 const awaitingManager =
@@ -450,7 +448,7 @@ export default function ShiftRotationPage() {
 
                 return (
                   <Space size={6} wrap>
-                    <Button size="small" onClick={() => openReview(r)}>View schedule</Button>
+                    <Button size="small" onClick={() => openReview(r)}>{tr("View schedule")}</Button>
                     {canActManager ? (
                       <>
                         <Button
@@ -459,7 +457,7 @@ export default function ShiftRotationPage() {
                           disabled={!r.managerViewedAt}
                           onClick={() => askDecision(r, "manager", "approved")}
                         >
-                          Approve
+                          {tr("Approve")}
                         </Button>
                         <Button
                           size="small"
@@ -467,7 +465,7 @@ export default function ShiftRotationPage() {
                           disabled={!r.managerViewedAt}
                           onClick={() => askDecision(r, "manager", "rejected")}
                         >
-                          Reject
+                          {tr("Reject")}
                         </Button>
                       </>
                     ) : null}
@@ -479,7 +477,7 @@ export default function ShiftRotationPage() {
                           disabled={!r.directorViewedAt}
                           onClick={() => askDecision(r, "director", "approved")}
                         >
-                          Publish
+                          {tr("Publish")}
                         </Button>
                         <Button
                           size="small"
@@ -487,15 +485,15 @@ export default function ShiftRotationPage() {
                           disabled={!r.directorViewedAt}
                           onClick={() => askDecision(r, "director", "rejected")}
                         >
-                          Reject
+                          {tr("Reject")}
                         </Button>
                       </>
                     ) : null}
                     {awaitingManager && !canManager ? (
-                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting Manager</span>
+                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>{tr("Awaiting Manager")}</span>
                     ) : null}
                     {awaitingDirector && !canAdmin ? (
-                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>Awaiting Director</span>
+                      <span style={{ color: nectarColors.muted, fontSize: 12 }}>{tr("Awaiting Director")}</span>
                     ) : null}
                   </Space>
                 );
@@ -508,8 +506,8 @@ export default function ShiftRotationPage() {
       <Drawer
         title={
           reviewPreview
-            ? `Schedule review · ${reviewPreview.label ?? reviewPreview.fromDate}`
-            : "Schedule review"
+            ? tr("Schedule review · {label}", { label: reviewPreview.label ?? reviewPreview.fromDate })
+            : tr("Schedule review")
         }
         open={Boolean(reviewPreview)}
         onClose={() => setReviewPreview(null)}
@@ -523,15 +521,13 @@ export default function ShiftRotationPage() {
               showIcon
               title={
                 reviewPreview.status === "pending_director"
-                  ? "Director: review the grid, then Approve (publish) or Reject with a remark."
-                  : "Manager: review the grid, then Approve (send to Director) or Reject with a remark."
+                  ? tr("Director: review the grid, then Approve (publish) or Reject with a remark.")
+                  : tr("Manager: review the grid, then Approve (send to Director) or Reject with a remark.")
               }
             />
             {reviewPreview.managerDecision ? (
               <div style={{ fontSize: 13, color: nectarColors.muted }}>
-                Manager {reviewPreview.managerDecision.outcome} by{" "}
-                {reviewPreview.managerDecision.by}: “
-                {reviewPreview.managerDecision.remark}”
+                {tr("Manager {outcome} by {by}: “{remark}”", { outcome: tr(reviewPreview.managerDecision.outcome), by: translatePersonName(reviewPreview.managerDecision.by), remark: trData(reviewPreview.managerDecision.remark) })}
               </div>
             ) : null}
             {reviewPreview.assignments?.length ? (
@@ -542,8 +538,8 @@ export default function ShiftRotationPage() {
                 scroll={{ x: true }}
                 dataSource={reviewRows}
                 columns={[
-                  { title: "Employee", dataIndex: "employeeName", fixed: "left", width: 160 },
-                  { title: "Role", dataIndex: "groupId", width: 90 },
+                  { title: tr("Employee"), dataIndex: "employeeName", render: trCell, fixed: "left", width: 160 },
+                  { title: tr("Role"), dataIndex: "groupId", width: 90, render: trCell },
                   ...reviewWeeks.map((w) => ({
                     title: w.label,
                     dataIndex: w.key,
@@ -556,8 +552,7 @@ export default function ShiftRotationPage() {
               />
             ) : (
               <p style={{ color: nectarColors.muted }}>
-                Legacy stub ({reviewPreview.fromCode} → {reviewPreview.toCode}). No
-                monthly grid on this draft.
+                {tr("Legacy stub ({fromCode} → {toCode}). No monthly grid on this draft.", { fromCode: reviewPreview.fromCode, toCode: reviewPreview.toCode })}
               </p>
             )}
             <Space>
@@ -572,7 +567,7 @@ export default function ShiftRotationPage() {
                       askDecision(reviewPreview, "manager", "approved")
                     }
                   >
-                    Approve → Director
+                    {tr("Approve → Director")}
                   </Button>
                   <Button
                     danger
@@ -581,7 +576,7 @@ export default function ShiftRotationPage() {
                       askDecision(reviewPreview, "manager", "rejected")
                     }
                   >
-                    Reject
+                    {tr("Reject")}
                   </Button>
                 </>
               ) : null}
@@ -594,7 +589,7 @@ export default function ShiftRotationPage() {
                       askDecision(reviewPreview, "director", "approved")
                     }
                   >
-                    Approve & publish
+                    {tr("Approve & publish")}
                   </Button>
                   <Button
                     danger
@@ -603,7 +598,7 @@ export default function ShiftRotationPage() {
                       askDecision(reviewPreview, "director", "rejected")
                     }
                   >
-                    Reject
+                    {tr("Reject")}
                   </Button>
                 </>
               ) : null}
@@ -613,7 +608,7 @@ export default function ShiftRotationPage() {
       </Drawer>
 
       <Drawer
-        title="Build monthly schedule"
+        title={tr("Build monthly schedule")}
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
         size={920}
@@ -621,27 +616,27 @@ export default function ShiftRotationPage() {
         styles={{ body: { display: "flex", flexDirection: "column", gap: 16 } }}
         footer={
           <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-            <Button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
+            <Button disabled={step === 0} onClick={() => setStep((s) => s - 1)}>{tr("Back")}</Button>
             <Space>
               {step < 4 ? (
                 <Button
                   type="primary"
                   onClick={() => {
                     if (step === 0 && !wizSite) {
-                      message.error("Pick a site");
+                      message.error(tr("Pick a site"));
                       return;
                     }
                     if (step === 1) {
                       fillAssignments();
                     }
                     if (step === 3 && attentionConflicts.length) {
-                      message.error("Fix attention conflicts before continuing");
+                      message.error(tr("Fix attention conflicts before continuing"));
                       return;
                     }
                     setStep((s) => s + 1);
                   }}
                 >
-                  Next
+                  {tr("Next")}
                 </Button>
               ) : (
                 <Button
@@ -653,7 +648,7 @@ export default function ShiftRotationPage() {
                   }
                   onClick={submitDraft}
                 >
-                  Submit for Manager review
+                  {tr("Submit for Manager review")}
                 </Button>
               )}
             </Space>
@@ -664,11 +659,11 @@ export default function ShiftRotationPage() {
           size="small"
           current={step}
           items={[
-            { title: "Scope" },
-            { title: "Pattern" },
-            { title: "Preview" },
-            { title: "Check" },
-            { title: "Submit" },
+            { title: tr("Scope") },
+            { title: tr("Pattern") },
+            { title: tr("Preview") },
+            { title: tr("Check") },
+            { title: tr("Submit") },
           ]}
           style={{ marginBottom: 8 }}
         />
@@ -676,7 +671,7 @@ export default function ShiftRotationPage() {
         {step === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360 }}>
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13 }}>Site</div>
+              <div style={{ marginBottom: 6, fontSize: 13 }}>{tr("Site")}</div>
               <Select
                 style={{ width: "100%" }}
                 value={wizSite}
@@ -686,7 +681,7 @@ export default function ShiftRotationPage() {
               />
             </div>
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13 }}>Month</div>
+              <div style={{ marginBottom: 6, fontSize: 13 }}>{tr("Month")}</div>
               <DatePicker
                 picker="month"
                 style={{ width: "100%" }}
@@ -700,40 +695,40 @@ export default function ShiftRotationPage() {
         {step === 1 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}>
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13 }}>Rotation pattern</div>
+              <div style={{ marginBottom: 6, fontSize: 13 }}>{tr("Rotation pattern")}</div>
               <Select
                 style={{ width: "100%" }}
                 value={patternId}
-                options={rotationPatterns.map((p) => ({ value: p.id, label: `${p.name} — ${p.description}` }))}
+                options={rotationPatterns.map((p) => ({ value: p.id, label: `${trData(p.name)} — ${trData(p.description)}` }))}
                 onChange={(v) => setPatternId(v)}
               />
             </div>
             <div>
-              <div style={{ marginBottom: 6, fontSize: 13 }}>Roles (leave empty for all four)</div>
+              <div style={{ marginBottom: 6, fontSize: 13 }}>{tr("Roles (leave empty for all four)")}</div>
               <Select
                 mode="multiple"
                 allowClear
                 style={{ width: "100%" }}
-                placeholder="A, B, C, Reliever"
+                placeholder={tr("A, B, C, Reliever")}
                 value={groupIds}
                 options={groupOptions}
                 onChange={setGroupIds}
               />
             </div>
             <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>
-              Demo roster is four people per plant: one on <strong>A</strong>{" "}
-              (morning), one on <strong>B</strong> (afternoon), one on{" "}
-              <strong>C</strong> (night), one <strong>Reliever</strong>{" "}
-              (general). Filter here if you only want some of them in this draft.
-              Next fills the month from each person&apos;s current shift (rest-safe
-              on C→A). You can edit cells on the following step.
+              {trNode("Demo roster is four people per plant: one on {a} (morning), one on {b} (afternoon), one on {c} (night), one {reliever} (general). Filter here if you only want some of them in this draft. Next fills the month from each person's current shift (rest-safe on C→A). You can edit cells on the following step.", {
+                a: <strong>A</strong>,
+                b: <strong>B</strong>,
+                c: <strong>C</strong>,
+                reliever: <strong>{tr("Reliever")}</strong>,
+              })}
             </p>
           </div>
         ) : null}
 
         {step === 2 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Button size="small" onClick={fillAssignments} style={{ alignSelf: "flex-start" }}>Re-fill from pattern</Button>
+            <Button size="small" onClick={fillAssignments} style={{ alignSelf: "flex-start" }}>{tr("Re-fill from pattern")}</Button>
             <Table
               size="small"
               rowKey="employeeId"
@@ -741,8 +736,8 @@ export default function ShiftRotationPage() {
               scroll={{ x: 700, y: 420 }}
               dataSource={previewRows}
               columns={[
-                { title: "Employee", dataIndex: "employeeName", fixed: "left", width: 160 },
-                { title: "Role", dataIndex: "groupId", width: 90 },
+                { title: tr("Employee"), dataIndex: "employeeName", render: trCell, fixed: "left", width: 160 },
+                { title: tr("Role"), dataIndex: "groupId", width: 90, render: trCell },
                 ...weeks.map((w) => ({
                   title: w.label,
                   dataIndex: w.key,
@@ -768,23 +763,23 @@ export default function ShiftRotationPage() {
               <Alert
                 type="error"
                 showIcon
-                title={`${attentionConflicts.length} attention conflict(s) — fix before submit`}
+                title={tr("{attentionConflictCount} attention conflict(s) — fix before submit", { attentionConflictCount: attentionConflicts.length })}
               />
             ) : (
-              <Alert type="success" showIcon title="No blocking conflicts" />
+              <Alert type="success" showIcon title={tr("No blocking conflicts")} />
             )}
             <Table
               size="small"
               rowKey="id"
               pagination={false}
               dataSource={conflicts}
-              locale={{ emptyText: "No conflicts" }}
+              locale={{ emptyText: tr("No conflicts") }}
               columns={[
-                { title: "Severity", dataIndex: "severity", width: 100 },
-                { title: "Employee", dataIndex: "employeeName" },
-                { title: "Date", dataIndex: "date", width: 120 },
-                { title: "Type", dataIndex: "type", width: 100 },
-                { title: "Message", dataIndex: "message" },
+                { title: tr("Severity"), dataIndex: "severity", render: trCell, width: 100 },
+                { title: tr("Employee"), dataIndex: "employeeName", render: trCell },
+                { title: tr("Date"), dataIndex: "date", width: 120 },
+                { title: tr("Type"), dataIndex: "type", render: trCell, width: 100 },
+                { title: tr("Message"), dataIndex: "message", render: trCell },
               ]}
             />
           </div>
@@ -796,24 +791,23 @@ export default function ShiftRotationPage() {
               <Alert
                 type="error"
                 showIcon
-                title={`A schedule for ${monthKey} is already published for this site. You cannot submit another draft for this month.`}
+                title={tr("A schedule for {monthKey} is already published for this site. You cannot submit another draft for this month.", { monthKey: trData(monthKey) })}
               />
             ) : null}
             <p style={{ margin: 0, fontSize: 14 }}>
-              Site: <strong>{wizSite ? getSiteName(wizSite) : "—"}</strong>
+              {tr("Site:")}{" "}<strong>{wizSite ? getSiteName(wizSite) : "—"}</strong>
               <br />
-              Month: <strong>{monthKey}</strong> ({bounds.fromDate} → {bounds.toDate})
+              {tr("Month:")}{" "}<strong>{trData(monthKey)}</strong> ({bounds.fromDate} → {bounds.toDate})
               <br />
-              Pattern:{" "}
-              <strong>{rotationPatterns.find((p) => p.id === patternId)?.name}</strong>
+              {tr("Pattern:")}{" "}
+              <strong>{trData(rotationPatterns.find((p) => p.id === patternId)?.name)}</strong>
               <br />
-              Employees: <strong>{previewRows.length}</strong>
+              {tr("Employees:")}{" "}<strong>{previewRows.length}</strong>
               <br />
-              Blocking conflicts: <strong>{attentionConflicts.length}</strong>
+              {tr("Blocking conflicts:")}{" "}<strong>{attentionConflicts.length}</strong>
             </p>
             <p style={{ margin: 0, color: nectarColors.muted, fontSize: 13 }}>
-              Submitting creates a draft for Manager review, then Director final
-              approval before it goes live on Schedule.
+              {tr("Submitting creates a draft for Manager review, then Director final approval before it goes live on Schedule.")}
             </p>
           </div>
         ) : null}

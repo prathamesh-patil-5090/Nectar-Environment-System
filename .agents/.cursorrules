@@ -13,6 +13,7 @@ When the user types `/update-agents`:
 
 ## 3. Tech Stack & Conventions
 - **Framework**: Next.js 16 (App Router), React 19, TypeScript.
-- **UI & Design**: Ant Design 6.6, Tailwind CSS v4, custom brand green (`#16a34a`).
-- **State Stores**: Client-side domain stores in `client/lib/*/store.ts` (`shift`, `leave`, `overtime`, `training`) with `localStorage` persistence.
-- **Access Control**: Role-based access control with plant scoping via `client/lib/rbac.ts`.
+- **UI & Design**: Ant Design 6.6, Tailwind CSS v4, brand navy `#1C4463` (tokens in `client/lib/theme.ts`).
+- **Data**: NestJS API via `client/lib/api/*`; domain stores in `client/lib/*/store.ts` (`shift`, `leave`, `ot-decision`, `safety`, `e-permit`, `training`, …) cache in `localStorage`.
+- **i18n**: English / Hindi / Marathi — every UI string goes through `client/lib/i18n/`.
+- **Access Control**: `client/lib/rbac.ts`. HoD (Senior Manager) = Plant Manager access across all plants; use `isManagerRole()`.

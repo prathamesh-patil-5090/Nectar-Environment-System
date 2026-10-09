@@ -16,15 +16,16 @@ import {
 import { safetyKpis } from "@/lib/safety/kpis";
 import { useSafetyEvents } from "@/lib/safety/hooks";
 import { useTableMotion } from "@/lib/motion/use-table-motion";
+import { tr, trTable, trData } from "@/lib/i18n";
 
 const PLANT_TYPES: PlantType[] = ["ETP", "STP", "WTP", "RO", "MEE"];
 const STATUS_ORDER: SiteStatus[] = ["operational", "new", "upcoming", "closed"];
-const STATUS_LABEL: Record<SiteStatus, string> = {
+const STATUS_LABEL: Record<SiteStatus, string> = trTable({
   operational: "Operational",
   new: "New",
   upcoming: "Upcoming",
   closed: "Closed",
-};
+});
 
 type Row = {
   id: string;
@@ -59,7 +60,7 @@ export default function SitesPage() {
   useEffect(() => {
     (showPipeline ? getAllSites() : getSites())
       .then(setSites)
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => setError(trData(err.message)));
   }, [showPipeline]);
 
   const rows = useMemo<Row[]>(
@@ -107,19 +108,19 @@ export default function SitesPage() {
 
   const columns: ColumnsType<Row> = [
     {
-      title: "Site",
+      title: tr("Site"),
       dataIndex: "name",
       key: "name",
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (name: string, row) => (
         <div style={{ lineHeight: 1.35 }}>
-          <div style={{ fontWeight: 500, color: token.colorText }}>{name}</div>
-          <div style={{ fontSize: 13, ...muted }}>{row.location}</div>
+          <div style={{ fontWeight: 500, color: token.colorText }}>{trData(name)}</div>
+          <div style={{ fontSize: 13, ...muted }}>{trData(row.location)}</div>
         </div>
       ),
     },
     {
-      title: "Plant types",
+      title: tr("Plant types"),
       dataIndex: "plantTypes",
       key: "plantTypes",
       filters: PLANT_TYPES.map((t) => ({ text: t, value: t })),
@@ -151,7 +152,7 @@ export default function SitesPage() {
     ...(showPipeline
       ? [
           {
-            title: "Status",
+            title: tr("Status"),
             dataIndex: "status",
             key: "status",
             render: (status: SiteStatus) => (
@@ -167,7 +168,7 @@ export default function SitesPage() {
         ]
       : []),
     {
-      title: "Headcount",
+      title: tr("Headcount"),
       dataIndex: "headcount",
       key: "headcount",
       align: "right",
@@ -182,7 +183,7 @@ export default function SitesPage() {
         ),
     },
     {
-      title: "Readiness",
+      title: tr("Readiness"),
       dataIndex: "readiness",
       key: "readiness",
       width: 220,
@@ -196,10 +197,10 @@ export default function SitesPage() {
           <Tooltip
             title={
               <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                <div>Staffing {b.staffingPct}% ({b.activeStaff}/{b.requiredStaff})</div>
-                <div>Training {b.trainingPct}%</div>
-                <div>Skills {b.skillPct}%</div>
-                <div>Cover {b.coveragePct}% · {b.openAbsences} open absences</div>
+                <div>{tr("Staffing {staffingPct}% ({activeStaff}/{requiredStaff})", { staffingPct: b.staffingPct, activeStaff: b.activeStaff, requiredStaff: b.requiredStaff })}</div>
+                <div>{tr("Training {trainingPct}%", { trainingPct: b.trainingPct })}</div>
+                <div>{tr("Skills {skillPct}%", { skillPct: b.skillPct })}</div>
+                <div>{tr("Cover {coveragePct}% · {openAbsences} open absences", { coveragePct: b.coveragePct, openAbsences: b.openAbsences })}</div>
               </div>
             }
           >
@@ -217,12 +218,12 @@ export default function SitesPage() {
       },
     },
     {
-      title: "Safety",
+      title: tr("Safety"),
       key: "safety",
       render: (_, row) => {
         if (!isOperational(row)) return empty;
         const k = safetyKpis(safetyEvents, row.id);
-        const lti = k.daysSinceLti === null ? "No LTI" : `${k.daysSinceLti} d since LTI`;
+        const lti = k.daysSinceLti === null ? tr("No LTI") : tr("{daysSinceLti} d since LTI", { daysSinceLti: k.daysSinceLti });
         return (
           <Link href="/safety/incidents" style={{ display: "block", lineHeight: 1.35, color: token.colorText }}>
             <div
@@ -230,10 +231,10 @@ export default function SitesPage() {
                 color: k.openCritical || k.activeBreakdowns ? token.colorError : k.open ? token.colorWarning : token.colorText,
               }}
             >
-              {k.open ? `${k.open} open ${k.open === 1 ? "case" : "cases"}` : "No open cases"}
-              {k.activeBreakdowns ? " · Breakdown" : ""}
+              {k.open ? (k.open === 1 ? tr("1 open case") : tr("{open} open cases", { open: k.open })) : tr("No open cases")}
+              {k.activeBreakdowns ? tr(" · Breakdown") : ""}
             </div>
-            <div style={{ fontSize: 13, ...muted }}>{lti}</div>
+            <div style={{ fontSize: 13, ...muted }}>{trData(lti)}</div>
           </Link>
         );
       },
@@ -253,15 +254,14 @@ export default function SitesPage() {
         }}
       >
         <p style={{ margin: 0, fontSize: 14, maxWidth: 720, ...muted }}>
-          Treatment plants under O&amp;M (Operations &amp; Maintenance). Readiness is computed from staffing,
-          training, skills and open absences.
+          {tr("Treatment plants under O&M (Operations & Maintenance). Readiness is computed from staffing, training, skills and open absences.")}
         </p>
         {showPipeline ? (
           <Segmented<SiteStatus | "all">
             value={statusFilter}
             onChange={setStatusFilter}
             options={[
-              { value: "all", label: `All ${counts.all}` },
+              { value: "all", label: tr("All {all}", { all: counts.all }) },
               ...STATUS_ORDER.filter((s) => counts[s]).map((s) => ({
                 value: s,
                 label: `${STATUS_LABEL[s]} ${counts[s]}`,
@@ -271,7 +271,7 @@ export default function SitesPage() {
         ) : null}
       </div>
 
-      {error ? <Alert type="error" showIcon message="Could not load sites" description={error} /> : null}
+      {error ? <Alert type="error" showIcon message={tr("Could not load sites")} description={trData(error)} /> : null}
 
       <div
         ref={tableRef}

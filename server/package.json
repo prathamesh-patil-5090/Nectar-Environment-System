@@ -13,7 +13,10 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "seed": "ts-node db/seeds/index.ts",
-    "seed:safety": "ts-node db/seeds/safety-only.ts"
+    "seed:safety": "ts-node db/seeds/safety-only.ts",
+    "seed:e-permits": "ts-node db/seeds/e-permit-only.ts",
+    "e2e:e-permits": "ts-node test/e-permits.e2e.ts",
+    "e2e:e-permits:clock": "ts-node test/e-permits-clock.e2e.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

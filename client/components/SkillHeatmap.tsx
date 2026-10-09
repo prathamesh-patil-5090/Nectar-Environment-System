@@ -3,6 +3,7 @@
 import { theme } from "antd";
 import { skillLabels, skillMatrix, type SkillKey } from "@/lib/mock-data";
 import { Section } from "@/components/quiet";
+import { useT, trData } from "@/lib/i18n";
 
 const skillKeys = Object.keys(skillLabels) as SkillKey[];
 
@@ -12,6 +13,7 @@ const skillKeys = Object.keys(skillLabels) as SkillKey[];
  */
 export default function SkillHeatmap() {
   const { token } = theme.useToken();
+  const t = useT();
   const cell = (score: number) =>
     score < 55
       ? { color: token.colorError, background: token.colorErrorBg }
@@ -20,19 +22,18 @@ export default function SkillHeatmap() {
         : { color: token.colorText, background: "transparent" };
 
   return (
-    <Section title="Skill matrix" extra="Expected strength by role, 0–100" flush>
+    <Section title={t("dash.skillMatrix")} extra={t("dash.skillMatrixExtra")} flush>
       <div style={{ padding: "12px 16px 0", fontSize: 13, color: token.colorTextSecondary }}>
-        What each kind of job is expected to be good at, not one named person. When planning leave cover, prefer a role that is
-        strong on the skill you need.
+        {t("dash.skillMatrixIntro")}
       </div>
       <div style={{ overflowX: "auto", padding: "8px 8px 12px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560, fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", fontWeight: 500, color: token.colorTextSecondary, padding: "8px" }}>Role</th>
+              <th style={{ textAlign: "left", fontWeight: 500, color: token.colorTextSecondary, padding: "8px" }}>{t("common.role")}</th>
               {skillKeys.map((key) => (
                 <th key={key} style={{ fontWeight: 500, color: token.colorTextSecondary, padding: "8px 6px", textAlign: "right" }}>
-                  {skillLabels[key]}
+                  {trData(skillLabels[key])}
                 </th>
               ))}
             </tr>
@@ -40,14 +41,14 @@ export default function SkillHeatmap() {
           <tbody>
             {skillMatrix.map((row) => (
               <tr key={row.role} style={{ borderTop: `1px solid ${token.colorSplit}` }}>
-                <td style={{ color: token.colorText, padding: "8px", whiteSpace: "nowrap" }}>{row.role}</td>
+                <td style={{ color: token.colorText, padding: "8px", whiteSpace: "nowrap" }}>{trData(row.role)}</td>
                 {skillKeys.map((key) => {
                   const score = row[key];
                   const c = cell(score);
                   return (
                     <td key={key} style={{ padding: "4px 6px", textAlign: "right" }}>
                       <span
-                        title={`${row.role} · ${skillLabels[key]}: ${score}`}
+                        title={`${trData(row.role)} · ${trData(skillLabels[key])}: ${score}`}
                         style={{
                           display: "inline-block",
                           minWidth: 34,

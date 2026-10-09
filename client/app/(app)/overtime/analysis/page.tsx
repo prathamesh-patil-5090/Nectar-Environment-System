@@ -40,6 +40,7 @@ import {
 import { nectarColors } from "@/lib/theme";
 import { gridGap16, gridGap162 } from "@/lib/styles";
 import SharedPanel from "@/components/Panel";
+import { tr, trData, trCell } from "@/lib/i18n";
 
 const PIE_COLORS = [
   nectarColors.leaf,
@@ -51,7 +52,7 @@ const PIE_COLORS = [
 
 export default function OtAnalysisPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 24 }}>Loading analysis…</div>}><OtAnalysisInner /></Suspense>
+    <Suspense fallback={<div style={{ padding: 24 }}>{tr("Loading analysis…")}</div>}><OtAnalysisInner /></Suspense>
   );
 }
 
@@ -83,56 +84,53 @@ function OtAnalysisInner() {
   const analysisBody = (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={gridGap16} className="nectar-ot-two">
-        <Panel title="Monthly OT hours">
+        <Panel title={tr("Monthly OT hours")}>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Line type="monotone" dataKey="otHours" stroke={nectarColors.leaf} strokeWidth={2} />
+              <Line type="monotone" dataKey="otHours" name={tr("OT Hours")} stroke={nectarColors.leaf} strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </Panel>
-        <Panel title="Monthly OT cost">
+        <Panel title={tr("Monthly OT cost")}>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => formatInr(Number(v))} />
-              <Bar dataKey="otCost" fill={nectarColors.alert} />
+              <Bar dataKey="otCost" name={tr("OT Cost")} fill={nectarColors.alert} />
             </BarChart>
           </ResponsiveContainer>
         </Panel>
       </div>
 
       <div style={gridGap162} className="nectar-ot-two">
-        <Panel title="Site-wise OT">
+        <Panel title={tr("Site-wise OT")}>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={sites}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="siteName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} />
+              <XAxis dataKey="siteName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70} tickFormatter={(v) => String(trData(String(v)))} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="otHours" fill={nectarColors.mint} name="Hours" />
+              <Bar dataKey="otHours" fill={nectarColors.mint} name={tr("Hours")} />
             </BarChart>
           </ResponsiveContainer>
         </Panel>
-        <Panel title="OT status mix">
+        <Panel title={tr("OT status mix")}>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
-                data={statuses}
+                data={statuses.map((s) => ({ ...s, label: OT_STATUS_LABELS[s.status as keyof typeof OT_STATUS_LABELS] ?? s.status }))}
                 dataKey="otHours"
-                nameKey="status"
+                nameKey="label"
                 outerRadius={90}
                 label={(props) => {
-                  const status = String(props.name ?? "");
+                  const label = String(props.name ?? "");
                   const pct = props.percent ?? 0;
-                  const label =
-                    OT_STATUS_LABELS[status as keyof typeof OT_STATUS_LABELS] ??
-                    status;
                   return `${label} ${(pct * 100).toFixed(0)}%`;
                 }}
               >
@@ -146,7 +144,7 @@ function OtAnalysisInner() {
         </Panel>
       </div>
 
-      <Panel title="Employee OT concentration">
+      <Panel title={tr("Employee OT concentration")}>
         <Table
           size="small"
           rowKey="employeeId"
@@ -154,46 +152,46 @@ function OtAnalysisInner() {
           dataSource={employees}
           columns={[
             {
-              title: "Employee",
+              title: tr("Employee"),
               dataIndex: "employeeName",
               render: (n, r) => (
-                <Link href={`/overtime/employees/${r.employeeId}`}>{n}</Link>
+                <Link href={`/overtime/employees/${r.employeeId}`}>{trData(n)}</Link>
               ),
             },
-            { title: "Site", dataIndex: "siteName" },
-            { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
-            { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
-            { title: "OT Days", dataIndex: "otDays" },
+            { title: tr("Site"), dataIndex: "siteName", render: trCell },
+            { title: tr("OT Hours"), dataIndex: "otHours", render: (v) => formatHours(v) },
+            { title: tr("OT Cost"), dataIndex: "otCost", render: (v) => formatInr(v) },
+            { title: tr("OT Days"), dataIndex: "otDays", render: trCell },
           ]}
         />
       </Panel>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }} className="nectar-ot-three">
-        <Panel title="By department">
+        <Panel title={tr("By department")}>
           <Table
             size="small"
             pagination={false}
             rowKey="department"
             dataSource={departments}
             columns={[
-              { title: "Dept", dataIndex: "department" },
-              { title: "Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+              { title: tr("Dept"), dataIndex: "department", render: trCell },
+              { title: tr("Hours"), dataIndex: "otHours", render: (v) => formatHours(v) },
             ]}
           />
         </Panel>
-        <Panel title="By shift">
+        <Panel title={tr("By shift")}>
           <Table
             size="small"
             pagination={false}
             rowKey="shiftId"
             dataSource={shifts}
             columns={[
-              { title: "Shift", dataIndex: "shiftName" },
-              { title: "Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+              { title: tr("Shift"), dataIndex: "shiftName", render: trCell },
+              { title: tr("Hours"), dataIndex: "otHours", render: (v) => formatHours(v) },
             ]}
           />
         </Panel>
-        <Panel title="By reason">
+        <Panel title={tr("By reason")}>
           <Table
             size="small"
             pagination={false}
@@ -201,37 +199,37 @@ function OtAnalysisInner() {
             dataSource={reasons}
             columns={[
               {
-                title: "Reason",
+                title: tr("Reason"),
                 dataIndex: "reason",
                 render: (r) => OT_REASON_LABELS[r as keyof typeof OT_REASON_LABELS],
               },
-              { title: "Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
+              { title: tr("Hours"), dataIndex: "otHours", render: (v) => formatHours(v) },
               { title: "%", dataIndex: "pct", render: (v) => `${v}%` },
             ]}
           />
         </Panel>
       </div>
 
-      <Panel title="Yearly OT">
+      <Panel title={tr("Yearly OT")}>
         <Table
           size="small"
           pagination={false}
           rowKey="year"
           dataSource={yearly}
           columns={[
-            { title: "Year", dataIndex: "year" },
-            { title: "OT Hours", dataIndex: "otHours", render: (v) => formatHours(v) },
-            { title: "OT Cost", dataIndex: "otCost", render: (v) => formatInr(v) },
+            { title: tr("Year"), dataIndex: "year" },
+            { title: tr("OT Hours"), dataIndex: "otHours", render: (v) => formatHours(v) },
+            { title: tr("OT Cost"), dataIndex: "otCost", render: (v) => formatInr(v) },
           ]}
         />
       </Panel>
 
-      <Panel title="OT heatmap (Month × Site)">
+      <Panel title={tr("OT heatmap (Month × Site)")}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "separate", borderSpacing: 3, minWidth: 640, width: "100%" }}>
             <thead>
               <tr>
-                <th style={thStyle}>Site</th>
+                <th style={thStyle}>{tr("Site")}</th>
                 {heatmap.months.map((m) => (
                   <th key={m} style={thStyle}>{m.slice(5)}</th>
                 ))}
@@ -244,7 +242,7 @@ function OtAnalysisInner() {
                   siteId;
                 return (
                   <tr key={siteId}>
-                    <td style={{ ...thStyle, textAlign: "left", color: nectarColors.ink }}>{name}</td>
+                    <td style={{ ...thStyle, textAlign: "left", color: nectarColors.ink }}>{trData(name)}</td>
                     {heatmap.months.map((month) => {
                       const cell = heatmap.cells.find(
                         (c) => c.siteId === siteId && c.month === month,
@@ -254,7 +252,7 @@ function OtAnalysisInner() {
                       return (
                         <td key={month} style={{ padding: 0 }}>
                           <div
-                            title={`${name} ${month}: ${hours} hrs`}
+                            title={tr("{name} {month}: {hours} hrs", { name: trData(name), month: trData(month), hours })}
                             style={{
                               background: `rgba(28, 68, 99, ${0.08 + intensity * 0.72})`,
                               color: intensity > 0.55 ? "#fff" : nectarColors.ink, textAlign: "center", fontSize: 11,
@@ -274,7 +272,7 @@ function OtAnalysisInner() {
         </div>
       </Panel>
 
-      <Panel title="High OT detection & patterns">
+      <Panel title={tr("High OT detection & patterns")}>
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {insights.map((i) => (
             <li key={i.id} style={{ padding: "10px 0", borderBottom: `1px solid ${nectarColors.sand}` }}>
@@ -288,9 +286,9 @@ function OtAnalysisInner() {
                 }
                 style={{ border: "none" }}
               >
-                {i.title}
+                {trData(i.title)}
               </Tag>
-              <div style={{ marginTop: 4, fontSize: 13, color: nectarColors.muted }}>{i.message}</div>
+              <div style={{ marginTop: 4, fontSize: 13, color: nectarColors.muted }}>{trData(i.message)}</div>
             </li>
           ))}
         </ul>
@@ -301,16 +299,15 @@ function OtAnalysisInner() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
-        Where OT happens, who generates it, when it occurs, what it costs — plus
-        downloadable reports.
+        {tr("Where OT happens, who generates it, when it occurs, what it costs — plus downloadable reports.")}
       </p>
       <OtFiltersBar value={filters} onChange={setFilters} lockedSiteId={lockedSiteId} />
       <Tabs
         activeKey={tab}
         onChange={setTab}
         items={[
-          { key: "analysis", label: "Analysis", children: analysisBody },
-          { key: "reports", label: "Reports", children: <OtReportsPanel filters={filters} /> },
+          { key: "analysis", label: tr("Analysis"), children: analysisBody },
+          { key: "reports", label: tr("Reports"), children: <OtReportsPanel filters={filters} /> },
         ]}
       />
     </div>

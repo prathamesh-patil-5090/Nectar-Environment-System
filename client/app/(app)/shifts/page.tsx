@@ -19,6 +19,8 @@ import { scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { gridGap16, gridGap162, rowWrapGap1BgR8 } from "@/lib/styles";
 import Panel from "@/components/Panel";
+import ActivePermitsPanel from "@/components/e-permit/ActivePermitsPanel";
+import { tr, trNode, translatePersonName, trData, trCell, trEnum } from "@/lib/i18n";
 
 export default function ShiftsDashboardPage() {
   const session = getSession();
@@ -59,7 +61,7 @@ export default function ShiftsDashboardPage() {
       <Select
         allowClear={!locked}
         disabled={!!locked}
-        placeholder="All sites"
+        placeholder={tr("All sites")}
         style={{ maxWidth: 280 }}
         value={siteId}
         options={sites.map((s) => ({ value: s.id, label: s.name }))}
@@ -67,29 +69,29 @@ export default function ShiftsDashboardPage() {
       />
 
       <div style={rowWrapGap1BgR8}>
-        <KpiStat label="Employees today" value={kpis.employeesToday} />
-        <KpiStat label="A Shift" value={kpis.aShift} tone="positive" />
-        <KpiStat label="B Shift" value={kpis.bShift} tone="info" />
-        <KpiStat label="C Shift" value={kpis.cShift} tone="info" />
-        <KpiStat label="General" value={kpis.general} />
-        <KpiStat label="Pending changes" value={kpis.pendingChanges} tone="alert" />
-        <KpiStat label="Shift conflicts" value={kpis.shiftConflicts} tone="alert" />
-        <KpiStat label="Uncovered positions" value={kpis.uncoveredPositions} tone="alert" />
+        <KpiStat label={tr("Employees today")} value={kpis.employeesToday} />
+        <KpiStat label={tr("A Shift")} value={kpis.aShift} tone="positive" />
+        <KpiStat label={tr("B Shift")} value={kpis.bShift} tone="info" />
+        <KpiStat label={tr("C Shift")} value={kpis.cShift} tone="info" />
+        <KpiStat label={tr("General")} value={kpis.general} />
+        <KpiStat label={tr("Pending changes")} value={kpis.pendingChanges} tone="alert" />
+        <KpiStat label={tr("Shift conflicts")} value={kpis.shiftConflicts} tone="alert" />
+        <KpiStat label={tr("Uncovered positions")} value={kpis.uncoveredPositions} tone="alert" />
       </div>
 
       <div className="nectar-ot-two" style={gridGap162}>
-        <Panel title="Upcoming rotation">
+        <Panel title={tr("Upcoming rotation")}>
           <Table
             rowKey="id"
             size="small"
             pagination={false}
             dataSource={upcoming}
             columns={[
-              { title: "Date", dataIndex: "fromDate" },
-              { title: "Site", dataIndex: "siteId", render: (id) => getSiteName(id) },
-              { title: "Employees", dataIndex: "employeesAffected" },
-              { title: "Shift", key: "rot", render: (_, r) => `${r.fromCode} → ${r.toCode}` },
-              { title: "Status", dataIndex: "status", render: (s: string) => <Tag>{s.replaceAll("_", " ")}</Tag> },
+              { title: tr("Date"), dataIndex: "fromDate" },
+              { title: tr("Site"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+              { title: tr("Employees"), dataIndex: "employeesAffected", render: trCell },
+              { title: tr("Shift"), key: "rot", render: (_, r) => `${r.fromCode} → ${r.toCode}` },
+              { title: tr("Status"), dataIndex: "status", render: (s: string) => <Tag>{trEnum(s)}</Tag> },
               {
                 title: "",
                 key: "act",
@@ -101,7 +103,7 @@ export default function ShiftsDashboardPage() {
                   if (!open) return null;
                   if (siteId && r.siteId !== siteId) return null;
                   return (
-                    <Link href="/shifts/rotation"><Button size="small">Review on Rotation</Button></Link>
+                    <Link href="/shifts/rotation"><Button size="small">{tr("Review on Rotation")}</Button></Link>
                   );
                 },
               },
@@ -109,11 +111,11 @@ export default function ShiftsDashboardPage() {
           />
         </Panel>
 
-        <Panel title="Manpower + Conflict">
+        <Panel title={tr("Manpower + Conflict")}>
           {conflicts.length === 0 ? (
             <div style={{ color: nectarColors.muted, fontSize: 13 }}>
-              No shortages or conflicts in the next window.{" "}
-              <Link href="/shifts/manpower">Open hub</Link>
+              {tr("No shortages or conflicts in the next window.")}{" "}
+              <Link href="/shifts/manpower">{tr("Open hub")}</Link>
             </div>
           ) : (
             <>
@@ -134,53 +136,54 @@ export default function ShiftsDashboardPage() {
                           : "#D97706"
                       }
                     >
-                      {c.kind.replaceAll("_", " ")}
+                      {trEnum(c.kind)}
                     </Tag>
-                    <strong>{c.title}</strong>
-                    <div style={{ color: nectarColors.muted }}>{c.message}</div>
+                    <strong>{trData(c.title)}</strong>
+                    <div style={{ color: nectarColors.muted }}>{trData(c.message)}</div>
                     {c.href ? (
                       <Link href={c.href} style={{ fontSize: 12 }}>
-                        Open
+                        {tr("Open")}
                       </Link>
                     ) : null}
                   </li>
                 ))}
               </ul>
               <div style={{ marginTop: 8 }}>
-                <Link href="/shifts/manpower">View all on Manpower + Conflict</Link>
+                <Link href="/shifts/manpower">{tr("View all on Manpower + Conflict")}</Link>
               </div>
             </>
           )}
         </Panel>
       </div>
 
+      <ActivePermitsPanel siteId={siteId} />
+
       <div className="nectar-ot-two" style={gridGap16}>
-        <Panel title="OT by cause (shift-linked)">
+        <Panel title={tr("OT by cause (shift-linked)")}>
           <Table
             size="small"
             pagination={false}
             rowKey="cause"
             dataSource={otCause.byCause}
             columns={[
-              { title: "Cause", dataIndex: "cause" },
-              { title: "Hours", dataIndex: "hours", render: (h) => `${h} hrs` },
+              { title: tr("Cause"), dataIndex: "cause", render: trCell },
+              { title: tr("Hours"), dataIndex: "hours", render: (h) => tr("{h} hrs", { h }) },
             ]}
           />
-          <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>Total OT reference: {otCause.totalOt} hrs</div>
+          <div style={{ marginTop: 8, fontSize: 12, color: nectarColors.muted }}>{tr("Total OT reference: {totalOt} hrs", { totalOt: otCause.totalOt })}</div>
         </Panel>
-        <Panel title="Insights">
+        <Panel title={tr("Insights")}>
           <div style={{ fontSize: 13, marginBottom: 10 }}>
-            OT after unplanned shift changes:{" "}
-            <strong>{insights.otAfterChanges} hrs</strong>
+            {tr("OT after unplanned shift changes:")}{" "}
+            <strong>{tr("{otAfterChanges} hrs", { otAfterChanges: insights.otAfterChanges })}</strong>
           </div>
           {insights.frequent.slice(0, 3).map((f) => (
             <div key={f.employeeId} style={{ fontSize: 12, marginBottom: 6 }}>
-              <Link href={`/employees/${f.employeeId}`}>{f.employeeName}</Link>{" "}
-              moved from planned shift {f.changes} times
+              {trNode("{name} moved from planned shift {count} times", { name: <Link href={`/employees/${f.employeeId}`}>{translatePersonName(f.employeeName)}</Link>, count: f.changes })}
             </div>
           ))}
           {insights.siteIssues.slice(0, 2).map((s) => (
-            <div key={s.siteId} style={{ fontSize: 12, color: nectarColors.muted }}>{s.siteName}: {s.deviations} deviations · {s.otHoursAssociated} OT hrs</div>
+            <div key={s.siteId} style={{ fontSize: 12, color: nectarColors.muted }}>{tr("{siteName}: {deviations} deviations · {otHoursAssociated} OT hrs", { siteName: trData(s.siteName), deviations: s.deviations, otHoursAssociated: s.otHoursAssociated })}</div>
           ))}
         </Panel>
       </div>

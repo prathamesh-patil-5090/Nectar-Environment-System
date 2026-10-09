@@ -14,6 +14,8 @@ import { HealthModule } from './modules/health/health.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SafetyModule } from './modules/safety/safety.module';
+import { EPermitsModule } from './modules/e-permits/e-permits.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 /** Resolve server/.env whether Nest runs from src/ or dist/src/, any cwd. */
 function resolveEnvFile(): string {
@@ -45,6 +47,8 @@ function resolveEnvFile(): string {
     MeetingsModule,
     NotificationsModule,
     SafetyModule,
+    EPermitsModule,
+    AuthModule,
     HealthModule,
   ],
 })

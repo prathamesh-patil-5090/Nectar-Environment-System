@@ -4,6 +4,7 @@ import { CalendarOutlined } from "@ant-design/icons";
 import type { TrainingEvent } from "@/lib/training/types";
 import { fmtTimeRange } from "@/lib/training/hooks";
 import { eventCalendarUrl } from "@/lib/api/training";
+import { tr, trData } from "@/lib/i18n";
 
 interface EventStickyBottomBarProps {
   event: TrainingEvent;
@@ -25,16 +26,16 @@ export default function EventStickyBottomBar({
         <div className="min-w-0 flex items-center gap-3">
           <div className="hidden md:flex flex-col">
             <span className="text-xs font-semibold text-emerald-800">
-              {fmtTimeRange(event.startsAt, event.endsAt)} IST
+              {tr("{timeRange} IST", { timeRange: fmtTimeRange(event.startsAt, event.endsAt) })}
             </span>
-            <span className="text-sm font-bold text-slate-900 truncate max-w-md" title={event.title}>
-              {event.title}
+            <span className="text-sm font-bold text-slate-900 truncate max-w-md" title={trData(event.title)}>
+              {trData(event.title)}
             </span>
           </div>
 
           <div className="text-xs text-slate-500 font-medium">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />
-            {event.spotsLeft > 0 ? `${event.spotsLeft} spots available` : "Capacity reached"}
+            {event.spotsLeft > 0 ? tr("{spotsLeft} spots available", { spotsLeft: event.spotsLeft }) : tr("Capacity reached")}
           </div>
         </div>
 
@@ -45,7 +46,7 @@ export default function EventStickyBottomBar({
               href={eventCalendarUrl(event.id)}
               className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors"
             >
-              <CalendarOutlined /> Add to Calendar
+              <CalendarOutlined />{" "}{tr("Add to Calendar")}
             </a>
           )}
           <div className="[&>button]:h-10 [&>button]:px-6 [&>button]:rounded-xl [&>button]:font-bold [&>button]:text-sm shadow-xs">

@@ -10,7 +10,9 @@ export type OtDecisionTrigger =
   | "rotation_publish"
   | "manual_assign"
   /** Repair work on a plant breakdown (Safety → Breakdowns) */
-  | "breakdown_repair";
+  | "breakdown_repair"
+  /** Permitted work needs more hours than the E-Permit allows */
+  | "e_permit_overrun";
 
 export type OtPolicyFlag =
   | "reliever_available"
@@ -38,6 +40,8 @@ export type OtDecision = {
   absenceId?: string;
   /** Safety breakdown this OT repairs (trigger breakdown_repair) */
   safetyEventId?: string;
+  /** E-Permit whose work ran over (trigger e_permit_overrun) */
+  ePermitId?: string;
   hours: number;
   cost: number;
   flags: OtPolicyFlag[];

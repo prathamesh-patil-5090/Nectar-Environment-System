@@ -1,4 +1,5 @@
 import { readJson, writeJson } from "@/lib/storage";
+import { tr, trData, type PhraseParams } from "@/lib/i18n/phrases";
 /**
  * Simple in-app notifications (localStorage) for leave consent, leave decisions, OT assign.
  */
@@ -24,7 +25,25 @@ export type AppNotification = {
   createdAt: string;
   read: boolean;
   meta?: Record<string, string>;
+  /**
+   * When set, `title`/`body` are English templates (`{name}` placeholders)
+   * filled from these values at display time — so each reader sees the
+   * notification in their own language. Use `notificationTitle/Body`.
+   */
+  params?: Record<string, string | number>;
 };
+
+function notificationText(text: string, params?: PhraseParams): string {
+  return params ? tr(text, params) : (trData(text) as string);
+}
+
+export function notificationTitle(n: AppNotification): string {
+  return notificationText(n.title, n.params);
+}
+
+export function notificationBody(n: AppNotification): string {
+  return notificationText(n.body, n.params);
+}
 
 /** Demo seed — shown for employee logins until cleared */
 const DEMO_SEED: AppNotification[] = [
@@ -195,6 +214,7 @@ export function pushNotification(
     body: input.body,
     href: input.href,
     meta: input.meta,
+    params: input.params,
     createdAt: input.createdAt ?? new Date().toISOString(),
     read: input.read ?? false,
   };

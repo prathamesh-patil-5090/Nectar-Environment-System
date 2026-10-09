@@ -5,6 +5,7 @@ import { App, DatePicker, Form, Input, Modal, Radio, Select } from "antd";
 import type { Dayjs } from "dayjs";
 import { createTrainingAssignment, getAllCourses, getPeople, useTrainingData } from "@/lib/training/store";
 import { useViewer } from "@/lib/training/hooks";
+import { tr, trData } from "@/lib/i18n";
 
 /** Who this viewer may flag: the Director → anyone; a manager → their allotted employees (plan §7 Q1). */
 export function flaggableIds(viewer: ReturnType<typeof useViewer>): Set<string> {
@@ -72,7 +73,9 @@ export default function FlagTrainingNeedModal({
         source: "manager",
       });
       message.success(
-        `${v.kind === "mandatory" ? "Assigned" : "Flagged"} for ${v.employeeIds.length} ${v.employeeIds.length === 1 ? "person" : "people"}. They have been notified.`,
+        v.kind === "mandatory"
+          ? tr("Assigned for {count} people. They have been notified.", { count: v.employeeIds.length })
+          : tr("Flagged for {count} people. They have been notified.", { count: v.employeeIds.length }),
       );
       form.resetFields();
       onSaved?.();
@@ -87,8 +90,8 @@ export default function FlagTrainingNeedModal({
   return (
     <Modal
       open={open}
-      title="Flag a weak area / assign training"
-      okText={kind === "mandatory" ? "Assign" : "Flag"}
+      title={tr("Flag a weak area / assign training")}
+      okText={kind === "mandatory" ? tr("Assign") : tr("Flag")}
       onOk={() => form.submit()}
       confirmLoading={saving}
       onCancel={onClose}
@@ -97,7 +100,7 @@ export default function FlagTrainingNeedModal({
     >
       {people.length === 0 ? (
         <p style={{ color: "#4A6375" }}>
-          Only the Director, or an employee&apos;s allotted manager, can flag or assign training. You have no allotted employees.
+          {tr("Only the Director, or an employee's allotted manager, can flag or assign training. You have no allotted employees.")}
         </p>
       ) : (
         <Form
@@ -106,64 +109,64 @@ export default function FlagTrainingNeedModal({
           onFinish={submit}
           initialValues={{ kind: "suggested", priority: "normal", employeeIds: initialEmployeeIds?.filter((id) => allowed.has(id)), courseId: initialCourseId }}
         >
-          <Form.Item name="employeeIds" label="Employees" rules={[{ required: true, message: "Pick at least one employee" }]}>
+          <Form.Item name="employeeIds" label={tr("Employees")} rules={[{ required: true, message: tr("Pick at least one employee") }]}>
             <Select
               mode="multiple"
               showSearch
               optionFilterProp="label"
-              placeholder="Your allotted employees"
-              options={people.map((p) => ({ value: p.id, label: `${p.name}${p.designation ? ` · ${p.designation}` : ""}` }))}
+              placeholder={tr("Your allotted employees")}
+              options={people.map((p) => ({ value: p.id, label: `${trData(p.name)}${p.designation ? ` · ${trData(p.designation)}` : ""}` }))}
             />
           </Form.Item>
-          <Form.Item name="kind" label="Type">
+          <Form.Item name="kind" label={tr("Type")}>
             <Radio.Group
               optionType="button"
               options={[
-                { value: "suggested", label: "Suggest (weak area)" },
-                { value: "mandatory", label: "Mandatory (with due date)" },
+                { value: "suggested", label: tr("Suggest (weak area)") },
+                { value: "mandatory", label: tr("Mandatory (with due date)") },
               ]}
             />
           </Form.Item>
           <Form.Item
             name="courseId"
-            label="Course"
-            rules={kind === "mandatory" ? [{ required: true, message: "Mandatory training needs a course" }] : []}
-            extra={kind === "suggested" ? "Optional. Or describe the weak topic / skills below, and matching courses are suggested." : undefined}
+            label={tr("Course")}
+            rules={kind === "mandatory" ? [{ required: true, message: tr("Mandatory training needs a course") }] : []}
+            extra={kind === "suggested" ? tr("Optional. Or describe the weak topic / skills below, and matching courses are suggested.") : undefined}
           >
             <Select
               allowClear
               showSearch
               optionFilterProp="label"
-              placeholder="Pick a course"
-              options={courses.map((c) => ({ value: c.id, label: `${c.code} · ${c.title}` }))}
+              placeholder={tr("Pick a course")}
+              options={courses.map((c) => ({ value: c.id, label: `${c.code} · ${trData(c.title)}` }))}
             />
           </Form.Item>
           {kind === "suggested" && (
             <>
-              <Form.Item name="topic" label="Weak topic or concept">
-                <Input placeholder="e.g. Polymer dosing during shock loads" maxLength={120} />
+              <Form.Item name="topic" label={tr("Weak topic or concept")}>
+                <Input placeholder={tr("e.g. Polymer dosing during shock loads")} maxLength={120} />
               </Form.Item>
-              <Form.Item name="skills" label="Skills (match courses)">
-                <Select mode="multiple" allowClear placeholder="Pick skills taught by courses" options={skillOptions} />
+              <Form.Item name="skills" label={tr("Skills (match courses)")}>
+                <Select mode="multiple" allowClear placeholder={tr("Pick skills taught by courses")} options={skillOptions} />
               </Form.Item>
             </>
           )}
           {kind === "mandatory" && (
-            <Form.Item name="dueDate" label="Due date" rules={[{ required: true, message: "Pick a due date" }]}>
+            <Form.Item name="dueDate" label={tr("Due date")} rules={[{ required: true, message: tr("Pick a due date") }]}>
               <DatePicker style={{ width: "100%" }} disabledDate={(d) => d.isBefore(new Date(), "day")} />
             </Form.Item>
           )}
-          <Form.Item name="priority" label="Priority">
+          <Form.Item name="priority" label={tr("Priority")}>
             <Radio.Group
               options={[
-                { value: "normal", label: "Normal" },
-                { value: "high", label: "High" },
-                { value: "critical", label: "Critical" },
+                { value: "normal", label: tr("Normal") },
+                { value: "high", label: tr("High") },
+                { value: "critical", label: tr("Critical") },
               ]}
             />
           </Form.Item>
-          <Form.Item name="reason" label="Why (the employee sees this)" rules={[{ required: true, whitespace: true, message: "Add a short reason" }]}>
-            <Input.TextArea rows={2} maxLength={300} showCount placeholder="e.g. Overdosing seen in the last 3 shifts" />
+          <Form.Item name="reason" label={tr("Why (the employee sees this)")} rules={[{ required: true, whitespace: true, message: tr("Add a short reason") }]}>
+            <Input.TextArea rows={2} maxLength={300} showCount placeholder={tr("e.g. Overdosing seen in the last 3 shifts")} />
           </Form.Item>
         </Form>
       )}

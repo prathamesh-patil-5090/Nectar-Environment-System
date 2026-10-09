@@ -8,6 +8,8 @@ import { getPendingEvaluations } from "@/lib/api/training";
 import { useAsync, useViewer } from "@/lib/training/hooks";
 import type { PendingEvaluation } from "@/lib/training/types";
 import EvaluatorScoringModal from "../EvaluatorScoringModal";
+import { tr, trData } from "@/lib/i18n";
+import { isManagerRole } from "@/lib/rbac";
 
 /**
  * Learners who passed the skill map and wait for an on-site practical or oral viva.
@@ -15,7 +17,7 @@ import EvaluatorScoringModal from "../EvaluatorScoringModal";
  */
 export default function EvaluationsTab() {
   const viewer = useViewer();
-  const canScore = viewer.role === "director" || viewer.role === "manager";
+  const canScore = viewer.role === "director" || isManagerRole(viewer.role);
   const { data, loading, error, reload } = useAsync(
     () => getPendingEvaluations(canScore ? viewer.personId : undefined),
     [viewer.personId, canScore],
@@ -24,34 +26,34 @@ export default function EvaluationsTab() {
 
   const columns: ColumnsType<PendingEvaluation> = [
     {
-      title: "Learner",
+      title: tr("Learner"),
       key: "who",
       render: (_, r) => (
         <div>
           <Link href={`/employees/${r.enrollment.employeeId}`} style={{ fontWeight: 600 }}>{r.employee?.name ?? r.enrollment.employeeId}</Link>
-          <div style={{ fontSize: 12, color: "#4A6375" }}>{[r.employee?.designation, r.employee?.siteName].filter(Boolean).join(" · ")}</div>
+          <div style={{ fontSize: 12, color: "#4A6375" }}>{[r.employee?.designation, r.employee?.siteName].filter(Boolean).map((x) => trData(String(x))).join(" · ")}</div>
         </div>
       ),
     },
-    { title: "Course", key: "course", render: (_, r) => (r.course ? `${r.course.code} · ${r.course.title}` : r.enrollment.courseId) },
+    { title: tr("Course"), key: "course", render: (_, r) => (r.course ? `${r.course.code} · ${r.course.title}` : r.enrollment.courseId) },
     {
-      title: "Skill map / written",
+      title: tr("Skill map / written"),
       key: "scores",
       render: (_, r) => {
         const a = r.enrollment.assessments ?? {};
-        return `${a.skillMap?.scorePct ?? "—"}% / ${a.written ? `${a.written.scorePct}%` : "not taken"}`;
+        return `${a.skillMap?.scorePct ?? "—"}% / ${a.written ? `${a.written.scorePct}%` : tr("not taken")}`;
       },
     },
     {
-      title: "Next step",
+      title: tr("Next step"),
       key: "next",
       render: (_, r) =>
         canScore ? (
           <Button type="primary" size="small" onClick={() => setScoring({ row: r, type: r.needs })}>
-            {r.needs === "practical" ? "Score practical" : "Conduct oral viva"}
+            {r.needs === "practical" ? tr("Score practical") : tr("Conduct oral viva")}
           </Button>
         ) : (
-          <Tag>{r.needs === "practical" ? "Practical pending" : "Oral pending"}</Tag>
+          <Tag>{r.needs === "practical" ? tr("Practical pending") : tr("Oral pending")}</Tag>
         ),
     },
   ];
@@ -61,9 +63,9 @@ export default function EvaluationsTab() {
       <Alert
         type="info"
         showIcon
-        title="Practical and oral evaluations are done on site. Score each ability 1–5; the certificate is issued automatically when all 4 gates pass."
+        title={tr("Practical and oral evaluations are done on site. Score each ability 1–5; the certificate is issued automatically when all 4 gates pass.")}
       />
-      {error && <Alert type="error" title={error} action={<Button onClick={reload}>Try again</Button>} />}
+      {error && <Alert type="error" title={trData(error)} action={<Button onClick={reload}>{tr("Try again")}</Button>} />}
       <Table<PendingEvaluation>
         rowKey={(r) => r.enrollment.id}
         loading={loading}
@@ -71,7 +73,7 @@ export default function EvaluationsTab() {
         dataSource={data ?? []}
         scroll={{ x: 800 }}
         pagination={{ pageSize: 15, hideOnSinglePage: true }}
-        locale={{ emptyText: <Empty description="Nobody is waiting for an evaluation" /> }}
+        locale={{ emptyText: <Empty description={tr("Nobody is waiting for an evaluation")} /> }}
       />
       {scoring?.row.course && viewer.personId && (
         <EvaluatorScoringModal

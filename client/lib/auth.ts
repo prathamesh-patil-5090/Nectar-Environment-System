@@ -1,3 +1,6 @@
+import { localizedRecord } from "@/lib/i18n/localized";
+import { loginWithServer } from "@/lib/api/auth";
+
 export const AUTH_STORAGE_KEY = "nectar-enviro-session";
 
 /**
@@ -9,6 +12,7 @@ export const AUTH_STORAGE_KEY = "nectar-enviro-session";
  * - shift_incharge: shift rotation / coverage (plant-scoped)
  * - safety_incharge: Safety section owner — incidents, clearance, protocols (on demo login)
  * - supervisor: first-line leave/absence (plant-scoped)
+ * - hod: Head of Department (Senior Manager) or deputy — E-Permit Authoriser for their department's locations
  * - employee: self-service
  * - management: legacy alias → manager
  */
@@ -21,19 +25,27 @@ export type UserRole =
   | "shift_incharge"
   | "safety_incharge"
   | "supervisor"
+  | "hod"
   | "employee";
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  director: "Director",
-  manager: "Manager",
-  management: "Management",
-  hr: "HR Manager",
-  site_incharge: "Site In-Charge",
-  shift_incharge: "Shift In-Charge",
-  safety_incharge: "Safety In-Charge",
-  supervisor: "Supervisor",
-  employee: "Employee",
-};
+const ROLE_KEYS = [
+  "director",
+  "manager",
+  "management",
+  "hr",
+  "site_incharge",
+  "shift_incharge",
+  "safety_incharge",
+  "supervisor",
+  "hod",
+  "employee",
+] as const satisfies readonly UserRole[];
+
+/** Locale-aware role labels (English / Hindi / Marathi via i18n). */
+export const ROLE_LABELS: Record<UserRole, string> = localizedRecord(
+  "roles",
+  ROLE_KEYS,
+);
 
 export type DemoUser = {
   email: string;
@@ -296,7 +308,10 @@ export const DEMO_USERS_HIDDEN: DemoUser[] = [
   },
 ];
 
-/** Accounts shown on the login page (+ Safety In-Charge, who owns the Safety section) */
+/**
+ * Local accounts shown on the login page (+ Safety In-Charge, who owns the Safety section).
+ * Heads of Department live only in the database (users collection) — see lib/api/auth.ts.
+ */
 export const DEMO_USERS_VISIBLE = [
   ...DEMO_USERS,
   ...DEMO_USERS_HIDDEN.filter((u) => u.role === "safety_incharge"),
@@ -351,19 +366,27 @@ export function getSession(): SessionUser | null {
   }
 }
 
-export function login(email: string, password: string): SessionUser | null {
-  const match = ALL_LOGIN_USERS.find(
-    (u) =>
-      u.email === email.trim().toLowerCase() && u.password === password,
-  );
-  if (!match) return null;
-  const user: SessionUser = {
-    email: match.email,
-    name: match.name,
-    role: match.role,
-    siteId: match.siteId,
-    employeeId: match.employeeId,
-  };
+/** Local demo accounts first; anyone else (Heads of Department) is checked against the database. */
+export async function login(email: string, password: string): Promise<SessionUser | null> {
+  const typed = email.trim().toLowerCase();
+  const match = ALL_LOGIN_USERS.find((u) => u.email === typed && u.password === password);
+  let user: SessionUser | null = match
+    ? { email: match.email, name: match.name, role: match.role, siteId: match.siteId, employeeId: match.employeeId }
+    : null;
+  if (!user) {
+    try {
+      const account = await loginWithServer(typed, password);
+      user = {
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        siteId: account.siteId,
+        employeeId: account.employeeId,
+      };
+    } catch {
+      return null;
+    }
+  }
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
   return user;
 }

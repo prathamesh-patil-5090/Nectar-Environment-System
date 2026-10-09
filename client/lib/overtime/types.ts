@@ -1,3 +1,5 @@
+import { localizedRecord } from "@/lib/i18n/localized";
+
 export type OtStatus =
   | "PENDING"
   | "APPROVED"
@@ -120,19 +122,19 @@ export type OtInsight = {
   siteId?: string;
 };
 
-export const OT_REASON_LABELS: Record<OtReasonCode, string> = {
-  employee_absence: "Employee Absence",
-  operational_requirement: "Operational Requirement",
-  emergency: "Emergency",
-  shift_gap: "Shift Gap",
-  plant_upset: "Plant Upset",
-  unrecorded: "Unrecorded",
-};
+export const OT_REASON_LABELS: Record<OtReasonCode, string> = localizedRecord(
+  "ot.reason",
+  [
+    "employee_absence",
+    "operational_requirement",
+    "emergency",
+    "shift_gap",
+    "plant_upset",
+    "unrecorded",
+  ] as const,
+);
 
-export const OT_STATUS_LABELS: Record<OtStatus, string> = {
-  PENDING: "Pending",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
-  PAID: "Paid",
-  CANCELLED: "Cancelled",
-};
+export const OT_STATUS_LABELS: Record<OtStatus, string> = localizedRecord(
+  "ot.status",
+  ["PENDING", "APPROVED", "REJECTED", "PAID", "CANCELLED"] as const,
+);

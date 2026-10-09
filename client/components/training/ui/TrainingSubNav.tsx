@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useIsMentor, useViewer } from "@/lib/training/hooks";
+import { useT, trData } from "@/lib/i18n";
 
 type Item = { href: string; label: string; match: (p: string) => boolean };
 
@@ -13,20 +14,35 @@ export default function TrainingSubNav() {
   const isMentor = useIsMentor(viewer.personId);
   const hasTeam = ["supervisor", "shift_incharge", "site_incharge"].includes(viewer.role);
   const inStudio = (p: string) => p === "/training/mentor" || p.startsWith("/training/mentor/");
+  const t = useT();
 
   const items: Item[] = [
     viewer.isRecords
-      ? { href: "/training", label: "Records", match: (p) => p === "/training" }
-      : { href: "/training", label: "Home", match: (p) => p === "/training" },
-    ...(viewer.isRecords ? [{ href: "/training/home", label: "My learning home", match: (p: string) => p === "/training/home" }] : []),
-    { href: "/training/explore", label: "Explore", match: (p) => p.startsWith("/training/explore") || p.startsWith("/training/course") },
-    { href: "/training/my-learning", label: "My Learning", match: (p) => p.startsWith("/training/my-learning") },
-    ...(hasTeam ? [{ href: "/training/team", label: "My Team", match: (p: string) => p.startsWith("/training/team") }] : []),
-    ...(isMentor ? [{ href: "/training/mentor", label: "Mentor Studio", match: inStudio }] : []),
+      ? { href: "/training", label: t("training.records"), match: (p) => p === "/training" }
+      : { href: "/training", label: t("training.home"), match: (p) => p === "/training" },
+    ...(viewer.isRecords
+      ? [{ href: "/training/home", label: t("training.myLearningHome"), match: (p: string) => p === "/training/home" }]
+      : []),
+    {
+      href: "/training/explore",
+      label: t("training.explore"),
+      match: (p) => p.startsWith("/training/explore") || p.startsWith("/training/course"),
+    },
+    {
+      href: "/training/my-learning",
+      label: t("training.myLearning"),
+      match: (p) => p.startsWith("/training/my-learning"),
+    },
+    ...(hasTeam
+      ? [{ href: "/training/team", label: t("training.myTeam"), match: (p: string) => p.startsWith("/training/team") }]
+      : []),
+    ...(isMentor
+      ? [{ href: "/training/mentor", label: t("training.mentorStudio"), match: inStudio }]
+      : []),
   ];
 
   return (
-    <nav aria-label="Training" className="flex gap-1.5 overflow-x-auto pb-1 -mb-1">
+    <nav aria-label={t("nav.training")} className="flex gap-1.5 overflow-x-auto pb-1 -mb-1">
       {items.map((it) => {
         const active = it.match(pathname);
         return (
@@ -40,7 +56,7 @@ export default function TrainingSubNav() {
                 : "bg-white! border-slate-200 text-slate-600! hover:border-[#1C4463] hover:text-[#1C4463]!"
             }`}
           >
-            {it.label}
+            {trData(it.label)}
           </Link>
         );
       })}

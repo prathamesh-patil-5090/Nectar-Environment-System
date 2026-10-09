@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Avatar, Tag } from "antd";
 import { ArrowRightOutlined, CheckCircleFilled, TrophyOutlined } from "@ant-design/icons";
 import type { Person } from "@/lib/training/types";
+import { tr, trData } from "@/lib/i18n";
 
 interface EventHostCardProps {
   hosts: Person[];
@@ -16,9 +17,9 @@ export default function EventHostCard({ hosts }: EventHostCardProps) {
     <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-slate-900 m-0">
-          Meet the {hosts.length > 1 ? "Hosts" : "Host"}
+          {hosts.length > 1 ? tr("Meet the Hosts") : tr("Meet the Host")}
         </h2>
-        <span className="text-xs text-slate-500 font-medium">Session Facilitator</span>
+        <span className="text-xs text-slate-500 font-medium">{tr("Session Facilitator")}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -43,17 +44,17 @@ export default function EventHostCard({ hosts }: EventHostCardProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">
-                      {host.name}
+                      {trData(host.name)}
                     </span>
                     <CheckCircleFilled className="text-emerald-600 text-xs" />
                   </div>
                   <div className="text-xs text-slate-600 font-medium mt-0.5">
-                    {host.designation || "Plant Lead"}
+                    {host.designation || tr("Plant Lead")}
                   </div>
                   {host.siteName && (
                     <div className="mt-1">
                       <Tag color="cyan" className="text-[10px] px-1.5 py-0 leading-none">
-                        {host.siteName}
+                        {trData(host.siteName)}
                       </Tag>
                     </div>
                   )}
@@ -62,19 +63,19 @@ export default function EventHostCard({ hosts }: EventHostCardProps) {
 
               {/* Bio snippet */}
               <p className="text-xs text-slate-600 mt-3 leading-relaxed line-clamp-2">
-                Certified Nectar senior engineer with deep domain expertise in process stabilization, plant troubleshooting, and equipment maintenance.
+                {tr("Certified Nectar senior engineer with deep domain expertise in process stabilization, plant troubleshooting, and equipment maintenance.")}
               </p>
 
               {/* Action link */}
               <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <TrophyOutlined /> Verified Mentor
+                  <TrophyOutlined />{" "}{tr("Verified Mentor")}
                 </span>
                 <Link
                   href={`/training/events?host=${encodeURIComponent(host.id)}`}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors"
                 >
-                  More sessions <ArrowRightOutlined className="text-[10px]" />
+                  {tr("More sessions")}{" "}<ArrowRightOutlined className="text-[10px]" />
                 </Link>
               </div>
             </div>

@@ -13,6 +13,7 @@ import type { Course, CourseEnrollment, AbilityScore } from "@/lib/training/type
 import { evaluatePractical, evaluateOral } from "@/lib/training/store";
 import { nectarColors } from "@/lib/theme";
 import type { CSSProperties } from "react";
+import { tr, trTable, trData } from "@/lib/i18n";
 
 const sWhitePadR10Border2: CSSProperties = {
   background: "#FFFFFF",
@@ -33,13 +34,13 @@ interface EvaluatorScoringModalProps {
   onSubmitted: () => void;
 }
 
-const RUBRIC_LABELS: Record<number, string> = {
+const RUBRIC_LABELS: Record<number, string> = trTable({
   1: "1 · Unsatisfactory",
   2: "2 · Below Standard",
   3: "3 · Competent (Standard)",
   4: "4 · Proficient",
   5: "5 · Exemplary",
-};
+});
 
 export default function EvaluatorScoringModal({
   enrollment,
@@ -87,7 +88,8 @@ export default function EvaluatorScoringModal({
     try {
       const res = await (isPractical ? evaluatePractical : evaluateOral)(enrollment.id, evaluatorId, scoreItems, generalNotes);
       message.success(
-        `${isPractical ? "Practical" : "Oral viva"} scored (${res.result.overallPct}%).${res.certificate ? ` Certificate ${res.certificate.certificateNo} issued.` : ""}`,
+        tr("{stage} scored ({overallPct}%).", { stage: isPractical ? tr("Practical") : tr("Oral viva"), overallPct: res.result.overallPct }) +
+            (res.certificate ? " " + tr("Certificate {certificateNo} issued.", { certificateNo: res.certificate.certificateNo }) : ""),
       );
       onSubmitted();
       onClose();
@@ -110,8 +112,8 @@ export default function EvaluatorScoringModal({
           <FileProtectOutlined style={{ color: nectarColors.leaf, fontSize: 18 }} />
           <span>
             {isPractical
-              ? "Live Practical Field Observation Rubric (1–5 Scale)"
-              : "Oral Technical Viva & Competency Interview (1–5 Scale)"}
+              ? tr("Live Practical Field Observation Rubric (1–5 Scale)")
+              : tr("Oral Technical Viva & Competency Interview (1–5 Scale)")}
           </span>
         </div>
       }
@@ -126,19 +128,19 @@ export default function EvaluatorScoringModal({
           }}
         >
           <div>
-            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>CANDIDATE OPERATOR</span>
-            <span style={{ fontWeight: 700, fontSize: 13, color: nectarColors.ink }}>{candidateName}</span>
-            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Course: {course.title}</div>
+            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("CANDIDATE OPERATOR")}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: nectarColors.ink }}>{trData(candidateName)}</span>
+            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{tr("Course: {title}", { title: trData(course.title) })}</div>
           </div>
 
           <div>
-            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>OFFICIAL EVALUATOR</span>
-            <span style={{ fontWeight: 600, color: nectarColors.ink }}>{evaluatorName}</span>
-            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>Role: Plant Operations Manager (Authorized Assessor)</div>
+            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("OFFICIAL EVALUATOR")}</span>
+            <span style={{ fontWeight: 600, color: nectarColors.ink }}>{trData(evaluatorName)}</span>
+            <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{tr("Role: Plant Operations Manager (Authorized Assessor)")}</div>
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>LIVE RESULT PREVIEW</span>
+            <span style={{ color: nectarColors.muted, display: "block", fontSize: 11 }}>{tr("LIVE RESULT PREVIEW")}</span>
             <span
               style={{
                 fontSize: 20, fontWeight: 700, color: computedPct >= 70 ? "#166534" : "#D97706",
@@ -147,7 +149,7 @@ export default function EvaluatorScoringModal({
             >
               {computedPct}%
             </span>
-            <div style={{ fontSize: 11, color: nectarColors.muted }}>{totalPoints} / {maxPossible} Points</div>
+            <div style={{ fontSize: 11, color: nectarColors.muted }}>{tr("{totalPoints} / {maxPossible} Points", { totalPoints, maxPossible })}</div>
           </div>
         </div>
 
@@ -157,16 +159,16 @@ export default function EvaluatorScoringModal({
             <div key={ab.id} style={sWhitePadR10Border2}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf }}>ABILITY {ab.code}</span>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginTop: 2 }}>{ab.title}</div>
-                  <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{ab.description}</div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: nectarColors.leaf }}>{tr("ABILITY {code}", { code: ab.code })}</span>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginTop: 2 }}>{trData(ab.title)}</div>
+                  <div style={{ fontSize: 11, color: nectarColors.muted, marginTop: 2 }}>{trData(ab.description)}</div>
                 </div>
-                <Tag color="blue" style={{ borderRadius: 8, fontSize: 11, margin: 0 }}>Rating: {scores[ab.id]}/5</Tag>
+                <Tag color="blue" style={{ borderRadius: 8, fontSize: 11, margin: 0 }}>{tr("Rating: {scores}/5", { scores: scores[ab.id] })}</Tag>
               </div>
 
               {/* 1 to 5 Radio Buttons */}
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: nectarColors.muted, marginBottom: 6 }}>{isPractical ? "Demonstrated Field Performance:" : "Technical Articulation & Understanding:"}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: nectarColors.muted, marginBottom: 6 }}>{isPractical ? tr("Demonstrated Field Performance:") : tr("Technical Articulation & Understanding:")}</div>
                 <Radio.Group
                   value={scores[ab.id]}
                   onChange={(e) =>
@@ -182,7 +184,7 @@ export default function EvaluatorScoringModal({
                       value={num}
                       style={{ borderRadius: 6, fontSize: 12, fontWeight: 600, padding: "0 12px", textAlign: "center" }}
                     >
-                      {num} {num === 3 ? "(Standard)" : num === 5 ? "(Exemplary)" : ""}
+                      {num} {num === 3 ? tr("(Standard)") : num === 5 ? tr("(Exemplary)") : ""}
                     </Radio.Button>
                   ))}
                 </Radio.Group>
@@ -194,8 +196,8 @@ export default function EvaluatorScoringModal({
                   size="small"
                   placeholder={
                     isPractical
-                      ? "Enter field observation (e.g. calibration accuracy, valve alignments, PPE adherence)..."
-                      : "Enter interview observations (e.g. clarity on shock loading, SVI diagnostics, confined space)..."
+                      ? tr("Enter field observation (e.g. calibration accuracy, valve alignments, PPE adherence)...")
+                      : tr("Enter interview observations (e.g. clarity on shock loading, SVI diagnostics, confined space)...")
                   }
                   value={remarks[ab.id] || ""}
                   onChange={(e) =>
@@ -208,16 +210,16 @@ export default function EvaluatorScoringModal({
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
                   {(isPractical
                     ? [
-                        "✓ Flawless physical lineup",
-                        "✓ Strict PPE & LOTO observed",
-                        "⚠️ Needs closer DO sparger monitoring",
-                        "⚠️ Review jar test calibration",
+                        tr("✓ Flawless physical lineup"),
+                        tr("✓ Strict PPE & LOTO observed"),
+                        tr("⚠️ Needs closer DO sparger monitoring"),
+                        tr("⚠️ Review jar test calibration"),
                       ]
                     : [
-                        "✓ Thorough protocol articulation",
-                        "✓ Clear shock load containment",
-                        "⚠️ Review 4-gas testing thresholds",
-                        "⚠️ Hesitant on clarifier bulking SVI",
+                        tr("✓ Thorough protocol articulation"),
+                        tr("✓ Clear shock load containment"),
+                        tr("⚠️ Review 4-gas testing thresholds"),
+                        tr("⚠️ Hesitant on clarifier bulking SVI"),
                       ]
                   ).map((chip) => (
                     <Tag
@@ -231,7 +233,7 @@ export default function EvaluatorScoringModal({
                         border: "1px dashed #CBD5E1", background: "#F8FAFC",
                       }}
                     >
-                      {chip}
+                      {trData(chip)}
                     </Tag>
                   ))}
                 </div>
@@ -241,10 +243,10 @@ export default function EvaluatorScoringModal({
 
           {/* General Notes */}
           <div style={sWhitePadR10Border2}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 6 }}>Overall Evaluator Concluding Remarks & Sign-off</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: nectarColors.ink, marginBottom: 6 }}>{tr("Overall Evaluator Concluding Remarks & Sign-off")}</div>
             <Input.TextArea
               rows={2}
-              placeholder="Summary observations, recommendations for ongoing shift supervision..."
+              placeholder={tr("Summary observations, recommendations for ongoing shift supervision...")}
               value={generalNotes}
               onChange={(e) => setGeneralNotes(e.target.value)}
               style={{ borderRadius: 6, fontSize: 12 }}
@@ -259,17 +261,17 @@ export default function EvaluatorScoringModal({
             borderTop: "1px solid rgba(28, 68, 99, 0.08)",
           }}
         >
-          <div style={{ fontSize: 12, color: nectarColors.muted }}>Submitting seals score into the 4-tier competency ledger.</div>
+          <div style={{ fontSize: 12, color: nectarColors.muted }}>{tr("Submitting seals score into the 4-tier competency ledger.")}</div>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={onClose}>{tr("Cancel")}</Button>
             <Button
               type="primary"
               onClick={handleSubmit}
               loading={saving}
               style={{ borderRadius: 8, fontWeight: 600, background: nectarColors.leaf }}
             >
-              Confirm & Save Assessment ({computedPct}%)
+              {tr("Confirm & Save Assessment ({computedPct}%)", { computedPct })}
             </Button>
           </div>
         </div>

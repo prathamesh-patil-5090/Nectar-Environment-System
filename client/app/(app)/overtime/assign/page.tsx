@@ -28,6 +28,7 @@ import { canAssignOt, scopedSiteId } from "@/lib/rbac";
 import { nectarColors } from "@/lib/theme";
 import { sSerifText18Mb12, sWhitePadR10 } from "@/lib/styles";
 import { openSeriousIncidentFor } from "@/lib/safety/gates";
+import { tr, trNode, trData, trCell } from "@/lib/i18n";
 
 export default function OtAssignPage() {
   const { message, modal } = App.useApp();
@@ -65,18 +66,18 @@ export default function OtAssignPage() {
   }, [siteScope, tick]);
 
   const columns: ColumnsType<OtAssignment> = [
-    { title: "Employee", dataIndex: "employeeName" },
-    { title: "Plant", dataIndex: "siteId", render: (id) => getSiteName(id) },
-    { title: "Date", dataIndex: "date" },
-    { title: "Hours", dataIndex: "hours", render: (h) => `${h}h` },
-    { title: "Reason", dataIndex: "reason" },
-    { title: "Status", dataIndex: "status", render: (s) => <Tag>{s}</Tag> },
-    { title: "Assigned by", dataIndex: "assignedBy" },
+    { title: tr("Employee"), dataIndex: "employeeName", render: trCell },
+    { title: tr("Plant"), dataIndex: "siteId", render: (id) => trData(getSiteName(id)) },
+    { title: tr("Date"), dataIndex: "date" },
+    { title: tr("Hours"), dataIndex: "hours", render: (h) => `${h}h` },
+    { title: tr("Reason"), dataIndex: "reason", render: trCell },
+    { title: tr("Status"), dataIndex: "status", render: (s) => <Tag>{trData(s)}</Tag> },
+    { title: tr("Assigned by"), dataIndex: "assignedBy", render: trCell },
   ];
 
   const onAssign = async () => {
     if (!canAssign) {
-      message.error("Only plant managers (and director) can assign OT.");
+      message.error(tr("Only plant managers (and director) can assign OT."));
       return;
     }
     const values = await form.validateFields();
@@ -84,9 +85,9 @@ export default function OtAssignPage() {
     const hold = openSeriousIncidentFor(values.employeeId);
     if (hold) {
       const ok = await modal.confirm({
-        title: "Assign OT despite open safety incident?",
-        content: `This person is involved in "${hold.title}" (${hold.severity}), which is still open. Assign only if they are fit for duty.`,
-        okText: "Assign anyway",
+        title: tr("Assign OT despite open safety incident?"),
+        content: tr("This person is involved in \"{title}\" ({severity}), which is still open. Assign only if they are fit for duty.", { title: trData(hold.title), severity: trData(hold.severity) }),
+        okText: tr("Assign anyway"),
         okButtonProps: { danger: true },
       });
       if (!ok) return;
@@ -102,11 +103,11 @@ export default function OtAssignPage() {
         assignedByEmployeeId: session?.employeeId,
         notes: values.notes,
       });
-      message.success("OT assigned — employee notified.");
+      message.success(tr("OT assigned — employee notified."));
       form.resetFields();
       setTick((t) => t + 1);
     } catch {
-      message.error("Could not assign OT");
+      message.error(tr("Could not assign OT"));
     }
   };
 
@@ -114,22 +115,21 @@ export default function OtAssignPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ margin: 0, color: nectarColors.muted, fontSize: 14 }}>
         {siteScope
-          ? `Assign and notify OT for ${getSiteName(siteScope)} staff.`
-          : "Assign and notify OT across plants (director)."}{" "}
-        Gap-driven OT: prefer{" "}
-        <Link href="/overtime/decisions">OT Decisions</Link>.
+          ? tr("Assign and notify OT for {siteName} staff.", { siteName: trData(getSiteName(siteScope)) })
+          : tr("Assign and notify OT across plants (director).")}{" "}
+        {trNode("Gap-driven OT: prefer {link}.", { link: <Link href="/overtime/decisions">{tr("OT Decisions")}</Link> })}
       </p>
 
       {approvedSuggestions.length > 0 ? (
         <Alert
           type="info"
           showIcon
-          message="Approved OT decisions with assignees"
+          message={tr("Approved OT decisions with assignees")}
           description={
             <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
               {approvedSuggestions.slice(0, 5).map((d) => (
                 <li key={d.id}>
-                  {d.chosenEmployeeName} · {d.date} · {d.hours}h · {d.title}{" "}
+                  {trData(d.chosenEmployeeName)} · {d.date} · {d.hours}h · {trData(d.title)}{" "}
                   <Button
                     type="link"
                     size="small"
@@ -142,7 +142,7 @@ export default function OtAssignPage() {
                       });
                     }}
                   >
-                    Prefill
+                    {tr("Prefill")}
                   </Button>
                 </li>
               ))}
@@ -153,13 +153,13 @@ export default function OtAssignPage() {
 
       {canAssign ? (
         <div style={sWhitePadR10}>
-          <div style={sSerifText18Mb12}>Assign OT</div>
+          <div style={sSerifText18Mb12}>{tr("Assign OT")}</div>
           <Form form={form} layout="vertical" style={{ maxWidth: 520 }} initialValues={{ hours: 4, date: dayjs() }}>
-            <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
+            <Form.Item name="employeeId" label={tr("Employee")} rules={[{ required: true }]}>
               <Select
                 showSearch
                 optionFilterProp="label"
-                options={plantEmployees.map((e) => ({ value: e.id, label: `${e.name} · ${e.role}` }))}
+                options={plantEmployees.map((e) => ({ value: e.id, label: `${trData(e.name)} · ${trData(e.role)}` }))}
               />
             </Form.Item>
             {safetyHold ? (
@@ -167,20 +167,19 @@ export default function OtAssignPage() {
                 type="warning"
                 showIcon
                 style={{ marginBottom: 16 }}
-                title={<>Open safety incident: <Link href={`/safety/incidents/${safetyHold.id}`}>{safetyHold.title}</Link> — confirm they are fit before assigning OT.</>}
+                title={trNode("Open safety incident: {link} — confirm they are fit before assigning OT.", { link: <Link href={`/safety/incidents/${safetyHold.id}`}>{trData(safetyHold.title)}</Link> })}
               />
             ) : null}
-            <Form.Item name="date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: "100%" }} /></Form.Item>
-            <Form.Item name="hours" label="Hours" rules={[{ required: true }]}><InputNumber min={1} max={12} style={{ width: "100%" }} /></Form.Item>
-            <Form.Item name="reason" label="Reason" rules={[{ required: true }]}><Input.TextArea rows={2} /></Form.Item>
-            <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} placeholder="Optional instructions" /></Form.Item>
-            <Button type="primary" onClick={onAssign}>Assign & notify</Button>
+            <Form.Item name="date" label={tr("Date")} rules={[{ required: true }]}><DatePicker style={{ width: "100%" }} /></Form.Item>
+            <Form.Item name="hours" label={tr("Hours")} rules={[{ required: true }]}><InputNumber min={1} max={12} style={{ width: "100%" }} /></Form.Item>
+            <Form.Item name="reason" label={tr("Reason")} rules={[{ required: true }]}><Input.TextArea rows={2} /></Form.Item>
+            <Form.Item name="notes" label={tr("Notes")}><Input.TextArea rows={2} placeholder={tr("Optional instructions")} /></Form.Item>
+            <Button type="primary" onClick={onAssign}>{tr("Assign & notify")}</Button>
           </Form>
         </div>
       ) : (
         <p style={{ color: nectarColors.muted }}>
-          View-only: OT assignments for your plant. Managers assign OT from this
-          screen.
+          {tr("View-only: OT assignments for your plant. Managers assign OT from this screen.")}
         </p>
       )}
 
